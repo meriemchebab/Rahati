@@ -1,0 +1,73 @@
+"""API routes for the rahati app.
+
+Paths (no trailing slash) are the contract the test-suite in tests.py drives.
+
+Order matters: the professional routes (/pro/...) are declared before the
+patient routes (/pro/patients/<int:user_id>/...) so nothing shadows anything.
+"""
+from django.urls import path
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+    TokenVerifyView,
+)
+
+from . import views
+
+app_name = "rahati"
+
+urlpatterns = [
+    # ----- auth and account -----
+    path("auth/register", views.RegisterView.as_view(), name="register"),
+    path("auth/login", TokenObtainPairView.as_view(), name="login"),
+    path("auth/refresh", TokenRefreshView.as_view(), name="token-refresh"),
+    path("auth/verify", TokenVerifyView.as_view(), name="token-verify"),
+    path("me", views.MeView.as_view(), name="me"),
+    # ----- tracking -----
+    path("check-ins", views.CheckInView.as_view(), name="check-ins"),
+    path("cycle-starts", views.CycleStartView.as_view(), name="cycle-starts"),
+    path("journal", views.JournalView.as_view(), name="journal"),
+    path("patterns", views.PatternsView.as_view(), name="patterns"),
+    # ----- content and to-dos -----
+    path("content-cards", views.ContentCardsView.as_view(), name="content-cards"),
+    path("todos", views.TodoView.as_view(), name="todos"),
+    path("todos/<int:pk>/complete", views.TodoCompleteView.as_view(), name="todo-complete"),
+    # ----- care: user side -----
+    path("professionals", views.ProfessionalListView.as_view(), name="professionals"),
+    path(
+        "professionals/<int:pro_id>/slots",
+        views.FreeSlotsView.as_view(),
+        name="professional-slots",
+    ),
+    path("sessions", views.SessionView.as_view(), name="sessions"),
+    path("sessions/<int:pk>", views.SessionUpdateView.as_view(), name="session-update"),
+    path("consents", views.ConsentView.as_view(), name="consents"),
+    # ----- care: professional side -----
+    path("pro/slots", views.ProSlotsView.as_view(), name="pro-slots"),
+    path("pro/patients", views.PatientListView.as_view(), name="pro-patients"),
+    path(
+        "pro/patients/<int:user_id>/todos",
+        views.PatientTodoView.as_view(),
+        name="pro-patient-todos",
+    ),
+    path(
+        "pro/patients/<int:user_id>/check-ins",
+        views.PatientCheckIns.as_view(),
+        name="pro-patient-check-ins",
+    ),
+    path(
+        "pro/patients/<int:user_id>/journal",
+        views.PatientJournal.as_view(),
+        name="pro-patient-journal",
+    ),
+    path(
+        "pro/patients/<int:user_id>/cycle",
+        views.PatientCycle.as_view(),
+        name="pro-patient-cycle",
+    ),
+    path(
+        "pro/sessions/<int:pk>/note",
+        views.SessionNoteView.as_view(),
+        name="pro-session-note",
+    ),
+]
