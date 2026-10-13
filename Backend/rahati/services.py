@@ -3,6 +3,9 @@
 Gate 3 (consent gate): a professional reads a patient's data only with an
 accepted/completed session AND a non-revoked consent for that category.
 """
+from django.db.models import Count, Q
+from django.utils import timezone
+
 from .models import AuditLog, Session, SharingConsent
 
 # Statuses that establish a real care relationship between a woman and a
@@ -33,3 +36,47 @@ def audit(actor, action, target_type, target_id):
     AuditLog.objects.create(
         actor=actor, action=action, target_type=target_type, target_id=target_id
     )
+
+
+def todo_status(todo, today=None):
+    """Return the public status derived from completion and due date."""
+    if todo.done_at is not None:
+        return "done"
+    today = today or timezone.localdate()
+    if todo.due_date is not None and todo.due_date < today:
+        return "overdue"
+    return "open"
+
+
+def todo_status_query(status, today=None):
+    """Build the queryset condition for a derived to-do status."""
+    today = today or timezone.localdate()
+    if status == "done":
+        return Q(done_at__isnull=False)
+    if status == "overdue":
+        return Q(done_at__isnull=True, due_date__lt=today)
+    return Q(done_at__isnull=True) & (Q(due_date__isnull=True) | Q(due_date__gte=today))
+
+
+def card_action_text(card, language):
+    """Return a card's action in the requested language, then any available language."""
+    translation = card.translations.filter(language=language).first()
+    if translation is None:
+        translation = card.translations.order_by("language", "pk").first()
+    return translation.action_text if translation else None
+
+
+def professional_todo_summary(queryset, today=None):
+    """Count assigned, done, open, and overdue to-dos for a progress response."""
+    today = today or timezone.localdate()
+    totals = queryset.aggregate(
+        assigned=Count("id"),
+        done=Count("id", filter=Q(done_at__isnull=False)),
+        open=Count(
+            "id",
+            filter=Q(done_at__isnull=True)
+            & (Q(due_date__isnull=True) | Q(due_date__gte=today)),
+        ),
+        overdue=Count("id", filter=Q(done_at__isnull=True, due_date__lt=today)),
+    )
+    return totals

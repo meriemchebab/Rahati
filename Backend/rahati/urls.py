@@ -30,8 +30,15 @@ urlpatterns = [
     path("patterns", views.PatternsView.as_view(), name="patterns"),
     # ----- content and to-dos -----
     path("content-cards", views.ContentCardsView.as_view(), name="content-cards"),
+    path(
+        "content-cards/<int:card_id>/add-todo",
+        views.AddCardTodoView.as_view(),
+        name="content-card-add-todo",
+    ),
     path("todos", views.TodoView.as_view(), name="todos"),
+    path("todos/<int:pk>", views.TodoDetailView.as_view(), name="todo-detail"),
     path("todos/<int:pk>/complete", views.TodoCompleteView.as_view(), name="todo-complete"),
+    path("todos/<int:pk>/reopen", views.TodoReopenView.as_view(), name="todo-reopen"),
     # ----- care: user side -----
     path("professionals", views.ProfessionalListView.as_view(), name="professionals"),
     path(
@@ -49,6 +56,16 @@ urlpatterns = [
         "pro/patients/<int:user_id>/todos",
         views.PatientTodoView.as_view(),
         name="pro-patient-todos",
+    ),
+    path(
+        "pro/patients/<int:user_id>/content",
+        views.PatientContentTodoView.as_view(),
+        name="pro-patient-content-todo",
+    ),
+    path(
+        "pro/patients/<int:user_id>/todos/<int:pk>",
+        views.PatientTodoDetailView.as_view(),
+        name="pro-patient-todo-detail",
     ),
     path(
         "pro/patients/<int:user_id>/check-ins",

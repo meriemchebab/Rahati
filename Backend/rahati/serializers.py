@@ -2,7 +2,8 @@
 from django.utils import timezone
 from rest_framework import serializers
 
-from .models import AvailabilitySlot, CheckIn, JournalEntry, Session, Todo, User
+from .models import AvailabilitySlot, CheckIn, ContentCard, JournalEntry, Session, Todo, User
+from .services import todo_status
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -55,10 +56,55 @@ class JournalSerializer(serializers.ModelSerializer):
 
 
 class TodoSerializer(serializers.ModelSerializer):
+    source = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    assigned_by_name = serializers.SerializerMethodField()
+
     class Meta:
         model = Todo
-        fields = ["id", "title", "card", "assigned_by", "due_date", "done_at", "created_at"]
-        read_only_fields = ["assigned_by", "done_at", "created_at"]
+        fields = [
+            "id", "title", "card", "assigned_by", "due_date", "done_at",
+            "created_at", "source", "status", "assigned_by_name",
+        ]
+        read_only_fields = [
+            "card", "assigned_by", "done_at", "created_at", "source", "status",
+            "assigned_by_name",
+        ]
+
+    def validate_due_date(self, value):
+        if value is not None and value < timezone.localdate():
+            raise serializers.ValidationError("A to-do cannot be due in the past.")
+        return value
+
+    def get_source(self, obj):
+        if obj.assigned_by_id is not None:
+            return "professional"
+        if obj.card_id is not None:
+            return "card"
+        return "self"
+
+    def get_status(self, obj):
+        return todo_status(obj)
+
+    def get_assigned_by_name(self, obj):
+        if obj.assigned_by_id is None:
+            return None
+        profile = getattr(obj.assigned_by, "professional_profile", None)
+        return profile.display_name if profile else None
+
+
+class CardTodoSerializer(serializers.Serializer):
+    """Validate a professional's published-card recommendation request."""
+
+    card = serializers.PrimaryKeyRelatedField(
+        queryset=ContentCard.objects.filter(status=ContentCard.Status.PUBLISHED)
+    )
+    due_date = serializers.DateField(required=False, allow_null=True)
+
+    def validate_due_date(self, value):
+        if value is not None and value < timezone.localdate():
+            raise serializers.ValidationError("A to-do cannot be due in the past.")
+        return value
 
 
 class SessionSerializer(serializers.ModelSerializer):
@@ -77,7 +123,34 @@ class SlotSerializer(serializers.ModelSerializer):
         model = AvailabilitySlot
         fields = ["id", "starts_at", "ends_at", "mode"]
 
+    def _professional(self):
+        """The slot's owner, during create or update."""
+        if self.instance is not None:
+            return self.instance.professional
+        request = self.context.get("request")
+        return getattr(request, "user", None) if request else None
+
+    def validate_starts_at(self, value):
+        if value <= timezone.now():
+            raise serializers.ValidationError("A slot cannot start in the past.")
+        return value
+
     def validate(self, data):
-        if data["ends_at"] <= data["starts_at"]:
+        starts_at = data.get("starts_at", getattr(self.instance, "starts_at", None))
+        ends_at = data.get("ends_at", getattr(self.instance, "ends_at", None))
+        if starts_at and ends_at and ends_at <= starts_at:
             raise serializers.ValidationError("A slot must end after it starts.")
+
+        professional = self._professional()
+        if professional and starts_at and ends_at:
+            # Half-open comparison: a slot ending exactly when another begins is fine.
+            overlapping = AvailabilitySlot.objects.filter(
+                professional=professional,
+                starts_at__lt=ends_at,
+                ends_at__gt=starts_at,
+            )
+            if self.instance is not None:
+                overlapping = overlapping.exclude(pk=self.instance.pk)
+            if overlapping.exists():
+                raise serializers.ValidationError("This slot overlaps one you already published.")
         return data

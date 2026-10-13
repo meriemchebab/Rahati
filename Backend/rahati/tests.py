@@ -345,6 +345,51 @@ class BookingTests(BaseCase):
         self.assertEqual(api(self.pro).post("/api/pro/slots", ok, format="json").status_code, 201)
         self.assertEqual(api(self.pro).post("/api/pro/slots", bad, format="json").status_code, 400)
 
+    def test_a_slot_cannot_be_published_in_the_past(self):
+        start = timezone.now() - timedelta(days=3)
+        res = api(self.pro).post(
+            "/api/pro/slots",
+            {"starts_at": start.isoformat(), "ends_at": (start + timedelta(hours=1)).isoformat(), "mode": "online"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(AvailabilitySlot.objects.count(), 1)  # only the fixture slot
+
+    def test_overlapping_slots_are_refused_but_back_to_back_is_fine(self):
+        client = api(self.pro)
+        start = timezone.now() + timedelta(days=10)
+        first = {"starts_at": start.isoformat(), "ends_at": (start + timedelta(hours=1)).isoformat(), "mode": "online"}
+        self.assertEqual(client.post("/api/pro/slots", first, format="json").status_code, 201)
+
+        identical = client.post("/api/pro/slots", first, format="json")
+        self.assertEqual(identical.status_code, 400)
+
+        # Partial overlap: starts inside the first slot.
+        partial = {**first, "starts_at": (start + timedelta(minutes=30)).isoformat()}
+        self.assertEqual(client.post("/api/pro/slots", partial, format="json").status_code, 400)
+
+        # Ends inside the first slot.
+        straddling = {**first, "ends_at": (start + timedelta(minutes=90)).isoformat(),
+                      "starts_at": (start - timedelta(minutes=30)).isoformat()}
+        self.assertEqual(client.post("/api/pro/slots", straddling, format="json").status_code, 400)
+
+        # Back-to-back: ends exactly when the next begins -> allowed.
+        back_to_back = {**first, "starts_at": (start + timedelta(hours=1)).isoformat(),
+                        "ends_at": (start + timedelta(hours=2)).isoformat()}
+        self.assertEqual(client.post("/api/pro/slots", back_to_back, format="json").status_code, 201)
+
+        self.assertEqual(AvailabilitySlot.objects.filter(professional=self.pro).count(), 3)
+
+    def test_overlap_check_is_scoped_to_one_professional(self):
+        other = make_professional("dr_other")
+        start = timezone.now() + timedelta(days=11)
+        body = {"starts_at": start.isoformat(), "ends_at": (start + timedelta(hours=1)).isoformat(), "mode": "online"}
+        self.assertEqual(api(self.pro).post("/api/pro/slots", body, format="json").status_code, 201)
+        # Same window, a different verified professional: not a conflict.
+        self.assertEqual(api(other).post("/api/pro/slots", body, format="json").status_code, 201)
+        # But the same professional repeating it is.
+        self.assertEqual(api(self.pro).post("/api/pro/slots", body, format="json").status_code, 400)
+
     def test_unverified_professional_cannot_publish_slots(self):
         start = timezone.now() + timedelta(days=3)
         body = {"starts_at": start.isoformat(), "ends_at": (start + timedelta(hours=1)).isoformat(), "mode": "online"}
@@ -462,6 +507,11 @@ class ProfessionalToolsTests(BaseCase):
     def test_cannot_assign_todos_without_an_accepted_session(self):
         res = api(self.pro).post(f"/api/pro/patients/{self.nour.id}/todos", {"title": "x"}, format="json")
         self.assertEqual(res.status_code, 403)
+        self.assertEqual(api(self.pro).get(f"/api/pro/patients/{self.nour.id}/todos").status_code, 403)
+        todo = Todo.objects.create(user=self.nour, title="Existing", assigned_by=self.pro)
+        base = f"/api/pro/patients/{self.nour.id}/todos/{todo.id}"
+        self.assertEqual(api(self.pro).patch(base, {"title": "x"}, format="json").status_code, 403)
+        self.assertEqual(api(self.pro).delete(base).status_code, 403)
 
     def test_session_note_is_encrypted_and_private_to_its_professional(self):
         session_id = self.accepted_session()
@@ -515,3 +565,164 @@ class ProfessionalToolsTests(BaseCase):
         self.assertEqual(api(self.pro).put(
             f"/api/pro/sessions/{session_id}/note", {"body": "again"}, format="json"
         ).status_code, 403)
+
+
+# --------------------------------------------------------------------------
+# Complete to-do workflow
+# --------------------------------------------------------------------------
+class TodoWorkflowTests(BaseCase):
+    def make_card(self, status="published", ar_action="خطوة يومية", fr_action="Une action"):
+        card = ContentCard.objects.create(status=status)
+        ContentCardTranslation.objects.create(
+            card=card, language="ar", title="Arabic", body="Body", action_text=ar_action
+        )
+        ContentCardTranslation.objects.create(
+            card=card, language="fr", title="Français", body="Texte", action_text=fr_action
+        )
+        return card
+
+    def test_woman_can_edit_and_delete_her_own_todos_only(self):
+        client = api(self.nour)
+        own = Todo.objects.create(user=self.nour, title="Original")
+        self.assertEqual(client.patch(f"/api/todos/{own.id}", {"title": "Changed"}, format="json").status_code, 200)
+        self.assertEqual(client.delete(f"/api/todos/{own.id}").status_code, 204)
+
+        assigned = Todo.objects.create(user=self.nour, title="Assigned", assigned_by=self.pro)
+        self.assertEqual(client.patch(f"/api/todos/{assigned.id}", {"title": "No"}, format="json").status_code, 403)
+        self.assertEqual(client.delete(f"/api/todos/{assigned.id}").status_code, 403)
+
+        theirs = Todo.objects.create(user=self.lina, title="Private")
+        self.assertEqual(client.patch(f"/api/todos/{theirs.id}", {"title": "No"}, format="json").status_code, 404)
+        self.assertEqual(client.delete(f"/api/todos/{theirs.id}").status_code, 404)
+
+    def test_complete_and_reopen_work_for_professional_assignments(self):
+        todo = Todo.objects.create(user=self.nour, title="Assigned", assigned_by=self.pro)
+        client = api(self.nour)
+        completed = client.post(f"/api/todos/{todo.id}/complete")
+        self.assertEqual(completed.status_code, 200)
+        self.assertEqual(completed.data["status"], "done")
+        reopened = client.post(f"/api/todos/{todo.id}/reopen")
+        self.assertEqual(reopened.status_code, 200)
+        self.assertIsNone(reopened.data["done_at"])
+        self.assertEqual(reopened.data["source"], "professional")
+
+    def test_card_action_uses_language_and_add_is_idempotent(self):
+        card = self.make_card()
+        client = api(self.nour)
+        first = client.post(f"/api/content-cards/{card.id}/add-todo")
+        second = client.post(f"/api/content-cards/{card.id}/add-todo")
+        self.assertEqual(first.status_code, 201)
+        self.assertEqual(first.data["title"], "خطوة يومية")
+        self.assertEqual(first.data["source"], "card")
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(first.data["id"], second.data["id"])
+        french = make_user("amel", language="fr")
+        translated = api(french).post(f"/api/content-cards/{card.id}/add-todo")
+        self.assertEqual(translated.data["title"], "Une action")
+
+    def test_card_action_rejects_drafts_and_falls_back_to_available_translation(self):
+        draft = self.make_card(status="draft")
+        self.assertEqual(api(self.nour).post(f"/api/content-cards/{draft.id}/add-todo").status_code, 404)
+        card = ContentCard.objects.create(status="published")
+        ContentCardTranslation.objects.create(
+            card=card, language="fr", title="Titre", body="Corps", action_text="Fallback action"
+        )
+        result = api(self.nour).post(f"/api/content-cards/{card.id}/add-todo")
+        self.assertEqual(result.status_code, 201)
+        self.assertEqual(result.data["title"], "Fallback action")
+
+    def test_past_due_dates_are_rejected(self):
+        yesterday = self.today - timedelta(days=1)
+        self.assertEqual(
+            api(self.nour).post("/api/todos", {"title": "Past", "due_date": yesterday}, format="json").status_code,
+            400,
+        )
+        self.accepted_session()
+        self.assertEqual(
+            api(self.pro).post(
+                f"/api/pro/patients/{self.nour.id}/todos",
+                {"title": "Past", "due_date": yesterday}, format="json",
+            ).status_code,
+            400,
+        )
+
+    def test_professional_can_assign_text_and_card_actions_visible_with_source(self):
+        self.accepted_session()
+        client = api(self.pro)
+        manual = client.post(
+            f"/api/pro/patients/{self.nour.id}/todos", {"title": "Take a break"}, format="json"
+        )
+        card = self.make_card()
+        recommended = client.post(
+            f"/api/pro/patients/{self.nour.id}/content", {"card": card.id}, format="json"
+        )
+        self.assertEqual(manual.status_code, 201)
+        self.assertEqual(recommended.status_code, 201)
+        self.assertEqual(recommended.data["title"], "خطوة يومية")
+        todos = api(self.nour).get("/api/todos").data
+        by_title = {todo["title"]: todo for todo in todos}
+        self.assertEqual(by_title["Take a break"]["source"], "professional")
+        self.assertEqual(by_title["Take a break"]["assigned_by_name"], "Dr_Sara")
+        self.assertEqual(by_title["خطوة يومية"]["source"], "professional")
+        self.assertEqual(by_title["خطوة يومية"]["assigned_by"], self.pro.id)
+        repeated = client.post(
+            f"/api/pro/patients/{self.nour.id}/content", {"card": card.id}, format="json"
+        )
+        self.assertEqual(repeated.status_code, 200)
+        self.assertEqual(repeated.data["id"], recommended.data["id"])
+        draft = self.make_card(status="draft")
+        self.assertEqual(client.post(
+            f"/api/pro/patients/{self.nour.id}/content", {"card": draft.id}, format="json"
+        ).status_code, 400)
+
+    def test_progress_contains_only_this_professionals_todos_and_correct_counts(self):
+        self.accepted_session()
+        Todo.objects.create(user=self.nour, title="Open", assigned_by=self.pro)
+        Todo.objects.create(user=self.nour, title="Done", assigned_by=self.pro, done_at=timezone.now())
+        Todo.objects.create(user=self.nour, title="Late", assigned_by=self.pro, due_date=self.today - timedelta(days=1))
+        Todo.objects.create(user=self.nour, title="Private self task")
+        other = make_professional("dr_other")
+        Todo.objects.create(user=self.nour, title="Other pro task", assigned_by=other)
+
+        result = api(self.pro).get(f"/api/pro/patients/{self.nour.id}/todos")
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.data["summary"], {"assigned": 3, "done": 1, "open": 1, "overdue": 1})
+        self.assertEqual({item["title"] for item in result.data["items"]}, {"Open", "Done", "Late"})
+        self.assertEqual({item["source"] for item in result.data["items"]}, {"professional"})
+
+    def test_patient_list_counts_only_assignments_from_this_professional(self):
+        self.accepted_session()
+        Todo.objects.create(user=self.nour, title="Open", assigned_by=self.pro)
+        Todo.objects.create(user=self.nour, title="Done", assigned_by=self.pro, done_at=timezone.now())
+        Todo.objects.create(user=self.nour, title="Late", assigned_by=self.pro, due_date=self.today - timedelta(days=1))
+        Todo.objects.create(user=self.nour, title="Private")
+        other = make_professional("dr_other")
+        Todo.objects.create(user=self.nour, title="Other", assigned_by=other)
+        patients = api(self.pro).get("/api/pro/patients").data
+        self.assertEqual(patients[0]["todos"], {"open": 1, "done": 1, "overdue": 1})
+
+    def test_professional_todo_mutations_require_relationship_and_ownership(self):
+        session_id = self.accepted_session()
+        own = Todo.objects.create(user=self.nour, title="Assigned", assigned_by=self.pro)
+        done = Todo.objects.create(user=self.nour, title="Done", assigned_by=self.pro, done_at=timezone.now())
+        other_pro = make_professional("dr_other")
+        theirs = Todo.objects.create(user=self.nour, title="Other pro", assigned_by=other_pro)
+        client = api(self.pro)
+        base = f"/api/pro/patients/{self.nour.id}/todos"
+        self.assertEqual(client.patch(f"{base}/{own.id}", {"title": "Updated"}, format="json").status_code, 200)
+        self.assertEqual(client.patch(f"{base}/{done.id}", {"title": "No"}, format="json").status_code, 409)
+        self.assertEqual(client.delete(f"{base}/{done.id}").status_code, 409)
+        self.assertEqual(client.patch(f"{base}/{theirs.id}", {"title": "No"}, format="json").status_code, 404)
+        self.assertEqual(client.delete(f"{base}/{theirs.id}").status_code, 404)
+        self.assertEqual(client.delete(f"{base}/{own.id}").status_code, 204)
+
+        api(self.pro).patch(f"/api/sessions/{session_id}", {"status": "cancelled"}, format="json")
+        self.assertEqual(client.get(base).status_code, 403)
+        self.assertEqual(client.post(base, {"title": "Blocked"}, format="json").status_code, 403)
+        self.assertEqual(client.patch(f"{base}/{done.id}", {"title": "No"}, format="json").status_code, 403)
+        self.assertEqual(client.delete(f"{base}/{done.id}").status_code, 403)
+
+    def test_role_boundaries_for_todo_endpoints(self):
+        self.assertEqual(api(self.nour).get(f"/api/pro/patients/{self.nour.id}/todos").status_code, 403)
+        self.assertEqual(api(self.nour).post(f"/api/pro/patients/{self.nour.id}/todos", {"title": "x"}, format="json").status_code, 403)
+        self.assertEqual(api(self.pro).get("/api/todos").status_code, 403)
