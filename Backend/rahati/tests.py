@@ -248,12 +248,14 @@ class ContentTests(BaseCase):
             user=self.nour, pattern_type=dip,
             window_start=self.today - timedelta(days=3), window_end=self.today, value=1,
         )
-        self.make_card(pattern=dip)                      # matches her pattern
-        self.make_card(pattern=None)                     # general card, shown to everyone
-        self.make_card(pattern=other)                    # a pattern she did not show
-        self.make_card(pattern=dip, status="draft")      # not published yet
+        self.make_card(pattern=dip)                      # matches her pattern -> shown
+        self.make_card(pattern=None)                     # general card, suppressed when pattern cards exist
+        self.make_card(pattern=other)                    # a pattern she did not show -> excluded
+        self.make_card(pattern=dip, status="draft")      # not published yet -> excluded
         cards = api(self.nour).get("/api/content-cards").data
-        self.assertEqual(len(cards), 2)
+        # New behaviour (section 3e): general cards only shown when no pattern cards match.
+        # Here one pattern card matches, so general card is suppressed: expect 1 card.
+        self.assertEqual(len(cards), 1)
         self.assertTrue(all(c["title"] == "AR title" for c in cards))
 
     def test_cards_come_in_the_users_language(self):
@@ -263,7 +265,8 @@ class ContentTests(BaseCase):
 
     def test_card_shows_the_professional_who_reviewed_it(self):
         self.make_card(pattern=None, reviewed_by=self.pro)
-        self.assertEqual(api(self.nour).get("/api/content-cards").data[0]["reviewed_by"], "Dr_Sara")
+        # Key is now reviewed_by_name (spec section 3, item shape)
+        self.assertEqual(api(self.nour).get("/api/content-cards").data[0]["reviewed_by_name"], "Dr_Sara")
 
     def test_todo_create_and_complete(self):
         client = api(self.nour)
@@ -671,9 +674,11 @@ class TodoWorkflowTests(BaseCase):
         self.assertEqual(repeated.status_code, 200)
         self.assertEqual(repeated.data["id"], recommended.data["id"])
         draft = self.make_card(status="draft")
+        # New behaviour: professional cards (including drafts) that don't pass the scope
+        # check (own card OR platform card AND published) return 404, not 400.
         self.assertEqual(client.post(
             f"/api/pro/patients/{self.nour.id}/content", {"card": draft.id}, format="json"
-        ).status_code, 400)
+        ).status_code, 404)
 
     def test_progress_contains_only_this_professionals_todos_and_correct_counts(self):
         self.accepted_session()

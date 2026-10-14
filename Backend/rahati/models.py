@@ -205,6 +205,8 @@ class ContentCard(models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft"
         PUBLISHED = "published"
+        ARCHIVED = "archived"   # retired by author; still readable by assigned patients
+        REMOVED = "removed"     # admin takedown; readable by nobody except the author
 
     # null pattern_type = general or onboarding card, shown to everyone
     pattern_type = models.ForeignKey(
@@ -213,7 +215,47 @@ class ContentCard(models.Model):
     reviewed_by = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL, related_name="reviewed_cards"
     )
+    # null author = platform card; professional FK means the card belongs to that professional
+    author = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.CASCADE, related_name="authored_cards"
+    )
+    # Stable identity for the six starter platform cards; many NULLs allowed
+    starter_key = models.CharField(max_length=80, unique=True, null=True, blank=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def validate_publishable(self):
+        """Return a list of human-readable problems (empty = publishable)."""
+        MARKER = "[DRAFT - NOT REVIEWED]"
+        problems = []
+        translations = list(self.translations.all())
+        if not translations:
+            problems.append("No translations.")
+            return problems
+        langs = {t.language for t in translations}
+        if self.author is None:
+            # Platform card: must have both ar and fr
+            for lang in ("ar", "fr"):
+                if lang not in langs:
+                    problems.append(f"Platform card missing '{lang}' translation.")
+        for t in translations:
+            for field, value in (
+                ("title", t.title),
+                ("body", t.body),
+                ("action_text", t.action_text),
+                ("support_note", t.support_note),
+            ):
+                if not value or not value.strip():
+                    problems.append(f"Translation '{t.language}' has empty {field}.")
+                elif MARKER in value:
+                    problems.append(f"Translation '{t.language}' {field} contains draft marker.")
+        return problems
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.author is not None and self.author.role != User.Role.PROFESSIONAL:
+            raise ValidationError({"author": "Card author must have role 'professional'."})
 
 
 class ContentCardTranslation(models.Model):
@@ -222,6 +264,8 @@ class ContentCardTranslation(models.Model):
     title = models.CharField(max_length=200)
     body = models.TextField()
     action_text = models.CharField(max_length=255)
+    # "When to reach out for support" — required before publishing
+    support_note = models.TextField(blank=True)
 
     class Meta:
         constraints = [

@@ -173,6 +173,15 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.ScopedRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        # Content endpoints: read-heavy but still rate-limited to deter scraping.
+        "content_read": "600/hour",
+        # Write operations (create, patch, delete, assign) — tighter limit.
+        "content_write": "60/hour",
+    },
 }
 
 SIMPLE_JWT = {
@@ -197,3 +206,18 @@ AUTH_USER_MODEL = "rahati.User"
 
 # Fernet key used to encrypt journal entries and session notes at rest.
 FIELD_ENCRYPTION_KEY = env("FIELD_ENCRYPTION_KEY", required=True)
+
+
+# --------------------------------------------------------------------------
+# Cache (used by ScopedRateThrottle; LocMemCache is fine in dev/test)
+# --------------------------------------------------------------------------
+
+CACHES = {
+    "default": {
+        "BACKEND": env(
+            "CACHE_BACKEND",
+            "django.core.cache.backends.locmem.LocMemCache",
+        ),
+        "LOCATION": env("CACHE_LOCATION", "rahati-default"),
+    }
+}

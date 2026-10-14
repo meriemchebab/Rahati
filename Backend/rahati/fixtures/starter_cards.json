@@ -1,0 +1,110 @@
+[
+  {
+    "starter_key": "mood_dip_intro",
+    "pattern": "mood_dip",
+    "translations": {
+      "ar": {
+        "title": "[DRAFT - NOT REVIEWED] فهم تقلبات المزاج",
+        "body": "[DRAFT - NOT REVIEWED] هذا نص تجريبي لم تتم مراجعته بعد. سيتم استبداله بمحتوى مراجَع من قِبَل متخصص.",
+        "action_text": "[DRAFT - NOT REVIEWED] اكتبي شيئًا تشعرين به الآن",
+        "support_note": "[DRAFT - NOT REVIEWED] إذا استمرت مشاعر الحزن أكثر من أسبوعين، تواصلي مع متخصص."
+      },
+      "fr": {
+        "title": "[DRAFT - NOT REVIEWED] Comprendre les baisses d'humeur",
+        "body": "[DRAFT - NOT REVIEWED] Texte provisoire non relu. Il sera remplacé par un contenu validé par une professionnelle.",
+        "action_text": "[DRAFT - NOT REVIEWED] Notez ce que vous ressentez maintenant",
+        "support_note": "[DRAFT - NOT REVIEWED] Si la tristesse dure plus de deux semaines, consultez une professionnelle."
+      }
+    }
+  },
+  {
+    "starter_key": "low_energy_streak_intro",
+    "pattern": "low_energy_streak",
+    "translations": {
+      "ar": {
+        "title": "[DRAFT - NOT REVIEWED] التعامل مع التعب المستمر",
+        "body": "[DRAFT - NOT REVIEWED] هذا نص تجريبي لم تتم مراجعته بعد. سيتم استبداله بمحتوى مراجَع من قِبَل متخصص.",
+        "action_text": "[DRAFT - NOT REVIEWED] خذي استراحة قصيرة الآن",
+        "support_note": "[DRAFT - NOT REVIEWED] إذا أثّر التعب على حياتك اليومية، استشيري طبيبًا."
+      },
+      "fr": {
+        "title": "[DRAFT - NOT REVIEWED] Gérer la fatigue persistante",
+        "body": "[DRAFT - NOT REVIEWED] Texte provisoire non relu. Il sera remplacé par un contenu validé par une professionnelle.",
+        "action_text": "[DRAFT - NOT REVIEWED] Prenez une courte pause maintenant",
+        "support_note": "[DRAFT - NOT REVIEWED] Si la fatigue affecte votre quotidien, consultez un médecin."
+      }
+    }
+  },
+  {
+    "starter_key": "late_cycle_dip_intro",
+    "pattern": "late_cycle_dip",
+    "translations": {
+      "ar": {
+        "title": "[DRAFT - NOT REVIEWED] فهم التغيرات في نهاية الدورة",
+        "body": "[DRAFT - NOT REVIEWED] هذا نص تجريبي لم تتم مراجعته بعد. سيتم استبداله بمحتوى مراجَع من قِبَل متخصص.",
+        "action_text": "[DRAFT - NOT REVIEWED] تتبعي شعورك خلال الأسبوع القادم",
+        "support_note": "[DRAFT - NOT REVIEWED] إذا كانت الأعراض شديدة، استشيري طبيبة نساء وتوليد."
+      },
+      "fr": {
+        "title": "[DRAFT - NOT REVIEWED] Comprendre les changements en fin de cycle",
+        "body": "[DRAFT - NOT REVIEWED] Texte provisoire non relu. Il sera remplacé par un contenu validé par une professionnelle.",
+        "action_text": "[DRAFT - NOT REVIEWED] Notez votre ressenti sur la semaine à venir",
+        "support_note": "[DRAFT - NOT REVIEWED] Si les symptômes sont sévères, consultez un gynécologue."
+      }
+    }
+  },
+  {
+    "starter_key": "big_swings_intro",
+    "pattern": "big_swings",
+    "translations": {
+      "ar": {
+        "title": "[DRAFT - NOT REVIEWED] التعامل مع التقلبات الكبيرة",
+        "body": "[DRAFT - NOT REVIEWED] هذا نص تجريبي لم تتم مراجعته بعد. سيتم استبداله بمحتوى مراجَع من قِبَل متخصص.",
+        "action_text": "[DRAFT - NOT REVIEWED] جربي تمرين التنفس العميق",
+        "support_note": "[DRAFT - NOT REVIEWED] إذا كانت التقلبات تؤثر على علاقاتك، تحدثي مع متخصص."
+      },
+      "fr": {
+        "title": "[DRAFT - NOT REVIEWED] Gérer les grandes variations d'humeur",
+        "body": "[DRAFT - NOT REVIEWED] Texte provisoire non relu. Il sera remplacé par un contenu validé par une professionnelle.",
+        "action_text": "[DRAFT - NOT REVIEWED] Essayez un exercice de respiration profonde",
+        "support_note": "[DRAFT - NOT REVIEWED] Si les variations affectent vos relations, parlez à une professionnelle."
+      }
+    }
+  },
+  {
+    "starter_key": "improving_trend_intro",
+    "pattern": "improving_trend",
+    "translations": {
+      "ar": {
+        "title": "[DRAFT - NOT REVIEWED] تعزيز التقدم الإيجابي",
+        "body": "[DRAFT - NOT REVIEWED] هذا نص تجريبي لم تتم مراجعته بعد. سيتم استبداله بمحتوى مراجَع من قِبَل متخصص.",
+        "action_text": "[DRAFT - NOT REVIEWED] دوّني شيئًا أنجزتِه هذا الأسبوع",
+        "support_note": "[DRAFT - NOT REVIEWED] تذكري أن طلب الدعم عند الحاجة هو شجاعة وليس ضعف."
+      },
+      "fr": {
+        "title": "[DRAFT - NOT REVIEWED] Renforcer la dynamique positive",
+        "body": "[DRAFT - NOT REVIEWED] Texte provisoire non relu. Il sera remplacé par un contenu validé par une professionnelle.",
+        "action_text": "[DRAFT - NOT REVIEWED] Notez quelque chose que vous avez accompli cette semaine",
+        "support_note": "[DRAFT - NOT REVIEWED] Rappellez-vous que demander de l'aide est un acte de courage."
+      }
+    }
+  },
+  {
+    "starter_key": "silent_5_days_intro",
+    "pattern": "silent_5_days",
+    "translations": {
+      "ar": {
+        "title": "[DRAFT - NOT REVIEWED] العودة إلى التتبع اليومي",
+        "body": "[DRAFT - NOT REVIEWED] هذا نص تجريبي لم تتم مراجعته بعد. سيتم استبداله بمحتوى مراجَع من قِبَل متخصص.",
+        "action_text": "[DRAFT - NOT REVIEWED] سجّلي مزاجك لليوم",
+        "support_note": "[DRAFT - NOT REVIEWED] إذا وجدتِ صعوبة في الاهتمام بنفسك، تحدثي مع شخص تثقين به."
+      },
+      "fr": {
+        "title": "[DRAFT - NOT REVIEWED] Reprendre le suivi quotidien",
+        "body": "[DRAFT - NOT REVIEWED] Texte provisoire non relu. Il sera remplacé par un contenu validé par une professionnelle.",
+        "action_text": "[DRAFT - NOT REVIEWED] Enregistrez votre humeur du jour",
+        "support_note": "[DRAFT - NOT REVIEWED] Si vous avez du mal à prendre soin de vous, parlez à quelqu'un de confiance."
+      }
+    }
+  }
+]

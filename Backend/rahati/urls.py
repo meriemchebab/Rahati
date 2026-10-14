@@ -1,6 +1,6 @@
 """API routes for the rahati app.
 
-Paths (no trailing slash) are the contract the test-suite in tests.py drives.
+Paths (no trailing slash) are the contract the test-suite in tests/ drives.
 
 Order matters: the professional routes (/pro/...) are declared before the
 patient routes (/pro/patients/<int:user_id>/...) so nothing shadows anything.
@@ -28,8 +28,9 @@ urlpatterns = [
     path("cycle-starts", views.CycleStartView.as_view(), name="cycle-starts"),
     path("journal", views.JournalView.as_view(), name="journal"),
     path("patterns", views.PatternsView.as_view(), name="patterns"),
-    # ----- content and to-dos -----
+    # ----- content and to-dos (woman) -----
     path("content-cards", views.ContentCardsView.as_view(), name="content-cards"),
+    path("content-cards/<int:pk>", views.CardDetailView.as_view(), name="content-card-detail"),
     path(
         "content-cards/<int:card_id>/add-todo",
         views.AddCardTodoView.as_view(),
@@ -49,7 +50,10 @@ urlpatterns = [
     path("sessions", views.SessionView.as_view(), name="sessions"),
     path("sessions/<int:pk>", views.SessionUpdateView.as_view(), name="session-update"),
     path("consents", views.ConsentView.as_view(), name="consents"),
-    # ----- care: professional side -----
+    # ----- care: professional side — content management -----
+    path("pro/content", views.ProContentListView.as_view(), name="pro-content"),
+    path("pro/content/<int:pk>", views.ProContentDetailView.as_view(), name="pro-content-detail"),
+    # ----- care: professional side — slots -----
     path("pro/slots", views.ProSlotsView.as_view(), name="pro-slots"),
     path("pro/patients", views.PatientListView.as_view(), name="pro-patients"),
     path(

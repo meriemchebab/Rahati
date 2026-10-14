@@ -1,11 +1,39 @@
-"""Serializers: validation rules and the JSON shape of each resource."""
+"""Serializers: validation rules and the JSON shape of each resource.
+
+Rules for every serializer:
+- Explicit field list (never __all__).
+- author, reviewed_by, starter_key, id, created_at, updated_at are never writable.
+- All card text goes through clean_text() from content_rules.
+"""
 from django.utils import timezone
 from rest_framework import serializers
 
-from .models import AvailabilitySlot, CheckIn, ContentCard, JournalEntry, Session, Todo, User
+from .content_rules import (
+    ACTION_TEXT_MAX,
+    BODY_MAX,
+    MAX_TRANSLATIONS_PER_CARD,
+    PATTERN_PRIORITY,
+    SUPPORT_NOTE_MAX,
+    TITLE_MAX,
+    clean_text,
+)
+from .models import (
+    AvailabilitySlot,
+    CheckIn,
+    ContentCard,
+    ContentCardTranslation,
+    JournalEntry,
+    PatternType,
+    Session,
+    Todo,
+    User,
+)
 from .services import todo_status
 
 
+# --------------------------------------------------------------------------
+# Auth / account
+# --------------------------------------------------------------------------
 class RegisterSerializer(serializers.Serializer):
     nickname = serializers.CharField(max_length=150)
     password = serializers.CharField(write_only=True, min_length=8)
@@ -31,6 +59,9 @@ class RegisterSerializer(serializers.Serializer):
         return user
 
 
+# --------------------------------------------------------------------------
+# Tracking
+# --------------------------------------------------------------------------
 class CheckInSerializer(serializers.ModelSerializer):
     class Meta:
         model = CheckIn
@@ -55,6 +86,9 @@ class JournalSerializer(serializers.ModelSerializer):
         return value
 
 
+# --------------------------------------------------------------------------
+# To-dos
+# --------------------------------------------------------------------------
 class TodoSerializer(serializers.ModelSerializer):
     source = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
@@ -94,7 +128,7 @@ class TodoSerializer(serializers.ModelSerializer):
 
 
 class CardTodoSerializer(serializers.Serializer):
-    """Validate a professional's published-card recommendation request."""
+    """Validate a published-card self-add request (woman adding to her own list)."""
 
     card = serializers.PrimaryKeyRelatedField(
         queryset=ContentCard.objects.filter(status=ContentCard.Status.PUBLISHED)
@@ -107,6 +141,9 @@ class CardTodoSerializer(serializers.Serializer):
         return value
 
 
+# --------------------------------------------------------------------------
+# Sessions and slots
+# --------------------------------------------------------------------------
 class SessionSerializer(serializers.ModelSerializer):
     professional = serializers.IntegerField(source="slot.professional_id", read_only=True)
     starts_at = serializers.DateTimeField(source="slot.starts_at", read_only=True)
@@ -154,3 +191,161 @@ class SlotSerializer(serializers.ModelSerializer):
             if overlapping.exists():
                 raise serializers.ValidationError("This slot overlaps one you already published.")
         return data
+
+
+# --------------------------------------------------------------------------
+# Card translation serializer (used inside pro card serializers)
+# --------------------------------------------------------------------------
+VALID_LANGUAGES = {c[0] for c in User.Language.choices}
+
+
+class CardTranslationSerializer(serializers.Serializer):
+    """Validates one translation object for card create / patch."""
+
+    language = serializers.ChoiceField(choices=User.Language.choices)
+    title = serializers.CharField(max_length=TITLE_MAX)
+    body = serializers.CharField(max_length=BODY_MAX)
+    action_text = serializers.CharField(max_length=ACTION_TEXT_MAX)
+    support_note = serializers.CharField(
+        max_length=SUPPORT_NOTE_MAX, required=False, allow_blank=True, default=""
+    )
+
+    def validate_title(self, value):
+        return clean_text(value, "title", TITLE_MAX)
+
+    def validate_body(self, value):
+        return clean_text(value, "body", BODY_MAX)
+
+    def validate_action_text(self, value):
+        return clean_text(value, "action_text", ACTION_TEXT_MAX)
+
+    def validate_support_note(self, value):
+        if value:
+            return clean_text(value, "support_note", SUPPORT_NOTE_MAX, required=False)
+        return value
+
+
+# --------------------------------------------------------------------------
+# Professional card serializers
+# --------------------------------------------------------------------------
+
+# Allowed status transitions for professionals through the API
+_PRO_STATUS_TRANSITIONS = {
+    "draft": {"published"},
+    "published": {"archived"},
+    "archived": {"published"},
+}
+
+# Status values that are forbidden via the API (admin-only)
+_FORBIDDEN_VIA_API = {"removed"}
+
+
+class ProCardCreateSerializer(serializers.Serializer):
+    """Validates the POST /api/pro/content body.
+
+    author, reviewed_by, starter_key, id, created_at, updated_at are not
+    accepted from the client — they are set in the view.
+    """
+
+    VALID_PATTERN_CODES = set(PATTERN_PRIORITY)
+
+    pattern = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True, default=None
+    )
+    status = serializers.ChoiceField(
+        choices=[("draft", "draft"), ("published", "published")],
+        default="draft",
+    )
+    translations = CardTranslationSerializer(many=True)
+
+    def validate_pattern(self, value):
+        if value in (None, ""):
+            return None
+        if value not in self.VALID_PATTERN_CODES:
+            raise serializers.ValidationError(
+                f"Unknown pattern code. Valid codes: {sorted(self.VALID_PATTERN_CODES)}."
+            )
+        return value
+
+    def validate_translations(self, value):
+        if not value:
+            raise serializers.ValidationError("At least one translation is required.")
+        if len(value) > MAX_TRANSLATIONS_PER_CARD:
+            raise serializers.ValidationError(
+                f"A card may have at most {MAX_TRANSLATIONS_PER_CARD} translations."
+            )
+        langs = [t["language"] for t in value]
+        if len(langs) != len(set(langs)):
+            raise serializers.ValidationError("Duplicate language in translations.")
+        for lang in langs:
+            if lang not in VALID_LANGUAGES:
+                raise serializers.ValidationError(f"Language '{lang}' is not supported.")
+        return value
+
+
+class ProCardPatchSerializer(serializers.Serializer):
+    """Validates the PATCH /api/pro/content/{id} body."""
+
+    VALID_PATTERN_CODES = set(PATTERN_PRIORITY)
+
+    pattern = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True
+    )
+    status = serializers.CharField(required=False)
+    translations = CardTranslationSerializer(many=True, required=False)
+
+    def validate_pattern(self, value):
+        if value in (None, ""):
+            return None
+        if value not in self.VALID_PATTERN_CODES:
+            raise serializers.ValidationError(
+                f"Unknown pattern code. Valid codes: {sorted(self.VALID_PATTERN_CODES)}."
+            )
+        return value
+
+    def validate_status(self, value):
+        if value in _FORBIDDEN_VIA_API:
+            raise serializers.ValidationError(
+                "Status 'removed' cannot be set through the API."
+            )
+        all_valid = (
+            {s for moves in _PRO_STATUS_TRANSITIONS.values() for s in moves}
+            | set(_PRO_STATUS_TRANSITIONS)
+        )
+        if value not in all_valid:
+            raise serializers.ValidationError(f"Invalid status '{value}'.")
+        return value
+
+    def validate_translations(self, value):
+        if value is None:
+            return value
+        if len(value) > MAX_TRANSLATIONS_PER_CARD:
+            raise serializers.ValidationError(
+                f"A card may have at most {MAX_TRANSLATIONS_PER_CARD} translations."
+            )
+        langs = [t["language"] for t in value]
+        if len(langs) != len(set(langs)):
+            raise serializers.ValidationError("Duplicate language in translations.")
+        return value
+
+
+# --------------------------------------------------------------------------
+# Card assignment serializer (POST /api/pro/patients/{user_id}/content)
+# --------------------------------------------------------------------------
+class CardAssignSerializer(serializers.Serializer):
+    """Validates the professional's card assignment request.
+
+    The card queryset is intentionally wide here; scope checks (own card or
+    platform card, correct status, etc.) are done in the view so they return
+    the right status code (404 vs 400).
+    """
+
+    card = serializers.PrimaryKeyRelatedField(
+        queryset=ContentCard.objects.all()
+    )
+    due_date = serializers.DateField(required=False, allow_null=True)
+
+    def validate_due_date(self, value):
+        if value is not None and value < timezone.localdate():
+            raise serializers.ValidationError("A to-do cannot be due in the past.")
+        return value
