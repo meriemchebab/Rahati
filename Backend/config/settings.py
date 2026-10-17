@@ -150,6 +150,9 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+# Credential documents are stored here and are NEVER served via a URL.
+# Set PRIVATE_MEDIA_ROOT to an absolute path outside the web root in production.
+PRIVATE_MEDIA_ROOT = Path(env("PRIVATE_MEDIA_ROOT", str(BASE_DIR / "private_media")))
 
 
 # --------------------------------------------------------------------------

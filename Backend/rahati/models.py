@@ -13,6 +13,8 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
+from .storage import PrivateMediaStorage, private_credential_path
+
 
 # --------------------------------------------------------------------------
 # Field-level encryption: journals and session notes are stored as ciphertext.
@@ -65,10 +67,31 @@ class User(AbstractUser):
 
 
 class ProfessionalProfile(models.Model):
+    """Extended profile for professional users.
+
+    Fields added beyond the MVP:
+    - address:               Free-text city/district. Shown in the directory.
+    - rejection_reason:      Admin note when status=rejected. Never exposed
+                             through the patient-facing API.
+    - credential_kind:       Category of the uploaded credential document
+                             (diploma, licence_number, …) so admins know what
+                             they are reviewing without opening the file.
+    - credential_uploaded_at: Timestamp set each time the file is replaced.
+    - terms_accepted_at:     When the professional accepted the ToS during
+                             registration. NULL means they haven't yet.
+    - created_at:            Profile creation timestamp (auto-set).
+    """
+
     class Status(models.TextChoices):
         PENDING = "pending"
         VERIFIED = "verified"
         REJECTED = "rejected"
+
+    class CredentialKind(models.TextChoices):
+        DIPLOMA = "diploma", "Diploma / degree"
+        LICENCE = "licence", "Professional licence"
+        CERTIFICATE = "certificate", "Certificate"
+        OTHER = "other", "Other"
 
     user = models.OneToOneField(
         User,
@@ -80,14 +103,33 @@ class ProfessionalProfile(models.Model):
     display_name = models.CharField(max_length=120)
     bio = models.TextField(blank=True)
     city = models.CharField(max_length=80)
-    credential_file = models.FileField(upload_to="credentials/")
+    # Free-text address / district (optional, shown in directory).
+    address = models.CharField(max_length=255, blank=True)
+    # Credential file stored in PRIVATE_MEDIA_ROOT; never served via URL.
+    credential_file = models.FileField(
+        storage=PrivateMediaStorage(),
+        upload_to=private_credential_path,
+    )
+    credential_kind = models.CharField(
+        max_length=20,
+        choices=CredentialKind.choices,
+        default=CredentialKind.DIPLOMA,
+    )
+    credential_uploaded_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
         max_length=10, choices=Status.choices, default=Status.PENDING
     )
+    # Admin who approved or rejected the profile.
     verified_by = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
     verified_at = models.DateTimeField(null=True, blank=True)
+    # Rejection reason visible only to admins (never in the patient API).
+    rejection_reason = models.TextField(blank=True)
+    # ISO 8601 timestamp when the professional accepted the platform ToS.
+    terms_accepted_at = models.DateTimeField(null=True, blank=True)
+    # Profile creation timestamp.
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
 
     def __str__(self):
         return self.display_name
