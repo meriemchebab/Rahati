@@ -1295,7 +1295,13 @@ class SessionNoteView(APIView):
         return Response({"body": note.body if note else ""})
 
     def put(self, request, pk):
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        from .text_rules import clean_private_text
+        try:
+            body = clean_private_text(request.data.get("body", ""), "body", 20_000)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
         note, _ = SessionNote.objects.update_or_create(
-            session=self._session(request, pk), defaults={"body": request.data.get("body", "")}
+            session=self._session(request, pk), defaults={"body": body}
         )
         return Response({"body": note.body})

@@ -32,7 +32,7 @@ from .models import (
 )
 from .services import todo_status
 from .credentials import validate_credential
-from .text_rules import clean_display_name, clean_phone, clean_text
+from .text_rules import clean_display_name, clean_phone, clean_text, clean_private_text
 
 
 class StrictSerializerMixin:
@@ -59,7 +59,14 @@ class RegisterSerializer(serializers.Serializer):
     phone = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=20)
 
     def validate_nickname(self, value):
-        if User.objects.filter(username=value).exists():
+        try:
+            value = clean_text(value, "nickname", 150)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages)) from exc
+        from .text_rules import RESERVED_NICKNAMES, _nickname_key
+        if _nickname_key(value) in RESERVED_NICKNAMES:
+            raise serializers.ValidationError("This nickname is unavailable.")
+        if User.objects.filter(username__iexact=value).exists():
             raise serializers.ValidationError("This nickname is taken.")
         return value
 
@@ -221,6 +228,12 @@ class JournalSerializer(serializers.ModelSerializer):
         fields = ["id", "body", "check_in", "created_at"]
         read_only_fields = ["created_at"]
 
+    def validate_body(self, value):
+        try:
+            return clean_private_text(value, "body", 20_000)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages)) from exc
+
     def validate_check_in(self, value):
         request = self.context.get("request")
         if value and request and value.user_id != request.user.id:
@@ -251,6 +264,12 @@ class TodoSerializer(serializers.ModelSerializer):
         if value is not None and value < timezone.localdate():
             raise serializers.ValidationError("A to-do cannot be due in the past.")
         return value
+
+    def validate_title(self, value):
+        try:
+            return clean_text(value, "title", 255)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages)) from exc
 
     def get_source(self, obj):
         if obj.assigned_by_id is not None:
@@ -290,11 +309,24 @@ class SessionSerializer(serializers.ModelSerializer):
     professional = serializers.IntegerField(source="slot.professional_id", read_only=True)
     starts_at = serializers.DateTimeField(source="slot.starts_at", read_only=True)
     mode = serializers.CharField(source="slot.mode", read_only=True)
+    professional_address = serializers.SerializerMethodField()
 
     class Meta:
         model = Session
-        fields = ["id", "slot", "professional", "starts_at", "mode", "status", "created_at"]
+        fields = [
+            "id", "slot", "professional", "starts_at", "mode", "status",
+            "professional_address", "created_at",
+        ]
         read_only_fields = ["status", "created_at"]
+
+    def get_professional_address(self, obj):
+        if (
+            obj.status not in (Session.Status.ACCEPTED, Session.Status.COMPLETED)
+            or obj.slot.mode != AvailabilitySlot.Mode.IN_PERSON
+        ):
+            return None
+        profile = getattr(obj.slot.professional, "professional_profile", None)
+        return profile.address if profile else None
 
 
 class SlotSerializer(serializers.ModelSerializer):

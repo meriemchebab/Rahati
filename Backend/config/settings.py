@@ -5,6 +5,7 @@ Environment variables are read from Backend/.env (and the process environment).
 """
 
 import os
+import secrets
 from datetime import timedelta
 from pathlib import Path
 
@@ -35,9 +36,30 @@ def env_list(name, default=""):
 # Core
 # --------------------------------------------------------------------------
 
-SECRET_KEY = env("DJANGO_SECRET_KEY", "django-insecure-dev-only-change-me")
+DEBUG = env("DJANGO_DEBUG", "false").lower() in ("1", "true", "yes", "on")
 
-DEBUG = env("DJANGO_DEBUG", "true").lower() in ("1", "true", "yes", "on")
+SECRET_KEY = env("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured("Set DJANGO_SECRET_KEY for non-debug deployments.")
+    SECRET_KEY = secrets.token_urlsafe(64)
+
+SECURE_SSL_REDIRECT = env("SECURE_SSL_REDIRECT", "false" if DEBUG else "true").lower() in (
+    "1", "true", "yes", "on"
+)
+SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", "0" if DEBUG else "31536000"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env(
+    "SECURE_HSTS_INCLUDE_SUBDOMAINS", "false" if DEBUG else "true"
+).lower() in ("1", "true", "yes", "on")
+SECURE_HSTS_PRELOAD = env("SECURE_HSTS_PRELOAD", "false" if DEBUG else "true").lower() in (
+    "1", "true", "yes", "on"
+)
+SESSION_COOKIE_SECURE = env("SESSION_COOKIE_SECURE", "false" if DEBUG else "true").lower() in (
+    "1", "true", "yes", "on"
+)
+CSRF_COOKIE_SECURE = env("CSRF_COOKIE_SECURE", "false" if DEBUG else "true").lower() in (
+    "1", "true", "yes", "on"
+)
 
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 
