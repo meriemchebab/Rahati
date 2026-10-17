@@ -170,6 +170,37 @@ class ProfessionalRegistrationSerializer(StrictSerializerMixin, serializers.Seri
         return attrs
 
 
+class ProfessionalProfilePatchSerializer(StrictSerializerMixin, serializers.Serializer):
+    display_name = serializers.CharField(max_length=120, required=False)
+    bio = serializers.CharField(max_length=5000, required=False, allow_blank=True)
+    city = serializers.CharField(max_length=80, required=False)
+    address = serializers.CharField(max_length=255, required=False, allow_blank=True)
+
+    def validate_display_name(self, value):
+        try:
+            return clean_display_name(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages)) from exc
+
+    def validate_bio(self, value):
+        try:
+            return clean_text(value, "bio", 5000, required=False)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages)) from exc
+
+    def validate_city(self, value):
+        try:
+            return clean_text(value, "city", 80)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages)) from exc
+
+    def validate_address(self, value):
+        try:
+            return clean_text(value, "address", 255, required=False)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages)) from exc
+
+
 # --------------------------------------------------------------------------
 # Tracking
 # --------------------------------------------------------------------------

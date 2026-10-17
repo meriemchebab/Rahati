@@ -10,6 +10,14 @@ class IsUserRole(permissions.BasePermission):
         return bool(u and u.is_authenticated and u.role == User.Role.USER)
 
 
+class IsProfessionalRole(permissions.BasePermission):
+    """Allow any authenticated professional, including pending applications."""
+
+    def has_permission(self, request, view) -> bool:
+        u = request.user
+        return bool(u and u.is_authenticated and u.role == User.Role.PROFESSIONAL)
+
+
 class IsVerifiedProfessional(permissions.BasePermission):
     def has_permission(self, request, view) -> bool:
         u = request.user

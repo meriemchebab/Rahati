@@ -22,6 +22,7 @@ Why pre_save and not post_save for replacement?
   post_save the field already holds the new value and the old path is lost.
 """
 import logging
+from django.db import transaction
 
 from django.db import models
 from django.dispatch import receiver
@@ -60,7 +61,8 @@ def _credential_pre_save(sender, instance, **kwargs):
     """Remove the OLD credential file when it is being replaced.
 
     Fires only when the instance already exists in the database (pk is set)
-    AND the file field value has actually changed.
+    AND the file field value has actually changed. The old blob is removed
+    only after the surrounding database transaction commits.
     """
     if not instance.pk:
         # New profile, nothing to delete.
@@ -76,4 +78,6 @@ def _credential_pre_save(sender, instance, **kwargs):
 
     # Compare by name; both may be empty strings / None when no file exists.
     if old_file and old_file.name and old_file.name != getattr(new_file, "name", None):
-        _delete_file(old_file)
+        storage = old_file.storage
+        old_name = old_file.name
+        transaction.on_commit(lambda: storage.delete(old_name) if storage.exists(old_name) else None)

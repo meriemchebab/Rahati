@@ -8,6 +8,7 @@ Every view passes three gates:
 from datetime import timedelta
 
 from django.db import transaction
+from django.http import FileResponse, Http404
 from django.db.models import Count, F, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -15,7 +16,7 @@ from rest_framework import generics, permissions, serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.views import APIView
 
 from .content_rules import PATTERN_PRIORITY, MAX_CARDS_PER_PROFESSIONAL
@@ -36,7 +37,7 @@ from .models import (
     UserPattern,
     WeeklySummary,
 )
-from .permissions import IsSessionActor, IsUserRole, IsVerifiedProfessional
+from .permissions import IsSessionActor, IsUserRole, IsVerifiedProfessional, IsProfessionalRole
 from .serializers import (
     CardAssignSerializer,
     CardTodoSerializer,
@@ -46,6 +47,7 @@ from .serializers import (
     ProCardPatchSerializer,
     RegisterSerializer,
     ProfessionalRegistrationSerializer,
+    ProfessionalProfilePatchSerializer,
     SessionSerializer,
     SlotSerializer,
     TodoSerializer,
@@ -181,6 +183,97 @@ class MeView(APIView):
         # ON DELETE CASCADE removes every row she owns. One line, by design.
         request.user.delete()
         return Response(status=204)
+
+
+class ProfessionalProfileView(APIView):
+    permission_classes = [IsProfessionalRole]
+    parser_classes = [JSONParser]
+
+    def get(self, request):
+        profile = get_object_or_404(ProfessionalProfile, user=request.user)
+        return _private_response({
+            "display_name": profile.display_name,
+            "bio": profile.bio,
+            "city": profile.city,
+            "address": profile.address,
+            "credential_kind": profile.credential_kind,
+            "status": profile.status,
+            "credential_uploaded_at": profile.credential_uploaded_at,
+        })
+
+    def patch(self, request):
+        profile = get_object_or_404(ProfessionalProfile, user=request.user)
+        serializer = ProfessionalProfilePatchSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        changes = serializer.validated_data
+        if not changes:
+            return _private_response({
+                "display_name": profile.display_name,
+                "bio": profile.bio,
+                "city": profile.city,
+                "address": profile.address,
+                "credential_kind": profile.credential_kind,
+                "status": profile.status,
+                "credential_uploaded_at": profile.credential_uploaded_at,
+            })
+        if (
+            "display_name" in changes
+            and changes["display_name"] != profile.display_name
+            and profile.status == ProfessionalProfile.Status.VERIFIED
+        ):
+            profile.status = ProfessionalProfile.Status.PENDING
+            profile.verified_by = None
+            profile.verified_at = None
+        for field, value in changes.items():
+            setattr(profile, field, value)
+        profile.save()
+        audit(request.user, "pro_profile_update", "professional_profile", profile.user_id)
+        return _private_response({
+            "display_name": profile.display_name,
+            "bio": profile.bio,
+            "city": profile.city,
+            "address": profile.address,
+            "credential_kind": profile.credential_kind,
+            "status": profile.status,
+            "credential_uploaded_at": profile.credential_uploaded_at,
+        })
+
+
+class ProfessionalCredentialView(APIView):
+    permission_classes = [IsProfessionalRole]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get(self, request):
+        profile = get_object_or_404(ProfessionalProfile, user=request.user)
+        if not profile.credential_file:
+            raise Http404
+        try:
+            file_obj = profile.credential_file.open("rb")
+        except (FileNotFoundError, OSError):
+            raise Http404
+        response = FileResponse(file_obj, as_attachment=True)
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Content-Type"] = "application/octet-stream"
+        return response
+
+    def put(self, request):
+        profile = get_object_or_404(ProfessionalProfile, user=request.user)
+        upload = request.FILES.get("credential_file")
+        if upload is None:
+            return Response({"credential_file": ["This field is required."]}, status=400)
+        try:
+            from .credentials import validate_credential
+            clean_file = validate_credential(upload)
+        except Exception as exc:
+            from django.core.exceptions import ValidationError as DjangoValidationError
+            if isinstance(exc, DjangoValidationError):
+                return Response({"credential_file": exc.messages}, status=400)
+            raise
+        profile.credential_file = clean_file
+        profile.credential_uploaded_at = timezone.now()
+        profile.save(update_fields=["credential_file", "credential_uploaded_at"])
+        return _private_response({"credential_uploaded_at": profile.credential_uploaded_at}, status=200)
 
 
 # ==========================================================================
