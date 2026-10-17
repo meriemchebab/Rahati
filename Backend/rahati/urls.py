@@ -19,6 +19,11 @@ app_name = "rahati"
 urlpatterns = [
     # ----- auth and account -----
     path("auth/register", views.RegisterView.as_view(), name="register"),
+    path(
+        "auth/register-professional",
+        views.ProfessionalRegisterView.as_view(),
+        name="register-professional",
+    ),
     path("auth/login", TokenObtainPairView.as_view(), name="login"),
     path("auth/refresh", TokenRefreshView.as_view(), name="token-refresh"),
     path("auth/verify", TokenVerifyView.as_view(), name="token-verify"),

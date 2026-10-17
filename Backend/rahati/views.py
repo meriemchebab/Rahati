@@ -15,6 +15,7 @@ from rest_framework import generics, permissions, serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
 
 from .content_rules import PATTERN_PRIORITY, MAX_CARDS_PER_PROFESSIONAL
@@ -44,6 +45,7 @@ from .serializers import (
     ProCardCreateSerializer,
     ProCardPatchSerializer,
     RegisterSerializer,
+    ProfessionalRegistrationSerializer,
     SessionSerializer,
     SlotSerializer,
     TodoSerializer,
@@ -58,6 +60,7 @@ from .services import (
     professional_todo_summary,
     todo_status_query,
 )
+from .professionals import create_professional_registration
 
 # ==========================================================================
 # Helpers
@@ -133,6 +136,36 @@ class RegisterView(APIView):
         s.is_valid(raise_exception=True)
         user = s.save()
         return Response({"id": user.id, "nickname": user.username}, status=201)
+
+
+class ProfessionalRegisterView(APIView):
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "pro_register"
+
+    def post(self, request):
+        serializer = ProfessionalRegistrationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        values = serializer.validated_data
+        user_data = {
+            key: values.get(key)
+            for key in ("nickname", "password", "language", "email", "phone")
+        }
+        profile_data = {
+            key: values[key]
+            for key in ("display_name", "bio", "city", "address", "credential_kind")
+        }
+        user, profile = create_professional_registration(
+            user_data=user_data,
+            profile_data=profile_data,
+            credential=values["credential_file"],
+            terms_accepted_at=timezone.now(),
+        )
+        return Response(
+            {"id": user.id, "nickname": user.username, "status": profile.status},
+            status=201,
+        )
 
 
 class MeView(APIView):

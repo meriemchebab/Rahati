@@ -184,6 +184,7 @@ REST_FRAMEWORK = {
         "content_read": "600/hour",
         # Write operations (create, patch, delete, assign) — tighter limit.
         "content_write": "60/hour",
+        "pro_register": "5/hour",
     },
 }
 

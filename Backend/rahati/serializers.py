@@ -6,6 +6,7 @@ Rules for every serializer:
 - All card text goes through clean_text() from content_rules.
 """
 from django.utils import timezone
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from .content_rules import (
@@ -27,8 +28,24 @@ from .models import (
     Session,
     Todo,
     User,
+    ProfessionalProfile,
 )
 from .services import todo_status
+from .credentials import validate_credential
+from .text_rules import clean_display_name, clean_phone, clean_text
+
+
+class StrictSerializerMixin:
+    """Reject undeclared input fields instead of silently ignoring them."""
+
+    def to_internal_value(self, data):
+        if hasattr(data, "keys"):
+            unknown = set(data.keys()) - set(self.fields.keys())
+            if unknown:
+                raise serializers.ValidationError(
+                    {key: ["Unknown field."] for key in sorted(unknown)}
+                )
+        return super().to_internal_value(data)
 
 
 # --------------------------------------------------------------------------
@@ -57,6 +74,100 @@ class RegisterSerializer(serializers.Serializer):
         user.set_password(data["password"])
         user.save()
         return user
+
+
+class ProfessionalRegistrationSerializer(StrictSerializerMixin, serializers.Serializer):
+    nickname = serializers.CharField(max_length=150)
+    password = serializers.CharField(write_only=True, trim_whitespace=False)
+    language = serializers.ChoiceField(choices=User.Language.choices, default="ar")
+    email = serializers.EmailField(required=False, allow_null=True, allow_blank=True)
+    phone = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=40)
+    display_name = serializers.CharField(max_length=120)
+    bio = serializers.CharField(required=False, allow_blank=True, max_length=5000, default="")
+    city = serializers.CharField(max_length=80)
+    address = serializers.CharField(required=False, allow_blank=True, max_length=255, default="")
+    credential_kind = serializers.ChoiceField(
+        choices=ProfessionalProfile.CredentialKind.choices, default="diploma"
+    )
+    credential_file = serializers.FileField(write_only=True)
+    terms_accepted = serializers.BooleanField()
+
+    def validate_nickname(self, value):
+        value = clean_text(value, "nickname", 150)
+        if User.objects.filter(username__iexact=value).exists():
+            raise serializers.ValidationError("This nickname is unavailable.")
+        from .text_rules import RESERVED_NICKNAMES, _nickname_key
+        if _nickname_key(value) in RESERVED_NICKNAMES:
+            raise serializers.ValidationError("This nickname is unavailable.")
+        return value
+
+    def validate_password(self, value):
+        from django.contrib.auth.password_validation import validate_password
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages)) from exc
+        return value
+
+    def validate_display_name(self, value):
+        try:
+            return clean_display_name(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages)) from exc
+
+    def validate_bio(self, value):
+        try:
+            return clean_text(value, "bio", 5000, required=False)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages)) from exc
+
+    def validate_city(self, value):
+        try:
+            return clean_text(value, "city", 80)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages)) from exc
+
+    def validate_address(self, value):
+        try:
+            return clean_text(value, "address", 255, required=False)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages)) from exc
+
+    def validate_phone(self, value):
+        try:
+            return clean_phone(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages)) from exc
+
+    def validate_email(self, value):
+        value = (value or "").strip().lower()
+        if value and User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("This contact information is unavailable.")
+        return value or None
+
+    def validate_credential_file(self, value):
+        try:
+            return validate_credential(value)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
+
+    def validate_terms_accepted(self, value):
+        if not value:
+            raise serializers.ValidationError("You must accept the terms to register.")
+        return value
+
+    def validate(self, attrs):
+        phone = attrs.get("phone")
+        email = attrs.get("email")
+        if phone and User.objects.filter(phone=phone).exists():
+            raise serializers.ValidationError(
+                {"non_field_errors": ["This contact information is unavailable."]}
+            )
+        if not email and not phone:
+            raise serializers.ValidationError(
+                {"non_field_errors": ["Provide an email address or phone number."]}
+            )
+        return attrs
 
 
 # --------------------------------------------------------------------------
