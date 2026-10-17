@@ -8,8 +8,11 @@ ContentCardAdmin features:
 - Text fields of professional-authored cards are READ-ONLY
 - Only admins (is_staff) can access
 """
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.admin import register
+from django.http import FileResponse, Http404
+from django.urls import path
+from django.shortcuts import get_object_or_404
 
 from .models import (
     AuditLog,
@@ -20,6 +23,8 @@ from .models import (
     User,
 )
 from .services import audit
+from .professionals import transition_professional_status
+from django.core.exceptions import ValidationError
 
 
 # --------------------------------------------------------------------------
@@ -145,3 +150,80 @@ class ContentCardAdmin(admin.ModelAdmin):
             # For professional-authored cards, text content is read-only
             base += ["pattern_type", "status"]
         return base
+
+
+@register(ProfessionalProfile)
+class ProfessionalProfileAdmin(admin.ModelAdmin):
+    list_display = ["display_name", "user", "city", "credential_kind", "status", "created_at"]
+    list_filter = ["status", "credential_kind", "city"]
+    search_fields = ["display_name", "user__username", "user__email"]
+    readonly_fields = [field.name for field in ProfessionalProfile._meta.fields]
+    actions = ["verify_selected", "reject_selected"]
+
+    def get_urls(self):
+        return [
+            path(
+                "<path:object_id>/credential/",
+                self.admin_site.admin_view(self.credential_view),
+                name="rahati_professionalprofile_credential",
+            ),
+        ] + super().get_urls()
+
+    def credential_view(self, request, object_id):
+        if not request.user.is_active or not request.user.is_staff:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        profile = get_object_or_404(ProfessionalProfile, pk=object_id)
+        if not profile.credential_file:
+            raise Http404
+        try:
+            stream = profile.credential_file.open("rb")
+        except (FileNotFoundError, OSError):
+            raise Http404
+        audit(request.user, "pro_credential_review", "professional_profile", profile.user_id)
+        response = FileResponse(stream, as_attachment=True)
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Content-Type"] = "application/octet-stream"
+        return response
+
+    @admin.action(description="Verify selected professionals")
+    def verify_selected(self, request, queryset):
+        for profile in queryset:
+            try:
+                transition_professional_status(
+                    profile, ProfessionalProfile.Status.VERIFIED, actor=request.user
+                )
+                audit(request.user, "pro_verify", "professional_profile", profile.user_id)
+            except ValidationError as exc:
+                self.message_user(request, f"{profile}: {exc}", level=messages.ERROR)
+
+    @admin.action(description="Reject selected professionals")
+    def reject_selected(self, request, queryset):
+        reason = request.POST.get("rejection_reason", "")
+        for profile in queryset:
+            try:
+                transition_professional_status(
+                    profile,
+                    ProfessionalProfile.Status.REJECTED,
+                    actor=request.user,
+                    reason=reason,
+                )
+                audit(request.user, "pro_reject", "professional_profile", profile.user_id)
+            except ValidationError as exc:
+                self.message_user(request, f"{profile}: {exc}", level=messages.ERROR)
+
+    def has_module_perms(self, request):
+        return request.user.is_active and request.user.is_staff
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_staff
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_staff
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

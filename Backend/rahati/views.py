@@ -18,6 +18,11 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth import update_session_auth_hash
+from rest_framework_simplejwt.exceptions import TokenError
 
 from .content_rules import PATTERN_PRIORITY, MAX_CARDS_PER_PROFESSIONAL
 from .models import (
@@ -138,6 +143,49 @@ class RegisterView(APIView):
         s.is_valid(raise_exception=True)
         user = s.save()
         return Response({"id": user.id, "nickname": user.username}, status=201)
+
+
+class ThrottledTokenObtainPairView(TokenObtainPairView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth_login"
+
+
+class LogoutView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        token_value = request.data.get("refresh")
+        if not token_value:
+            return Response({"detail": "Refresh token is required."}, status=400)
+        try:
+            token = RefreshToken(token_value)
+            if str(token.get("user_id")) != str(request.user.pk):
+                return Response({"detail": "Invalid refresh token."}, status=400)
+            token.blacklist()
+        except TokenError:
+            return Response({"detail": "Invalid refresh token."}, status=400)
+        return Response(status=204)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        current = request.data.get("current_password", "")
+        new = request.data.get("new_password", "")
+        if not request.user.check_password(current):
+            return Response({"current_password": ["Current password is incorrect."]}, status=400)
+        try:
+            validate_password(new, user=request.user)
+        except Exception as exc:
+            from django.core.exceptions import ValidationError as DjangoValidationError
+            if isinstance(exc, DjangoValidationError):
+                return Response({"new_password": exc.messages}, status=400)
+            raise
+        request.user.set_password(new)
+        request.user.save(update_fields=["password"])
+        update_session_auth_hash(request, request.user)
+        return Response({"detail": "Password changed."}, status=200)
 
 
 class ProfessionalRegisterView(APIView):

@@ -7,7 +7,6 @@ patient routes (/pro/patients/<int:user_id>/...) so nothing shadows anything.
 """
 from django.urls import path
 from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
     TokenRefreshView,
     TokenVerifyView,
 )
@@ -24,7 +23,9 @@ urlpatterns = [
         views.ProfessionalRegisterView.as_view(),
         name="register-professional",
     ),
-    path("auth/login", TokenObtainPairView.as_view(), name="login"),
+    path("auth/login", views.ThrottledTokenObtainPairView.as_view(), name="login"),
+    path("auth/logout", views.LogoutView.as_view(), name="logout"),
+    path("auth/change-password", views.ChangePasswordView.as_view(), name="change-password"),
     path("auth/refresh", TokenRefreshView.as_view(), name="token-refresh"),
     path("auth/verify", TokenVerifyView.as_view(), name="token-verify"),
     path("me", views.MeView.as_view(), name="me"),

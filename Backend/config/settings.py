@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "rahati",
     # third party
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     # django
     "django.contrib.admin",
@@ -185,12 +186,16 @@ REST_FRAMEWORK = {
         # Write operations (create, patch, delete, assign) — tighter limit.
         "content_write": "60/hour",
         "pro_register": "5/hour",
+        "auth_login": "10/minute",
     },
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(env("JWT_ACCESS_MINUTES", "60"))),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=int(env("JWT_REFRESH_DAYS", "7"))),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
 }
 
 
