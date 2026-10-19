@@ -458,4 +458,4 @@ The mobile application and web application communicate with the backend through 
 
 ### High-Level Architecture
 
-![Rahati Architecture](Rahati-Architecture.png)
+![Rahati Architecture](/Assets/Rahati-Architecture.png)
