@@ -1,461 +1,525 @@
-# Rahati 
+# Rahati
 
-### Understand yourself. Heal at your pace. Reach support when you are ready.
+A private mental-wellbeing platform for Algerian women. A woman can understand her own emotional patterns through daily check-ins and her own numbers, learn from short educational cards, and, when she wants, reach a verified woman mental-health professional and book a session online or in person.
 
-**By women, for women.**
-
-Rahati is a private mental-wellbeing platform designed for Algerian women. It helps women understand their emotional patterns through regular check-ins and personal reflection, discover educational resources tailored to their needs, and connect with verified women mental-health professionals when they feel ready.
-
-Mental-health care can be difficult to access because of cost, limited availability, stigma, and social barriers. Rahati aims to make taking care of one's mental wellbeing more accessible by offering a private space for self-reflection and a trusted path to professional support.
-
-Women can use Rahati independently to understand themselves and develop healthier routines, or choose to seek professional help when they need it. **Seeking professional support is always an option, not a requirement.**
-
-> Rahati is designed to support mental-wellbeing awareness and access to care. It is not a replacement for professional mental-health care or emergency services.
+> **Status: work in progress.** 
 
 ---
 
-## Table of Contents
+## Table of contents
 
-- [About the Project](#about-the-project)
-- [The Problem](#the-problem)
-- [Our Approach](#our-approach)
-- [How Rahati Works](#how-rahati-works)
-- [Features](#features)
-- [Who Is Rahati For?](#who-is-rahati-for)
-- [Technology Stack](#technology-stack)
-- [System Architecture](#system-architecture)
-- [Privacy and Safety](#privacy-and-safety)
-- [Project Roadmap](#project-roadmap)
-- [Getting Started](#getting-started)
-- [Project Structure](#project-structure)
-- [Development Principles](#development-principles)
-- [Contributing](#contributing)
-- [Current Status](#current-status)
-- [License](#license)
-
----
-
-## About the Project
-
-Rahati is a women-centered mental-wellbeing platform that combines personal emotional tracking, educational resources, and access to women mental-health professionals.
-
-The platform is built around a simple idea: understanding yourself can be the first step toward taking care of yourself.
-
-Not every woman is ready to speak to a therapist, and not every woman needs professional support at every stage of her life. Some may simply want to understand changes in their mood, recognize recurring patterns, reflect on their experiences, or find reliable information about mental wellbeing.
-
-Others may want to take the next step and connect with a professional in a trusted environment.
-
-Rahati aims to support both journeys.
-
-The platform is being designed with the needs of Algerian women in mind, including privacy, accessibility, affordability, and support in Arabic and French.
-
-### Our vision
-
-To make mental-wellbeing awareness and access to professional support more approachable for women in Algeria.
-
-### Our mission
-
-To provide women with a private space to understand their emotional wellbeing, learn from their experiences, and access professional support when they choose to.
-
-### Our guiding principles
-
-- **Privacy first:** Personal reflections and emotional information must remain private.
-- **User autonomy:** Women decide what to track, what to share, and whether to seek professional support.
-- **Accessible care:** Reduce unnecessary barriers between women and mental-health resources.
-- **Professional involvement:** Educational content and exercises should be reviewed by qualified professionals.
-- **Responsible AI:** Use AI for descriptive progress summaries, not diagnosis, treatment recommendations, or simulated emotional support.
-- **Cultural awareness:** Design for the needs, languages, and context of women in Algeria.
-- **No pressure:** Users should be able to benefit from the platform without being required to book a session.
+1. [Principles](#principles)
+2. [What the product does](#what-the-product-does)
+3. [Status](#status)
+4. [Architecture](#architecture)
+5. [Backend structure](#backend-structure)
+6. [Data model](#data-model)
+7. [Key flows](#key-flows)
+8. [Roles and permissions](#roles-and-permissions)
+9. [API overview](#api-overview)
+10. [Security and privacy](#security-and-privacy)
+11. [Getting started](#getting-started)
+12. [Testing](#testing)
+13. [Key decisions](#key-decisions)
+14. [Roadmap](#roadmap)
+15. [Contributing](#contributing)
+16. [Glossary](#glossary)
 
 ---
 
-## The Problem
-
-Mental wellbeing is an important part of overall health, yet taking care of it is not always straightforward.
-
-Women may encounter several barriers when trying to understand their emotions or access support:
-
-- **Stigma:** Talking openly about mental health can feel difficult because of social expectations and fear of judgment.
-- **Accessibility:** Finding a suitable mental-health professional can be challenging, particularly when local options are limited.
-- **Cost:** Professional care may be financially difficult to access.
-- **Lack of reliable information:** It can be difficult to distinguish useful, trustworthy educational resources from misleading information.
-- **Limited self-awareness tools:** Without a simple way to record and reflect on emotional changes, recognizing recurring patterns can be difficult.
-- **Privacy concerns:** Women may hesitate to record personal experiences or seek support if they are unsure how their information will be handled.
-
-These barriers can make the first step toward understanding one's mental wellbeing feel overwhelming.
-
-Rahati aims to make that first step smaller.
-
-Instead of requiring users to begin with a professional appointment, the platform provides a private space for regular check-ins, reflection, educational resources, and small practical actions. When a woman wants additional support, Rahati offers a pathway to verified women mental-health professionals.
-
----
-
-## Our Approach
-
-Rahati has two complementary modes.
-
-### 1. Preventing Mode: Understand Yourself
-
-The primary experience focuses on self-awareness and ongoing mental-wellbeing tracking.
-
-Users can record how they feel, reflect on their experiences, observe patterns over time, and discover relevant educational resources.
-
-The goal is not to diagnose a condition or label a person's emotions. It is to help users develop a clearer picture of their own experiences.
-
-The experience includes:
-
-- Daily mood and energy check-ins.
-- Personal journaling.
-- Weekly and monthly pattern visualizations.
-- Descriptive AI-generated progress summaries.
-- Educational content selected according to relevant patterns.
-- Small exercises and personal to-do lists.
-- Optional menstrual-cycle information to help users explore possible patterns over time.
-
-Women can continue using this part of Rahati without ever booking a professional session.
-
-### 2. Healing Mode: Reach Support
-
-When a user wants professional support, Rahati provides a way to discover verified women mental-health professionals and request appointments.
-
-The planned experience includes:
-
-- Browsing professional profiles.
-- Reviewing relevant professional information.
-- Viewing availability.
-- Requesting a session.
-- Receiving booking updates.
-- Choosing which personal progress information to share.
-- Receiving exercises or tasks assigned by a professional.
-
-The platform is designed to give women greater control over their journey, not to lock them into a particular professional or service.
-
-### The connection between the two modes
-
-The two modes are connected through the user's own progress.
-
-A woman may begin by tracking her emotions, notice a recurring pattern, explore educational content, and try a small exercise.
-
-If she decides that she wants additional support, she can request a professional session and choose what information to share.
-
-Any exercises assigned by a professional can then become part of her personal to-do list.
-
-This creates a continuous experience without making professional care mandatory.
-
----
-
-## How Rahati Works
-
-Rahati follows a simple personal progress loop:
-
-**Check in → Reflect → Recognize patterns → Learn → Take a small action → Repeat**
-
-### Step 1: Check in
-
-The user records information about her current wellbeing, including her mood and energy level.
-
-She may also add an optional journal entry or menstrual-cycle information.
-
-### Step 2: Reflect
-
-The user can write about her experiences in a personal journal and revisit previous entries.
-
-### Step 3: Recognize patterns
-
-The platform organizes tracking data into weekly and monthly views to help users observe changes over time.
-
-### Step 4: Learn
-
-The user receives relevant educational content from a curated library.
-
-Content selection can be informed by observed patterns, with the goal of making useful information easier to discover.
-
-### Step 5: Take a small action
-
-The user can follow a suggested exercise or complete an item on her personal to-do list.
-
-The intention is to encourage manageable actions rather than overwhelming users with complicated routines.
-
-### Step 6: Repeat or seek support
-
-The user can continue her personal progress loop or choose to explore professional support.
-
-If she requests a session, she can decide which categories of personal information, if any, she wants to share with the professional.
-
----
-
-## Features
-
-The following sections describe the planned product scope. Features are not necessarily implemented yet.
-
-### For Women
-
-#### Personal Accounts
-
-- Anonymous or pseudonymous registration using a nickname.
-- Optional email address or phone number.
-- Access to personal tracking and reflection features.
-- Control over personal information and sharing preferences.
-- Ability to request deletion of personal data.
-
-#### Daily Check-ins
-
-- Record mood.
-- Record energy levels.
-- Optionally record menstrual-cycle day.
-- Build a personal history of check-ins.
-- Review previous entries.
-
-#### Personal Journal
-
-- Write personal reflections.
-- Keep journal entries private by default.
-- Use journaling alongside daily check-ins.
-- Choose whether journal information can be shared with a connected professional.
-
-#### Mood and Pattern Tracking
-
-- Weekly mood and energy views.
-- Monthly tracking views.
-- Visualize changes over time.
-- Explore recurring patterns in personal data.
-- Support future cycle-aware pattern visualizations.
-
-Pattern tracking is intended to encourage self-reflection, not to diagnose medical or psychological conditions.
-
-#### AI-Generated Progress Summaries
-
-Rahati plans to use AI to generate weekly summaries based on a user's tracking data.
-
-These summaries are intended to:
-
-- Describe observed changes over time.
-- Highlight recurring patterns in the available data.
-- Help users reflect on their progress.
-- Present information in a structured, understandable format.
-
-**Rahati's AI is not intended to function as a conversational therapist or emotional-support chatbot.**
-
-It will not be used to diagnose mental-health conditions, prescribe treatment, or present its observations as clinical conclusions.
-
-#### Educational Content
-
-- Curated mental-wellbeing resources.
-- Educational content organized by topic and tags.
-- Content selected according to relevant patterns.
-- Exercises and resources reviewed by qualified professionals.
-
-#### Personal To-Do List and Exercises
-
-- Keep track of personal exercises and activities.
-- Organize small actions related to personal wellbeing.
-- View tasks assigned by a connected professional.
-- Track completed activities.
-
-#### Professional Directory
-
-- Browse verified women mental-health professionals.
-- Review professional profiles.
-- Explore available appointment options.
-- Request a session with a professional.
-
-#### Session Requests and Booking
-
-- Request an appointment.
-- Receive updates when a professional responds.
-- View booking information.
-- Choose what personal progress information to share.
-
-#### Privacy and Consent
-
-- Manage sharing permissions by data category.
-- Control sharing of mood information.
-- Control sharing of journal entries.
-- Control sharing of menstrual-cycle information.
-- Request deletion of personal data.
-
-#### Notifications
-
-- Optional reminders for regular check-ins.
-- Notifications related to session requests and booking updates.
-
-### For Mental-Health Professionals
-
-#### Professional Profiles
-
-- Create a professional profile.
-- Submit credentials for verification.
-- Provide relevant professional information.
-- Manage availability.
-
-#### Session Management
-
-- Receive session requests.
-- Accept or decline requests.
-- Propose an alternative appointment time.
-- Manage incoming booking requests.
-
-#### Professional Dashboard
-
-- View connected users who have shared information with them.
-- Access only the progress information users have authorized them to see.
-- Review shared tracking information.
-- Assign exercises and to-do items.
-- Maintain private session notes.
-
-The professional dashboard is intended to support the relationship between a woman and her chosen professional without giving professionals unrestricted access to personal information.
-
-### For Administrators
-
-#### Professional Verification
-
-- Review submitted credentials.
-- Verify or reject professional applications.
-- Manage professional verification status.
-
-#### Content Management
-
-- Create educational content.
-- Organize content using tags.
-- Review and publish resources.
-- Maintain the educational content library.
-
-#### Moderation and Support
-
-- Handle reports.
-- Moderate relevant platform content.
-- Provide user support.
-- Maintain audit logs.
-
-Administrative tools should be designed to minimize exposure to sensitive user information. Support operations must not provide unrestricted access to private journal entries.
-
-### Planned Future Features
-
-Features outside the initial MVP may include:
-
-- Online video sessions.
-- Group sessions and community features.
-- A map of nearby women mental-health professionals.
-- More advanced cycle-aware pattern insights.
-- Payment integrations.
-- Offline-first check-ins.
-- Calendar synchronization for professionals.
-- Anonymous, aggregated outcome analytics.
-
-These features are planned for later development and are not prerequisites for the initial MVP.
-
----
-
-## Who Is Rahati For?
-
-Rahati is designed around three main user roles.
-
-### Women Using the Platform
-
-Women who want to understand their emotional wellbeing, maintain personal reflections, recognize patterns, and discover relevant resources.
-
-They can use the platform independently or choose to connect with a professional.
-
-### Mental-Health Professionals
-
-Women psychologists and therapists who want to make their services more accessible, manage appointment requests, and support users who have chosen to connect with them.
-
-Professional access is intended to be limited to verified professionals.
-
-### Administrators
-
-Authorized administrators responsible for professional verification, educational content management, moderation, and platform administration.
-
-These roles are managed through a shared backend and API rather than separate backend systems.
-
----
-
-## Technology Stack
-
-Rahati is being developed using technologies selected to support a maintainable backend, a modern web experience, and a potential mobile application.
-
-The stack below describes the current frontend foundation and the intended architecture. Some components remain planned and will be finalized during implementation.
-
-### Frontend
-
-| Technology | Purpose |
+## Principles
+
+These rules decide every design question. If a feature breaks one, the feature changes.
+
+- **Show, don't diagnose.** The app shows a woman her own numbers. It never labels her, never says she has a condition and never gives medical advice.
+- **No model training.** Insights are plain statistics. AI is used only to put those statistics into words, and every AI sentence is checked by code before she sees it.
+- **Anonymous by default.** A nickname is enough to sign up. Email and phone are optional.
+- **Her data, her consent.** A professional sees a woman's data only with an accepted session and an explicit, revocable consent for each category (mood, journal, cycle).
+- **Delete means delete.** One action removes everything she owns.
+- **A woman does not face barriers to help.** Finding a professional is facilitated 
+
+## What the product does
+
+Rahati has two modes that share one account.
+
+**Preventing: understand yourself.**
+Check in (mood, energy, optional cycle day and topics on her mind), see her own analytics, ask for a short AI summary of those numbers, learn something from a short card, take one small action.
+
+**Healing: reach a professional.**
+Find a verified woman professional by mode, wilaya and time, book a free slot, share only what she chooses, and get the address or video link once the session is accepted.
+
+Three personas use the platform:
+
+| Persona | Uses | Does |
+|---|---|---|
+| **Woman (user)** | Mobile app| Tracks, learns, books, controls her sharing |
+| **Professional** | Web dashboard | Manages availability, accepts sessions, sees consented data, assigns cards and to-dos |
+| **Admin** | Django admin | Verifies professionals, manages content, reads the audit log |
+
+
+
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph Clients
+    M["Mobile app<br/>React Native"]
+    W["Web app<br/>Next.js"]
+    A["Django admin"]
+  end
+  subgraph Backend["Backend: Django + DRF"]
+    API["REST API<br/>JWT, role gates"]
+    SVC["Services<br/>consent gate, free slots,<br/>analytics, AI summary"]
+  end
+  DB[("Database<br/>SQLite in dev")]
+  subgraph External["External services"]
+    G["Gemini API<br/>summaries"]
+    J["Jitsi<br/>video rooms"]
+    F["FCM<br/>push, later"]
+  end
+  M --> API
+  W --> API
+  A --> Backend
+  API --> SVC
+  SVC --> DB
+  SVC -.-> G
+  SVC -.-> J
+  API -.-> F
+```
+
+
+### How a request is handled
+
+```mermaid
+flowchart TD
+  R[Client request] --> U["urls.py<br/>which view?"]
+  U --> P["permissions.py<br/>role gate"]
+  P --> V["views.py<br/>this endpoint's logic"]
+  V --> S["serializers.py<br/>validate input, shape output"]
+  V --> SV["services.py<br/>shared rules"]
+  V --> MD["models.py<br/>tables"]
+  MD --> DB[(Database)]
+  S --> J[JSON response]
+```
+
+Every view passes three gates:
+
+1. **Role gate**: is this the right kind of person? (`permissions.py`)
+2. **Ownership**: every query is scoped to `request.user`, and "not yours" returns the same 404 as "does not exist".
+3. **Consent gate**: a professional reads a woman's data only with a relationship and an active consent (`services.can_read`).
+
+## Backend structure
+
+```
+Rahati/
+├── README.md
+├── LICENSE
+├── pyproject.toml, uv.lock
+└── Backend/
+    ├── manage.py
+    ├── config/               settings.py, urls.py
+    └── rahati/
+        ├── models.py         the tables
+        ├── serializers.py    validation and response shapes
+        ├── permissions.py    role gates
+        ├── services.py       consent gate, relationship check, audit
+        ├── views.py          one class per endpoint
+        ├── urls.py           routes only
+        ├── admin.py          the admin persona
+        └── tests/            automated tests
+```
+
+
+## Data model
+
+### Core (built)
+
+```mermaid
+erDiagram
+  USER ||--o| PROFESSIONAL_PROFILE : "has, if professional"
+  USER ||--o{ CHECK_IN : records
+  USER ||--o{ CYCLE_START : logs
+  USER ||--o{ JOURNAL_ENTRY : writes
+  CHECK_IN ||--o{ JOURNAL_ENTRY : "may link"
+  USER ||--o{ TODO : owns
+  CONTENT_CARD ||--o{ TODO : "may source"
+  CONTENT_CARD ||--|{ CONTENT_CARD_TRANSLATION : "has ar/fr"
+  USER ||--o{ AVAILABILITY_SLOT : offers
+  AVAILABILITY_SLOT ||--o{ SESSION : "booked as"
+  USER ||--o{ SESSION : books
+  SESSION ||--o| SESSION_NOTE : has
+  USER ||--o{ SHARING_CONSENT : grants
+  USER ||--o{ SHARING_CONSENT : "receives (professional)"
+  USER ||--o{ DEVICE_TOKEN : registers
+  USER ||--o{ AUDIT_LOG : "acts in"
+
+  USER {
+    string username "the nickname"
+    string role "user, professional, admin"
+    string language "ar, fr"
+  }
+  PROFESSIONAL_PROFILE {
+    string display_name
+    string wilaya
+    string status "pending, verified, rejected"
+  }
+  CHECK_IN {
+    date checkin_date
+    int mood "1 to 5"
+    int energy "1 to 5"
+  }
+  AVAILABILITY_SLOT {
+    datetime starts_at
+    datetime ends_at
+    string mode "online, in_person"
+  }
+  SESSION {
+    string status "requested, accepted, declined, cancelled, completed"
+  }
+  SHARING_CONSENT {
+    string category "mood, journal, cycle"
+    datetime revoked_at
+  }
+```
+
+Design notes:
+
+- **Third normal form.** the database is normelized to the third normal form for coherance and integrity
+- **Encrypted columns:** journal text and session notes are encrypted before they reach the database.
+- **Deletion:** every table that belongs to a woman cascades from `USER`. The audit log keeps its rows but loses the link to her (`SET NULL`).
+- **Translations** live in their own table, so adding a language adds rows, not columns.
+
+### Planned additions
+
+```mermaid
+erDiagram
+  TOPIC ||--|{ TOPIC_TRANSLATION : "has ar/fr"
+  CHECK_IN ||--o{ CHECK_IN_TOPIC : tags
+  TOPIC ||--o{ CHECK_IN_TOPIC : "tagged in"
+  TOPIC ||--o{ CONTENT_CARD : groups
+  USER ||--o{ CARD_READ : marks
+  CONTENT_CARD ||--o{ CARD_READ : "read as"
+  USER ||--o{ ANALYTICS_SUMMARY : "caches (per range and day)"
+  USER ||--o{ WEEKLY_AVAILABILITY : defines
+  USER ||--o{ TIME_OFF : blocks
+  WEEKLY_AVAILABILITY ||--o{ AVAILABILITY_SLOT : generates
+```
+
+## Key flows
+
+### Session lifecycle
+
+A session in `requested` or `accepted` holds its slot. When it becomes declined, cancelled or completed, the slot is free again (completed sessions stay in history).
+
+```mermaid
+stateDiagram-v2
+  [*] --> requested : woman books a free slot
+  requested --> accepted : professional accepts
+  requested --> declined : professional declines
+  requested --> cancelled : woman cancels
+  accepted --> cancelled : woman or professional cancels
+  accepted --> completed : professional completes
+  declined --> [*]
+  cancelled --> [*]
+  completed --> [*]
+```
+
+### Booking and reveal
+
+```mermaid
+sequenceDiagram
+  actor Woman
+  participant API
+  participant DB
+  actor Pro as Professional
+  Woman->>API: POST /api/sessions {slot}
+  API->>DB: begin, lock the slot row
+  API->>DB: slot free? (verified professional, lead time, no active session)
+  alt not free
+    API-->>Woman: 404 or 409
+  else free
+    API->>DB: create session (requested)
+    API-->>Woman: 201
+  end
+  Pro->>API: PATCH /api/sessions/{id} {status: accepted}
+  API->>API: check the transition table
+  API-->>Pro: 200
+  Note over Woman,Pro: Planned: address or video link shown to these two only,<br/>video link only 30 minutes before to 30 minutes after
+```
+
+**A free slot** is: at least 60 minutes in the future, belongs to a verified and active professional, is not closed, and has no requested or accepted session. Search, calendar and booking all use this one rule.
+
+### Consent gate
+
+```mermaid
+flowchart TD
+  R["Professional asks for a patient's data"] --> A{"Verified professional?"}
+  A -- no --> X["403 Forbidden"]
+  A -- yes --> B{"Accepted or completed<br/>session with her?"}
+  B -- no --> X
+  B -- yes --> C{"Active consent for<br/>this category?"}
+  C -- no --> X
+  C -- yes --> L["Write audit row"]
+  L --> D["Return the data"]
+```
+
+### Professional verification
+
+```mermaid
+stateDiagram-v2
+  [*] --> pending : applies with a credential
+  pending --> verified : admin verifies
+  pending --> rejected : admin rejects
+  verified --> rejected : admin suspends
+  rejected --> verified : admin reconsiders
+  rejected --> pending : uploads a new credential
+  verified --> pending : changes name or credential
+```
+
+An unverified or suspended professional cannot publish slots, accept sessions or read patient data, and her slots are not free for women.
+
+### The Preventing loop (planned)
+
+```mermaid
+sequenceDiagram
+  actor Woman
+  participant API
+  participant Stats as Analytics (plain code)
+  participant LLM as Gemini (optional)
+  Woman->>API: POST /api/check-ins {mood, energy, topics}
+  Woman->>API: GET /api/analytics?range=7
+  API->>Stats: compute from her own check-ins
+  Stats-->>Woman: averages, series, streak, topics
+  Woman->>API: POST /api/analytics/summary
+  API->>LLM: numbers only, never text she wrote
+  LLM-->>API: draft summary
+  API->>API: verify every number and forbidden word
+  alt passes
+    API-->>Woman: AI summary
+  else fails or LLM unavailable
+    API-->>Woman: plain template summary
+  end
+  Woman->>API: GET /api/content-cards
+  API-->>Woman: cards for topics she tagged
+  Woman->>API: POST /api/content-cards/{id}/add-todo
+```
+
+### Availability (planned)
+
+```mermaid
+flowchart LR
+  T["Weekly template"] -->|"generates 4 weeks ahead"| S["Slots"]
+  M["One-off slots"] --> S
+  O["Time off"] -->|"removes free slots,<br/>blocks generation"| S
+  S --> F{"Free?"}
+  F -- yes --> D["Directory and booking"]
+  F -- no --> C["Visible in her calendar only"]
+```
+
+A slot that has ever had a session is closed, never deleted, so booking history is never lost.
+
+## Roles and permissions
+
+| Action | Woman | Professional (verified) | Professional (pending or rejected) | Admin |
+|---|---|---|---|---|
+| Register | yes, public | yes, as an application | n/a | created by operators |
+| Track, journal, to-dos | own data only | no | no | no |
+| Book and cancel sessions | yes | no | no | no |
+| Publish slots, accept sessions | no | yes | no | no |
+| Read a woman's mood, journal or cycle | no | only with relationship + consent | no | no |
+| Assign to-dos and cards | no | to her own patients | no | no |
+| Verify professionals, manage cards | no | no | no | yes |
+| Read the audit log | no | no | no | yes (read-only) |
+| Read journals, check-ins, notes | own only | consented only | no | no |
+
+## API overview
+
+All routes are under `/api/`. Responses are JSON. Authentication is a JWT in the `Authorization: Bearer` header.
+
+### Built
+
+| Area | Endpoints |
 |---|---|
-| Next.js | Web application framework |
-| React | Component-based user interfaces |
-| TypeScript | Type safety and maintainability |
-| Tailwind CSS | Utility-first styling |
-| shadcn/ui with Base UI | Reusable interface components |
-| Lucide React | Icons |
+| Auth and account | `POST auth/register`, `POST auth/login`, `POST auth/refresh`, `GET /me`, `DELETE /me` |
+| Tracking | `GET/POST check-ins`, `POST cycle-starts`, `GET/POST journal` |
+| To-dos | `GET/POST todos`, `POST todos/{id}/complete` |
+| Content | `GET content-cards` |
+| Finding a professional | `GET professionals`, `GET professionals/{id}/slots` |
+| Sessions | `GET/POST sessions`, `PATCH sessions/{id}` |
+| Consent | `GET/PUT consents` |
+| Professional | `GET/POST pro/slots`, `GET pro/patients`, `GET pro/patients/{id}/check-ins`, `.../journal`, `.../cycle`, `POST pro/patients/{id}/todos`, `GET/PUT pro/sessions/{id}/note` |
+| Professional signup and profile | see `rahati/urls.py` |
 
-The initial frontend scaffold has been created in the `frontend/` directory.
+`GET patterns` exists but is deprecated.
 
-The web application is intended to support both women using the platform and mental-health professionals using the professional dashboard.
+### Specified (not yet built)
 
-### Backend
-
-| Technology | Purpose |
+| Area | Endpoints |
 |---|---|
-| Python | Backend programming language |
-| Django | Backend application framework |
-| Django REST Framework | REST API |
-| JSON Web Tokens (JWT) | Authentication |
-| Role-based access control | Authorization by user role |
-| Celery | Asynchronous background jobs |
+| Analytics | `GET analytics?range=7\|30\|90`, `POST analytics/summary`, `GET pro/patients/{id}/analytics` |
+| Topics and cards | `GET topics`, `GET content-cards/library`, `GET content-cards/{id}`, `POST content-cards/{id}/read`, `POST content-cards/{id}/add-todo` |
+| Professional assigns | `POST pro/patients/{id}/content`, `GET pro/patients/{id}/todos` (progress) |
+| Directory | `GET wilayas`, `GET professionals?mode&wilaya&from&to&time_of_day`, `GET professionals/{id}/calendar` |
+| Sessions | `GET sessions/{id}` with `location` and `online` objects |
+| Availability | `GET/POST/PATCH/DELETE pro/availability`, `PATCH/DELETE pro/slots/{id}`, `GET/POST/DELETE pro/time-off`, `GET pro/calendar` |
 
-The intended backend architecture is a modular monolith with clearly separated application responsibilities.
+A machine-readable API schema (Swagger, via `drf-spectacular`) is the next contract for the mobile and web developers. It must not be public in production.
 
-The final implementation and integration details will be documented as the backend develops.
+## Security and privacy
 
-### Database and Background Processing
+The security model follows **OWASP Top 10:2025** and the **OWASP API Security Top 10:2023**. Because an LLM is involved, the **OWASP Top 10 for LLM Applications** applies to the summary feature.
 
-| Technology | Purpose |
+### What is in place
+
+- Role gates, ownership scoping and a consent gate on every endpoint (A01, API1, API5).
+- Journal text and session notes are encrypted at rest (A04).
+- Responses are explicit allow-lists, with no emails, phones or file paths leaking (API3).
+- Booking uses a row lock so a slot cannot be double-booked.
+- Professional reads of a woman's data are written to an audit log (A09).
+- Administrators cannot open check-ins, journals or session notes.
+
+### What the specified features add
+
+- The AI receives **numbers and topic codes only**. No text she wrote ever reaches the model (LLM01, LLM02).
+- Every AI sentence is verified. On any doubt the app uses a plain template instead (LLM05, API10).
+- Cached summaries, daily call caps and throttles limit cost and abuse (LLM10, API4).
+- Video links are an HMAC of the session id with a server secret, never stored, and shown only to the two participants inside a time window (A04, A01).
+- Directory searches are validated against allow-lists, capped, throttled and never logged (A05, API4, API6, A09).
+- Slots with history are closed, not deleted (A08).
+
+### Before any real woman uses the app (demo-minimum)
+
+1. Secrets out of the code: `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS` from `.env`; `.env` and `db.sqlite3` in `.gitignore`.
+2. Deny by default: `DEFAULT_PERMISSION_CLASSES = IsAuthenticated`.
+3. Fix three known bugs: women can write `card` on their own to-dos; a suspended professional can still act; a duplicate email returns a 500.
+4. Token lifetimes: 15-minute access, 7-day refresh with rotation.
+5. Throttle login and registration.
+6. `DELETE /me` requires the password.
+7. Lock CORS to the front-end URL.
+8. Run `uv run pip-audit` and `uv run bandit -r rahati -x rahati/tests` once.
+
+### Before a real launch
+
+The full baseline: CI, immutable audit log, encryption key rotation, an admin IP allow-list and login throttling, a role-by-route test matrix, structured logging with redaction, and a `SECURITY.md` mapping every OWASP item to code and tests.
+
+### Accepted risks (for now)
+
+- Mood and cycle data are not encrypted per column (they are needed for aggregation). The database disk and backups must be encrypted at the hosting level.
+- Integer ids are sequential; object-level checks are the protection.
+- The public Jitsi server lets anyone holding a link join. Self-host it or add Jitsi authentication before a real launch.
+- Administrators have no two-factor login yet.
+- Wilaya, address and other professional details are only as trustworthy as the manual verification of her credential. A human must check a diploma against the official body.
+
+## Getting started
+
+Requirements: Python 3.11 or newer and [uv](https://docs.astral.sh/uv/).
+
+```bash
+# from the repo root
+uv sync
+
+cd Backend
+```
+
+Create `Backend/.env`:
+
+```
+FIELD_ENCRYPTION_KEY=<generate it, see below>
+```
+
+Generate the encryption key:
+
+```bash
+uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+> **Back up this key.** If it is lost, every journal entry and session note becomes unreadable.
+
+Required settings in `Backend/config/settings.py` (the project reads them at the bottom of the file):
+
+```python
+AUTH_USER_MODEL = "rahati.User"          # must be set before the first migration
+FIELD_ENCRYPTION_KEY = os.environ["FIELD_ENCRYPTION_KEY"]
+TIME_ZONE = "Africa/Algiers"
+INSTALLED_APPS += ["rest_framework", "corsheaders", "rahati"]
+```
+
+Create the tables and an administrator:
+
+```bash
+uv run python manage.py makemigrations rahati
+uv run python manage.py migrate
+uv run python manage.py createsuperuser
+uv run python manage.py shell -c "from rahati.models import User; User.objects.filter(is_superuser=True).update(role='admin')"
+uv run python manage.py runserver
+```
+
+- Admin: `http://127.0.0.1:8000/admin/`
+- API: `http://127.0.0.1:8000/api/`
+
+**Do not commit** `.env`, `db.sqlite3`, `private_media/` or `media/`. If `db.sqlite3` was committed by mistake, run `git rm --cached Backend/db.sqlite3`.
+
+## Testing
+
+```bash
+cd Backend
+uv run python manage.py test rahati
+```
+
+Coverage (once `coverage` is installed as a dev dependency):
+
+```bash
+uv run coverage run manage.py test rahati
+uv run coverage report --include="rahati/*"
+```
+
+The tests protect the rules that matter most: consent, encryption at rest, deletion, booking correctness and who may do what. Tests are deterministic: time is frozen, there are no network calls, and the AI is replaced by a fake in every test.
+
+## Key decisions
+
+| Decision | Why |
 |---|---|
-| MySQL | Persistent application data |
-| Redis | Background-job infrastructure and queue support |
-| Celery | Asynchronous processing and scheduled tasks |
+| Rules and statistics, not machine learning | No real data yet, and a model trained on invented data proves nothing. Rules are explainable. |
+| Show analytics instead of detecting "patterns" | Avoids clinical judgment, false alarms and responsibility for being right. |
+| Cards by topic the woman tags, plus cards her professional assigns | The app never claims to know her state. She tells it, or her professional decides. |
+| No filtering professionals by symptom, specialty, language or rating | A woman seeking help may not know what is wrong; ratings invite unfairness. |
+| One user table with a role field | Three personas, one login system, one permission model. |
+| Slots are closed, never deleted, after a booking | Deleting would cascade and erase booking history. |
+| Video links generated by the server from a secret | Nothing stored to leak, nothing to guess. |
+| SQLite now, a server database later | Zero setup for a team that is starting. Models do not change when switching. |
 
-Background processing is intended for operations such as weekly summary generation and notifications.
+## Roadmap
 
-### AI
+Suggested build order (each item depends on the earlier ones):
 
-| Technology | Purpose |
-|---|---|
-| Gemini API | Structured, descriptive weekly progress summaries |
+1. Demo-minimum security pass.
+2. Directory filters and the shared free-slot rule.
+3. Professional calendar (weekly template, time off, edit and remove).
+4. Online link and in-person address reveal.
+5. Analytics, topics, AI summary and "learn something" cards, plus professional assignment.
+6. API schema for the front-end team, a demo seed command, a visible "talk to someone now" card.
+7. Before a real launch: the full OWASP baseline, a production database, hosting with TLS and encrypted storage, push notifications.
 
-AI is intentionally limited to specific background tasks.
+**People work that code cannot replace:** professionals to review the card texts and the AI wording, native speakers for the Arabic, a human check of every professional's credential, and a pilot with consenting women.
 
-It is not designed to power a general-purpose mental-health chatbot. Generated summaries should remain descriptive, use the available data, and avoid diagnosis or treatment advice.
+## Contributing
 
-### Mobile Application
+- Work on a branch and open a pull request; every pull request must pass `uv run python manage.py test rahati`.
+- Every new endpoint needs: an explicit role gate, ownership scoping, a strict serializer with an explicit field list (never `__all__`), a text policy for every string field, pagination for lists, a throttle scope, an audit event for sensitive actions and tests for each of these.
+- Never log request bodies, tokens, journal text, addresses or video links.
+- Never commit secrets. Add new environment variables to `.env.example`.
+- Do not delete a test to make a change pass. If a test must change, say why in the pull request.
 
-| Technology | Purpose |
-|---|---|
-| React Native | Cross-platform mobile application |
-| Expo | Mobile development workflow |
-| TypeScript | Type safety |
+## Glossary
 
-A mobile application is part of the planned product direction. The current repository setup described here does not imply that the mobile application is already implemented.
+- **Check-in**: a daily mood and energy score (1 to 5), with optional topics.
+- **Slot**: a block of time a professional offers. A **free slot** can still be booked.
+- **Session**: a booking of a slot by a woman, with a status.
+- **Consent**: a woman's permission for one professional to see one category of her data.
+- **Card**: a short lesson with one small action and a "when to reach out for support" line.
+- **Topic**: a theme (stress, sleep, family...) a woman can tag at check-in.
+- **Wilaya**: an Algerian administrative province, used as the location filter.
 
-### Other Planned Services
+## License
 
-| Technology | Purpose |
-|---|---|
-| Firebase Cloud Messaging (FCM) | Push notifications |
-| Jitsi or Daily | Potential video-session infrastructure |
-| OpenStreetMap | Geographic data for the professional directory |
-| Leaflet | Interactive map interface |
-| Docker | Containerization and deployment |
-
-Video sessions, map-based discovery, and payments are planned for later stages rather than being required for the first MVP.
-
----
-
-## System Architecture
-
-Rahati is intended to use a shared backend and API for its different user roles.
-
-The mobile application and web application communicate with the backend through a common API. Administrative workflows use the same application data and permissions model.
-
-### High-Level Architecture
-
-![Rahati Architecture](/Assets/Rahati-Architecture.png)
+See [LICENSE](LICENSE).
