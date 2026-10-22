@@ -34,7 +34,9 @@ def _booking_eligible_slots(now=None):
 
 def free_slots(now=None):
     """Return slots that can be booked at ``now`` without an active session."""
-    return _booking_eligible_slots(now).exclude(sessions__status__in=Session.ACTIVE)
+    return _booking_eligible_slots(now).filter(closed_at__isnull=True).exclude(
+        sessions__status__in=Session.ACTIVE
+    )
 
 
 def has_relationship(professional, user_id):
