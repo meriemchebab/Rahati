@@ -21,6 +21,7 @@ from .content_rules import (
 )
 from .models import (
     AvailabilitySlot,
+    WeeklyAvailability,
     CheckIn,
     ContentCard,
     ContentCardTranslation,
@@ -488,6 +489,28 @@ class SlotSerializer(serializers.ModelSerializer):
                 overlapping = overlapping.exclude(pk=self.instance.pk)
             if overlapping.exists():
                 raise serializers.ValidationError("This slot overlaps one you already published.")
+        return data
+
+
+class WeeklyAvailabilitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WeeklyAvailability
+        fields = ["id", "weekday", "starts_at", "ends_at", "mode", "is_active"]
+        read_only_fields = ["id"]
+
+    def validate(self, data):
+        from .availability_services import check_slot_rules
+
+        professional = self.context["request"].user
+        rule = WeeklyAvailability(**data, professional=professional)
+        if self.instance is not None:
+            for field in ("weekday", "starts_at", "ends_at", "mode", "is_active"):
+                setattr(rule, field, data.get(field, getattr(self.instance, field)))
+            rule.pk = self.instance.pk
+        try:
+            check_slot_rules(professional, rule)
+        except ValueError as exc:
+            raise serializers.ValidationError({"detail": str(exc)}) from exc
         return data
 
 

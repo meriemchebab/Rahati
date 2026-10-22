@@ -27,6 +27,7 @@ from django.contrib.auth import update_session_auth_hash
 from rest_framework_simplejwt.exceptions import TokenError
 
 from .content_rules import PATTERN_PRIORITY, MAX_CARDS_PER_PROFESSIONAL
+from .availability_services import retire_slot
 from .models import (
     AvailabilitySlot,
     CheckIn,
@@ -43,6 +44,8 @@ from .models import (
     User,
     UserPattern,
     WeeklySummary,
+    WeeklyAvailability,
+    TimeOff,
 )
 from .permissions import IsSessionActor, IsUserRole, IsVerifiedProfessional, IsProfessionalRole
 from .serializers import (
@@ -61,7 +64,9 @@ from .serializers import (
     DirectorySearchSerializer,
     ProfessionalSlotsQuerySerializer,
     ProfessionalCalendarQuerySerializer,
+    WeeklyAvailabilitySerializer,
 )
+from .availability_services import retire_slot
 from .wilayas import WILAYAS
 from .serializers import _PRO_STATUS_TRANSITIONS  # noqa: internal only
 from .services import (
@@ -1320,6 +1325,131 @@ class ProSlotsView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(professional=self.request.user)
+
+    def patch(self, request, *args, **kwargs):
+        slot = get_object_or_404(AvailabilitySlot, pk=request.data.get("id"), professional=request.user)
+        if slot.closed_at is not None:
+            return Response({"detail": "Closed slots cannot be edited."}, status=400)
+        serializer = SlotSerializer(slot, data=request.data, partial=True, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        slot = serializer.save(source=AvailabilitySlot.Source.MANUAL, rule=None)
+        return Response(SlotSerializer(slot).data)
+
+    def delete(self, request, *args, **kwargs):
+        slot = get_object_or_404(AvailabilitySlot, pk=request.data.get("id") or request.query_params.get("id"), professional=request.user)
+        if slot.sessions.filter(status__in=Session.ACTIVE).exists():
+            return Response({"detail": "A slot with an active session cannot be retired."}, status=409)
+        if slot.closed_at is None:
+            slot.closed_at = timezone.now()
+            slot.save(update_fields=["closed_at"])
+        return Response(status=204)
+
+
+class ProTimeOffView(APIView):
+    permission_classes = [IsVerifiedProfessional]
+
+    def get(self, request):
+        rows = TimeOff.objects.filter(professional=request.user).order_by("starts_at")
+        return Response([{"id": row.pk, "starts_at": row.starts_at, "ends_at": row.ends_at} for row in rows])
+
+    def post(self, request):
+        from .availability import local_to_utc
+        from datetime import date, datetime, time, timedelta
+
+        try:
+            start_date = date.fromisoformat(request.data["from"])
+            end_date = date.fromisoformat(request.data["to"])
+            if end_date < start_date:
+                raise ValueError
+        except (KeyError, TypeError, ValueError):
+            return Response({"detail": "Provide valid from and to dates."}, status=400)
+        if (end_date - start_date).days >= 62:
+            return Response({"detail": "Time-off range cannot exceed 62 days."}, status=400)
+        start = local_to_utc(datetime.combine(start_date, time.min))
+        end = local_to_utc(datetime.combine(end_date + timedelta(days=1), time.min))
+        row = TimeOff.objects.create(professional=request.user, starts_at=start, ends_at=end)
+        slots = AvailabilitySlot.objects.filter(
+            professional=request.user, starts_at__lt=end, ends_at__gt=start, closed_at__isnull=True
+        ).prefetch_related("sessions")
+        for slot in slots:
+            retire_slot(slot)
+        return Response({"id": row.pk, "starts_at": row.starts_at, "ends_at": row.ends_at}, status=201)
+
+    def delete(self, request):
+        row = get_object_or_404(TimeOff, pk=request.data.get("id") or request.query_params.get("id"), professional=request.user)
+        row.delete()
+        return Response(status=204)
+
+
+class ProCalendarView(APIView):
+    permission_classes = [IsVerifiedProfessional]
+
+    def get(self, request):
+        from .availability import local_to_utc
+        from datetime import date, datetime, time, timedelta
+        from .limits import CALENDAR_MAX_WINDOW_DAYS
+
+        try:
+            start_date = date.fromisoformat(request.query_params["from"])
+            end_date = date.fromisoformat(request.query_params["to"])
+        except (KeyError, TypeError, ValueError):
+            return Response({"detail": "Provide valid from and to dates."}, status=400)
+        if end_date < start_date or (end_date - start_date).days >= CALENDAR_MAX_WINDOW_DAYS:
+            return Response({"detail": "Calendar range must be between 1 and 62 days."}, status=400)
+        start = local_to_utc(datetime.combine(start_date, time.min))
+        end = local_to_utc(datetime.combine(end_date + timedelta(days=1), time.min))
+        now = timezone.now()
+        rows = AvailabilitySlot.objects.filter(
+            professional=request.user, starts_at__gte=start, starts_at__lt=end
+        ).prefetch_related("sessions").order_by("starts_at", "pk")
+        items = []
+        for slot in rows:
+            statuses = set(slot.sessions.values_list("status", flat=True))
+            if "accepted" in statuses:
+                state = "accepted"
+            elif "requested" in statuses:
+                state = "requested"
+            elif "completed" in statuses:
+                state = "completed"
+            elif slot.closed_at is not None or slot.starts_at <= now:
+                state = "expired"
+            else:
+                state = "free"
+            items.append({"id": slot.pk, "starts_at": slot.starts_at, "ends_at": slot.ends_at, "mode": slot.mode, "state": state})
+        return Response(items)
+
+
+class ProAvailabilityView(APIView):
+    permission_classes = [IsVerifiedProfessional]
+
+    def get(self, request):
+        rows = WeeklyAvailability.objects.filter(professional=request.user)
+        return Response(WeeklyAvailabilitySerializer(rows, many=True).data)
+
+    def post(self, request):
+        serializer = WeeklyAvailabilitySerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        rule = serializer.save(professional=request.user)
+        return Response(WeeklyAvailabilitySerializer(rule).data, status=201)
+
+    def patch(self, request):
+        rule_id = request.data.get("id")
+        rule = get_object_or_404(WeeklyAvailability, pk=rule_id, professional=request.user)
+        serializer = WeeklyAvailabilitySerializer(
+            rule, data=request.data, partial=True, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        rule = serializer.save()
+        return Response(WeeklyAvailabilitySerializer(rule).data)
+
+    def delete(self, request):
+        rule_id = request.data.get("id") or request.query_params.get("id")
+        rule = get_object_or_404(WeeklyAvailability, pk=rule_id, professional=request.user)
+        now = timezone.now()
+        for slot in rule.slots.filter(starts_at__gt=now, closed_at__isnull=True):
+            retire_slot(slot, now=now)
+        rule.delete()
+        return Response(status=204)
 
 
 class PatientListView(APIView):

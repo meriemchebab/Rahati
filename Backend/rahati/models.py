@@ -399,6 +399,12 @@ class WeeklyAvailability(models.Model):
         ordering = ["weekday", "starts_at"]
         indexes = [models.Index(fields=["professional", "weekday"])]
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        from .availability_services import generate_slots
+
+        generate_slots(self.professional)
+
 
 class TimeOff(models.Model):
     """A local Algiers-time interval during which the professional is away."""

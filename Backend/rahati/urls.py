@@ -73,6 +73,9 @@ urlpatterns = [
     path("pro/content/<int:pk>", views.ProContentDetailView.as_view(), name="pro-content-detail"),
     # ----- care: professional side — slots -----
     path("pro/slots", views.ProSlotsView.as_view(), name="pro-slots"),
+    path("pro/availability", views.ProAvailabilityView.as_view(), name="pro-availability"),
+    path("pro/time-off", views.ProTimeOffView.as_view(), name="pro-time-off"),
+    path("pro/calendar", views.ProCalendarView.as_view(), name="pro-calendar"),
     path("pro/patients", views.PatientListView.as_view(), name="pro-patients"),
     path(
         "pro/patients/<int:user_id>/todos",
