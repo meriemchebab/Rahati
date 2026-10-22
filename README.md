@@ -145,6 +145,9 @@ erDiagram
   CONTENT_CARD ||--o{ TODO : "may source"
   CONTENT_CARD ||--|{ CONTENT_CARD_TRANSLATION : "has ar/fr"
   USER ||--o{ AVAILABILITY_SLOT : offers
+  USER ||--o{ WEEKLY_AVAILABILITY : defines
+  USER ||--o{ TIME_OFF : blocks
+  WEEKLY_AVAILABILITY ||--o{ AVAILABILITY_SLOT : generates
   AVAILABILITY_SLOT ||--o{ SESSION : "booked as"
   USER ||--o{ SESSION : books
   SESSION ||--o| SESSION_NOTE : has
@@ -172,6 +175,18 @@ erDiagram
     datetime starts_at
     datetime ends_at
     string mode "online, in_person"
+    string source "manual, template"
+    datetime closed_at
+  }
+  WEEKLY_AVAILABILITY {
+    int weekday "Monday=0 through Sunday=6"
+    time starts_at "Africa/Algiers local time"
+    time ends_at "Africa/Algiers local time"
+    string mode "online, in_person"
+  }
+  TIME_OFF {
+    datetime starts_at "UTC instant for local date boundary"
+    datetime ends_at "UTC instant for local date boundary"
   }
   SESSION {
     string status "requested, accepted, declined, cancelled, completed"
@@ -200,9 +215,6 @@ erDiagram
   USER ||--o{ CARD_READ : marks
   CONTENT_CARD ||--o{ CARD_READ : "read as"
   USER ||--o{ ANALYTICS_SUMMARY : "caches (per range and day)"
-  USER ||--o{ WEEKLY_AVAILABILITY : defines
-  USER ||--o{ TIME_OFF : blocks
-  WEEKLY_AVAILABILITY ||--o{ AVAILABILITY_SLOT : generates
 ```
 
 ## Key flows
@@ -347,7 +359,8 @@ All routes are under `/api/`. Responses are JSON. Authentication is a JWT in the
 | Finding a professional | `GET professionals`, `GET professionals/{id}/slots` |
 | Sessions | `GET/POST sessions`, `PATCH sessions/{id}` |
 | Consent | `GET/PUT consents` |
-| Professional | `GET/POST pro/slots`, `GET pro/patients`, `GET pro/patients/{id}/check-ins`, `.../journal`, `.../cycle`, `POST pro/patients/{id}/todos`, `GET/PUT pro/sessions/{id}/note` |
+| Professional availability | `GET/POST/PATCH/DELETE pro/slots`, `GET/POST/PATCH/DELETE pro/availability`, `GET/POST/DELETE pro/time-off`, `GET pro/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` |
+| Professional care | `GET pro/patients`, `GET pro/patients/{id}/check-ins`, `.../journal`, `.../cycle`, `POST pro/patients/{id}/todos`, `GET/PUT pro/sessions/{id}/note` |
 | Professional signup and profile | see `rahati/urls.py` |
 
 `GET patterns` exists but is deprecated.
@@ -361,9 +374,23 @@ All routes are under `/api/`. Responses are JSON. Authentication is a JWT in the
 | Professional assigns | `POST pro/patients/{id}/content`, `GET pro/patients/{id}/todos` (progress) |
 | Directory | `GET wilayas`, `GET professionals?mode&wilaya&from&to&time_of_day`, `GET professionals/{id}/calendar` |
 | Sessions | `GET sessions/{id}` with `location` and `online` objects |
-| Availability | `GET/POST/PATCH/DELETE pro/availability`, `PATCH/DELETE pro/slots/{id}`, `GET/POST/DELETE pro/time-off`, `GET pro/calendar` |
 
 A machine-readable API schema (Swagger, via `drf-spectacular`) is the next contract for the mobile and web developers. It must not be public in production.
+
+### Availability behavior
+
+- Availability uses the fixed `Africa/Algiers` time zone. Weekly rules store local wall-clock times; generated slots are stored as timezone-aware datetimes.
+- A weekly rule generates consecutive 30-minute template slots for its weekday through the configured 28-day horizon. Rule times align to quarter-hour boundaries. Generation is synchronous when a rule is saved and can also be run from the command line:
+
+  ```bash
+  uv run python manage.py generate_availability
+  uv run python manage.py generate_availability --professional-id 42 --days 14
+  ```
+
+- Generation skips existing overlaps and time-off ranges, and caps a professional at 300 open future slots. Weekly rules are capped at 30 per professional. Calendar requests accept inclusive local dates spanning at most 62 days.
+- `GET pro/calendar` returns the professional's slots in the requested date range with `id`, `starts_at`, `ends_at`, `mode`, and a UI state: `requested`, `accepted`, `completed`, `free`, or `expired`.
+- `PATCH` and `DELETE pro/slots` identify the slot with an `id` in the request body (or query string for `DELETE`). Editing makes a slot manual and detaches it from its weekly rule. Deleting retires it by setting `closed_at`; slots with requested or accepted sessions cannot be retired.
+- `POST pro/time-off` accepts inclusive `from` and `to` local dates. It retires unbooked slots in those dates, and later generation skips the blocked interval. `DELETE pro/time-off` takes the entry `id` in the body or query string.
 
 ## Security and privacy
 
@@ -494,11 +521,10 @@ Suggested build order (each item depends on the earlier ones):
 
 1. Demo-minimum security pass.
 2. Directory filters and the shared free-slot rule.
-3. Professional calendar (weekly template, time off, edit and remove).
-4. Online link and in-person address reveal.
-5. Analytics, topics, AI summary and "learn something" cards, plus professional assignment.
-6. API schema for the front-end team, a demo seed command, a visible "talk to someone now" card.
-7. Before a real launch: the full OWASP baseline, a production database, hosting with TLS and encrypted storage, push notifications.
+3. Online link and in-person address reveal.
+4. Analytics, topics, AI summary and "learn something" cards, plus professional assignment.
+5. API schema for the front-end team, a demo seed command, a visible "talk to someone now" card.
+6. Before a real launch: the full OWASP baseline, a production database, hosting with TLS and encrypted storage, push notifications.
 
 **People work that code cannot replace:** professionals to review the card texts and the AI wording, native speakers for the Arabic, a human check of every professional's credential, and a pilot with consenting women.
 
