@@ -9,7 +9,7 @@ from datetime import timedelta
 
 from django.db import transaction
 from django.http import FileResponse, Http404
-from django.db.models import Count, F, Q
+from django.db.models import Count, F, Q, Min
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, serializers
@@ -56,7 +56,9 @@ from .serializers import (
     SessionSerializer,
     SlotSerializer,
     TodoSerializer,
+    DirectorySearchSerializer,
 )
+from .wilayas import WILAYAS
 from .serializers import _PRO_STATUS_TRANSITIONS  # noqa: internal only
 from .services import (
     RELATIONSHIP_STATUSES,
@@ -1010,12 +1012,62 @@ class ProfessionalListView(APIView):
     permission_classes = [IsUserRole]
 
     def get(self, request):
-        qs = ProfessionalProfile.objects.filter(status=ProfessionalProfile.Status.VERIFIED)
-        if request.query_params.get("city"):
-            qs = qs.filter(city__iexact=request.query_params["city"])
-        return Response(
-            [{"id": p.user_id, "name": p.display_name, "bio": p.bio, "city": p.city} for p in qs]
+        serializer = DirectorySearchSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        params = serializer.validated_data
+        now = timezone.now()
+        start_date = params.get("from_date") or timezone.localdate()
+        end_date = params.get("to") or (start_date + timedelta(days=60))
+        start = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()))
+        end = timezone.make_aware(timezone.datetime.combine(end_date + timedelta(days=1), timezone.datetime.min.time()))
+        slots = free_slots(now=now).filter(starts_at__gte=start, starts_at__lt=end, mode=params["mode"])
+        if params.get("time_of_day"):
+            ranges = {"morning": (5, 12), "afternoon": (12, 17), "evening": (17, 22)}
+            low, high = ranges[params["time_of_day"]]
+            slots = slots.filter(starts_at__hour__gte=low, starts_at__hour__lt=high)
+
+        requested_wilaya = params.get("wilaya")
+        profile_filter = Q()
+        if requested_wilaya and params["mode"] == AvailabilitySlot.Mode.IN_PERSON:
+            profile_filter &= Q(professional__professional_profile__wilaya=requested_wilaya)
+        aggregation = slots.filter(profile_filter).values("professional_id").annotate(
+            next_slot=Min("starts_at"), free_count=Count("id"),
+            selected_modes=Count("mode", distinct=True),
         )
+        summary = {row["professional_id"]: row for row in aggregation}
+        profile_query = ProfessionalProfile.objects.filter(
+            status=ProfessionalProfile.Status.VERIFIED,
+            user__is_active=True,
+            user_id__in=summary.keys(),
+        ).select_related("user").order_by("display_name", "user_id")
+        if requested_wilaya and params["mode"] == AvailabilitySlot.Mode.IN_PERSON:
+            profile_query = profile_query.filter(wilaya=requested_wilaya)
+        elif params["mode"] == AvailabilitySlot.Mode.IN_PERSON:
+            profile_query = profile_query.exclude(wilaya="")
+        profiles = list(profile_query[params["offset"]:params["offset"] + params["limit"]])
+        lang = request.user.language
+        names = dict(WILAYAS)
+        output = [{
+            "id": profile.user_id,
+            "name": profile.display_name,
+            "bio": profile.bio,
+            "city": profile.city,
+            "wilaya": profile.wilaya or None,
+            "wilaya_name": names.get(profile.wilaya) if profile.wilaya else None,
+            "modes": [params["mode"]] if summary[profile.user_id]["selected_modes"] else [],
+            "next_slot": timezone.localtime(summary[profile.user_id]["next_slot"]).isoformat(),
+            "free_slots_in_window": summary[profile.user_id]["free_count"],
+        } for profile in profiles]
+        return _private_response(output)
+
+
+class WilayaListView(APIView):
+    permission_classes = [IsUserRole]
+
+    def get(self, request):
+        # The official code list is language-neutral today; preserve a localized
+        # name mapping boundary for translations when they are supplied.
+        return _private_response([{"code": code, "name": name} for code, name in WILAYAS])
 
 
 class FreeSlotsView(APIView):

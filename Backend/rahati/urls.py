@@ -53,6 +53,7 @@ urlpatterns = [
     path("todos/<int:pk>/complete", views.TodoCompleteView.as_view(), name="todo-complete"),
     path("todos/<int:pk>/reopen", views.TodoReopenView.as_view(), name="todo-reopen"),
     # ----- care: user side -----
+    path("wilayas", views.WilayaListView.as_view(), name="wilayas"),
     path("professionals", views.ProfessionalListView.as_view(), name="professionals"),
     path(
         "professionals/<int:pro_id>/slots",

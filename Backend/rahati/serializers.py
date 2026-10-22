@@ -6,6 +6,7 @@ Rules for every serializer:
 - All card text goes through clean_text() from content_rules.
 """
 from django.utils import timezone
+from datetime import timedelta
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
@@ -34,6 +35,7 @@ from .services import todo_status
 from .credentials import validate_credential
 from .text_rules import clean_display_name, clean_phone, clean_text, clean_private_text
 from .wilayas import WILAYA_CHOICES
+_DIRECTORY_BIDI = frozenset(chr(code) for code in (*range(0x202A, 0x202F), *range(0x2066, 0x206A)))
 
 
 class StrictSerializerMixin:
@@ -47,6 +49,50 @@ class StrictSerializerMixin:
                     {key: ["Unknown field."] for key in sorted(unknown)}
                 )
         return super().to_internal_value(data)
+
+
+class DirectorySearchSerializer(serializers.Serializer):
+    """Strict query validation for the public professional directory."""
+
+    mode = serializers.ChoiceField(choices=["in_person", "online"], required=False)
+    wilaya = serializers.ChoiceField(choices=WILAYA_CHOICES, required=False, allow_blank=False)
+    from_date = serializers.DateField(required=False)
+    to = serializers.DateField(required=False)
+    time_of_day = serializers.ChoiceField(choices=["morning", "afternoon", "evening"], required=False)
+    limit = serializers.IntegerField(required=False, default=20, min_value=1, max_value=50)
+    offset = serializers.IntegerField(required=False, default=0, min_value=0, max_value=10000)
+
+    def to_internal_value(self, data):
+        allowed = {"mode", "wilaya", "from", "to", "time_of_day", "limit", "offset"}
+        errors = {}
+        for key in data.keys():
+            if key not in allowed:
+                errors.setdefault(str(key), []).append("Unknown query parameter.")
+            values = data.getlist(key) if hasattr(data, "getlist") else [data[key]]
+            if len(values) != 1:
+                errors.setdefault(str(key), []).append("Repeated query parameters are not allowed.")
+            if any(isinstance(value, str) and ("\x00" in value or any(ch in _DIRECTORY_BIDI for ch in value)) for value in values):
+                errors.setdefault(str(key), []).append("Unsafe characters are not allowed.")
+        if errors:
+            raise serializers.ValidationError(errors)
+        normalized = {("from_date" if key == "from" else key): data[key] for key in data.keys()}
+        return super().to_internal_value(normalized)
+
+    def validate(self, attrs):
+        attrs.setdefault("mode", "in_person")
+        attrs.setdefault("limit", 20)
+        attrs.setdefault("offset", 0)
+        start, end = attrs.get("from_date"), attrs.get("to")
+        today = timezone.localdate()
+        if start and end and end < start:
+            raise serializers.ValidationError({"to": "Must be on or after from."})
+        if start and end and (end - start).days > 60:
+            raise serializers.ValidationError({"to": "Search window cannot exceed 60 days."})
+        if end and end > today + timedelta(days=180):
+            raise serializers.ValidationError({"to": "Date cannot be more than 180 days ahead."})
+        if start and start > today + timedelta(days=180):
+            raise serializers.ValidationError({"from": "Date cannot be more than 180 days ahead."})
+        return attrs
 
 
 # --------------------------------------------------------------------------
