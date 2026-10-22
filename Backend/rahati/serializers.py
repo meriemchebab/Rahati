@@ -95,6 +95,73 @@ class DirectorySearchSerializer(serializers.Serializer):
         return attrs
 
 
+class ProfessionalSlotsQuerySerializer(serializers.Serializer):
+    """Strict pagination and optional mode filter for a professional's slots."""
+
+    mode = serializers.ChoiceField(choices=["in_person", "online"], required=False)
+    limit = serializers.IntegerField(required=False, default=20, min_value=1, max_value=100)
+    offset = serializers.IntegerField(required=False, default=0, min_value=0, max_value=10000)
+
+    def to_internal_value(self, data):
+        allowed = {"mode", "limit", "offset"}
+        errors = {}
+        for key in data.keys():
+            values = data.getlist(key) if hasattr(data, "getlist") else [data[key]]
+            if key not in allowed:
+                errors.setdefault(str(key), []).append("Unknown query parameter.")
+            if len(values) != 1:
+                errors.setdefault(str(key), []).append("Repeated query parameters are not allowed.")
+            if any(isinstance(value, str) and ("\x00" in value or any(ch in _DIRECTORY_BIDI for ch in value)) for value in values):
+                errors.setdefault(str(key), []).append("Unsafe characters are not allowed.")
+        if errors:
+            raise serializers.ValidationError(errors)
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        attrs.setdefault("limit", 20)
+        attrs.setdefault("offset", 0)
+        return attrs
+
+
+class ProfessionalCalendarQuerySerializer(serializers.Serializer):
+    month = serializers.CharField()
+    mode = serializers.ChoiceField(choices=["in_person", "online"], required=False)
+
+    def validate_month(self, value):
+        import re
+        from datetime import date
+
+        if not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", value):
+            raise serializers.ValidationError("Use YYYY-MM.")
+        year, month = map(int, value.split("-"))
+        try:
+            date(year, month, 1)
+        except ValueError as exc:
+            raise serializers.ValidationError("Month is out of range.") from exc
+        today = timezone.localdate()
+        month_start = date(year, month, 1)
+        if month_start < date(today.year, today.month, 1):
+            raise serializers.ValidationError("Month must be current or future.")
+        if month_start > date(today.year + (today.month + 5) // 13, ((today.month + 5 - 1) % 12) + 1, 1):
+            raise serializers.ValidationError("Month cannot be more than six months ahead.")
+        return month_start
+
+    def to_internal_value(self, data):
+        allowed = {"month", "mode"}
+        errors = {}
+        for key in data.keys():
+            values = data.getlist(key) if hasattr(data, "getlist") else [data[key]]
+            if key not in allowed:
+                errors.setdefault(str(key), []).append("Unknown query parameter.")
+            if len(values) != 1:
+                errors.setdefault(str(key), []).append("Repeated query parameters are not allowed.")
+            if any(isinstance(value, str) and ("\x00" in value or any(ch in _DIRECTORY_BIDI for ch in value)) for value in values):
+                errors.setdefault(str(key), []).append("Unsafe characters are not allowed.")
+        if errors:
+            raise serializers.ValidationError(errors)
+        return super().to_internal_value(data)
+
+
 # --------------------------------------------------------------------------
 # Auth / account
 # --------------------------------------------------------------------------

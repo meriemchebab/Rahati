@@ -6,10 +6,12 @@ Every view passes three gates:
 3. Consent gate    -> services.can_read (professionals reading a patient)
 """
 from datetime import timedelta
+from calendar import monthrange
 
 from django.db import transaction
 from django.http import FileResponse, Http404
 from django.db.models import Count, F, Q, Min
+from django.db.models.functions import TruncDate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, serializers
@@ -57,6 +59,8 @@ from .serializers import (
     SlotSerializer,
     TodoSerializer,
     DirectorySearchSerializer,
+    ProfessionalSlotsQuerySerializer,
+    ProfessionalCalendarQuerySerializer,
 )
 from .wilayas import WILAYAS
 from .serializers import _PRO_STATUS_TRANSITIONS  # noqa: internal only
@@ -1074,8 +1078,70 @@ class FreeSlotsView(APIView):
     permission_classes = [IsUserRole]
 
     def get(self, request, pro_id):
-        slots = free_slots().filter(professional_id=pro_id)
-        return Response(SlotSerializer(slots, many=True).data)
+        query = ProfessionalSlotsQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        professional = User.objects.filter(
+            pk=pro_id,
+            is_active=True,
+            role=User.Role.PROFESSIONAL,
+            professional_profile__status=ProfessionalProfile.Status.VERIFIED,
+        ).first()
+        if professional is None:
+            return Response({"detail": "Not found."}, status=404)
+        slots = free_slots().filter(professional_id=pro_id).order_by("starts_at", "pk")
+        if query.validated_data.get("mode"):
+            slots = slots.filter(mode=query.validated_data["mode"])
+        offset = query.validated_data["offset"]
+        limit = query.validated_data["limit"]
+        return _private_response(SlotSerializer(slots[offset:offset + limit], many=True).data)
+
+
+class ProfessionalCalendarView(APIView):
+    permission_classes = [IsUserRole]
+
+    def get(self, request, pro_id):
+        query = ProfessionalCalendarQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        professional = User.objects.filter(
+            pk=pro_id,
+            is_active=True,
+            role=User.Role.PROFESSIONAL,
+            professional_profile__status=ProfessionalProfile.Status.VERIFIED,
+        ).first()
+        if professional is None:
+            return Response({"detail": "Not found."}, status=404)
+
+        month_start = query.validated_data["month"]
+        month_end = month_start.replace(day=monthrange(month_start.year, month_start.month)[1]) + timedelta(days=1)
+        tz = timezone.get_current_timezone()
+        start = timezone.make_aware(timezone.datetime.combine(month_start, timezone.datetime.min.time()), tz)
+        end = timezone.make_aware(timezone.datetime.combine(month_end, timezone.datetime.min.time()), tz)
+        slots = free_slots().filter(
+            professional_id=pro_id,
+            starts_at__gte=start,
+            starts_at__lt=end,
+        )
+        if query.validated_data.get("mode"):
+            slots = slots.filter(mode=query.validated_data["mode"])
+        # A single grouped database query produces all day counts and modes.
+        rows = slots.annotate(local_day=TruncDate("starts_at", tzinfo=tz)).values("local_day").annotate(
+            free_slots=Count("id"),
+        ).order_by("local_day")
+        day_rows = list(rows)
+        mode_rows = slots.annotate(local_day=TruncDate("starts_at", tzinfo=tz)).values("local_day", "mode").annotate(
+            free_slots=Count("id"),
+        ).order_by("local_day", "mode")
+        modes_by_day = {}
+        for row in mode_rows:
+            modes_by_day.setdefault(row["local_day"], []).append(row["mode"])
+        return _private_response([
+            {
+                "date": row["local_day"].isoformat(),
+                "modes": modes_by_day[row["local_day"]],
+                "free_slots": row["free_slots"],
+            }
+            for row in day_rows
+        ])
 
 
 class SessionView(APIView):

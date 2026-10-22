@@ -60,6 +60,11 @@ urlpatterns = [
         views.FreeSlotsView.as_view(),
         name="professional-slots",
     ),
+    path(
+        "professionals/<int:pro_id>/calendar",
+        views.ProfessionalCalendarView.as_view(),
+        name="professional-calendar",
+    ),
     path("sessions", views.SessionView.as_view(), name="sessions"),
     path("sessions/<int:pk>", views.SessionUpdateView.as_view(), name="session-update"),
     path("consents", views.ConsentView.as_view(), name="consents"),

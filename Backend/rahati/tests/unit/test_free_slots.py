@@ -12,6 +12,8 @@ from rahati.services import free_slots
 @override_settings(
     FIELD_ENCRYPTION_KEY=Fernet.generate_key(),
     PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"],
+    APPEND_SLASH=False,
+    SECURE_SSL_REDIRECT=False,
 )
 class FreeSlotsTests(TestCase):
     def setUp(self):
