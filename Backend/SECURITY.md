@@ -19,6 +19,33 @@ of certification or a substitute for deployment review.
 | A09 Security Logging and Monitoring Failures | Audit rows cover professional registration, profile updates (action and target only), credential review, and admin verification/rejection. | `rahati/services.py`, `rahati/views.py`, `rahati/admin.py`; `test_pro_registration.py`, `test_pro_profile.py`, `test_admin_professionals.py` |
 | A10 Server-Side Request Forgery | No user-supplied URL fetch is part of the professional registration, profile, or credential flow. Any future URL-fetch feature needs destination allowlisting and network egress controls. | Current professional API surface; regression review in `test_pro_security_matrix.py` |
 
+## Directory search and availability security
+
+The directory endpoints are authenticated user-role reads. `GET /api/wilayas`,
+`GET /api/professionals`, `GET /api/professionals/{id}/slots`, and
+`GET /api/professionals/{id}/calendar` return `Cache-Control: private,
+no-store`. Search and calendar endpoints use per-user `ScopedRateThrottle`
+scopes (`directory_search`: 120/hour; `directory_calendar`: 240/hour). Query
+parameters are allow-listed, duplicate keys and unsafe NUL/bidi input are
+rejected, validation errors are JSON 400s, and unexpected endpoint errors use a
+generic JSON 500. Directory reads do not create audit events or other rows;
+request logging uses Django's path-only request message and does not include
+the query string.
+
+| OWASP area | Directory control | Regression tests |
+| --- | --- | --- |
+| A01 Broken Access Control | User-role gate on all four reads; unavailable, inactive, and unverified profiles share a non-enumerating 404; slots and calendar are scoped by professional id. | `test_security_directory.py` role matrix and IDOR probes |
+| API3 Broken Object Property Level Authorization | Explicit response serializers / dictionaries omit email, phone, address, credentials, and private profile state. | `test_directory_search.py`, `test_security_directory.py` privacy allow-list checks |
+| A05 Security Misconfiguration | Private no-store headers on success and error responses; strict query parsing and generic unexpected-error bodies. | `test_directory_consistency_and_privacy.py` cache, invalid-input, and generic-error checks |
+| API4 Unrestricted Resource Consumption | Per-user scoped request limits and bounded pagination; calendar aggregates by local date/mode in constant query count. | `test_directory_consistency_and_privacy.py` throttle checks; `test_professional_slots_and_calendar.py` query-count test |
+| API6 Unrestricted Access to Sensitive Business Flows | Search results expose only bookable free slots; active bookings disappear across search/slots/calendar and declined bookings become available again. | `test_directory_consistency_and_privacy.py` booking lifecycle test |
+| A09 Security Logging and Monitoring Failures | Directory GETs write no audit rows and query parameter values are not included in request log messages. | `test_directory_consistency_and_privacy.py` write and log assertions |
+| A10 Server-Side Request Forgery | Directory query values are parsed as bounded enums/dates and are never fetched as URLs. | `test_directory_search.py` strict query tests; `test_security_directory.py` IDOR and input-boundary checks |
+
+The frontend should treat directory data as transient: it is private and should
+not be cached. Slot and calendar availability can change after each response;
+booking remains authoritative and may reject a slot that was just listed.
+
 ## Credential file limits and handling
 
 - Maximum upload size: **5 MiB** (`MAX_CREDENTIAL_BYTES`).

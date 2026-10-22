@@ -15,7 +15,7 @@ from django.db.models.functions import TruncDate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, serializers
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError, Throttled
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -91,6 +91,33 @@ def _private_response(data, status=200):
     r = Response(data, status=status)
     r["Cache-Control"] = _PRIVATE_NO_STORE
     return r
+
+
+class PrivateDirectoryAPIView(APIView):
+    """Directory endpoints always use private caching, including error responses."""
+
+    def handle_exception(self, exc):
+        if isinstance(exc, ValidationError):
+            response = Response(exc.detail, status=400)
+            response.exception = True
+            return response
+        if isinstance(exc, Throttled):
+            response = Response({"detail": "Request was throttled."}, status=429)
+            response.exception = True
+            return response
+        try:
+            response = super().handle_exception(exc)
+        except Exception:
+            response = Response({"detail": "Server error."}, status=500)
+            response.exception = True
+        if response.status_code >= 500:
+            response.data = {"detail": "Server error."}
+        return response
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
 
 
 def _card_item(card, translation, source, author_name, reviewed_by_name, lang):
@@ -1012,10 +1039,24 @@ class TodoCompleteView(APIView):
 # ==========================================================================
 
 
-class ProfessionalListView(APIView):
+class ProfessionalListView(PrivateDirectoryAPIView):
     permission_classes = [IsUserRole]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "directory_search"
 
     def get(self, request):
+        try:
+            response = self._search(request)
+        except ValidationError as exc:
+            response = Response(exc.detail, status=400)
+        except Throttled as exc:
+            response = Response({"detail": "Request was throttled."}, status=429)
+        except Exception:
+            response = Response({"detail": "Server error."}, status=500)
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
+
+    def _search(self, request):
         serializer = DirectorySearchSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         params = serializer.validated_data
@@ -1065,19 +1106,38 @@ class ProfessionalListView(APIView):
         return _private_response(output)
 
 
-class WilayaListView(APIView):
+class WilayaListView(PrivateDirectoryAPIView):
     permission_classes = [IsUserRole]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "directory_search"
 
     def get(self, request):
-        # The official code list is language-neutral today; preserve a localized
-        # name mapping boundary for translations when they are supplied.
-        return _private_response([{"code": code, "name": name} for code, name in WILAYAS])
+        try:
+            response = _private_response([{"code": code, "name": name} for code, name in WILAYAS])
+        except Exception:
+            response = Response({"detail": "Server error."}, status=500)
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
 
 
-class FreeSlotsView(APIView):
+class FreeSlotsView(PrivateDirectoryAPIView):
     permission_classes = [IsUserRole]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "directory_search"
 
     def get(self, request, pro_id):
+        try:
+            response = self._get_slots(request, pro_id)
+        except ValidationError as exc:
+            response = Response(exc.detail, status=400)
+        except Throttled:
+            response = Response({"detail": "Request was throttled."}, status=429)
+        except Exception:
+            response = Response({"detail": "Server error."}, status=500)
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
+
+    def _get_slots(self, request, pro_id):
         query = ProfessionalSlotsQuerySerializer(data=request.query_params)
         query.is_valid(raise_exception=True)
         professional = User.objects.filter(
@@ -1096,10 +1156,24 @@ class FreeSlotsView(APIView):
         return _private_response(SlotSerializer(slots[offset:offset + limit], many=True).data)
 
 
-class ProfessionalCalendarView(APIView):
+class ProfessionalCalendarView(PrivateDirectoryAPIView):
     permission_classes = [IsUserRole]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "directory_calendar"
 
     def get(self, request, pro_id):
+        try:
+            response = self._get_calendar(request, pro_id)
+        except ValidationError as exc:
+            response = Response(exc.detail, status=400)
+        except Throttled:
+            response = Response({"detail": "Request was throttled."}, status=429)
+        except Exception:
+            response = Response({"detail": "Server error."}, status=500)
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
+
+    def _get_calendar(self, request, pro_id):
         query = ProfessionalCalendarQuerySerializer(data=request.query_params)
         query.is_valid(raise_exception=True)
         professional = User.objects.filter(
