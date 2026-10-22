@@ -63,7 +63,9 @@ from .services import (
     audit,
     can_read,
     card_action_text,
+    free_slots,
     has_relationship,
+    _booking_eligible_slots,
     professional_todo_summary,
     todo_status_query,
 )
@@ -244,6 +246,7 @@ class ProfessionalProfileView(APIView):
             "bio": profile.bio,
             "city": profile.city,
             "address": profile.address,
+            "wilaya": profile.wilaya,
             "credential_kind": profile.credential_kind,
             "status": profile.status,
             "credential_uploaded_at": profile.credential_uploaded_at,
@@ -260,6 +263,7 @@ class ProfessionalProfileView(APIView):
                 "bio": profile.bio,
                 "city": profile.city,
                 "address": profile.address,
+                "wilaya": profile.wilaya,
                 "credential_kind": profile.credential_kind,
                 "status": profile.status,
                 "credential_uploaded_at": profile.credential_uploaded_at,
@@ -281,6 +285,7 @@ class ProfessionalProfileView(APIView):
             "bio": profile.bio,
             "city": profile.city,
             "address": profile.address,
+            "wilaya": profile.wilaya,
             "credential_kind": profile.credential_kind,
             "status": profile.status,
             "credential_uploaded_at": profile.credential_uploaded_at,
@@ -1017,10 +1022,7 @@ class FreeSlotsView(APIView):
     permission_classes = [IsUserRole]
 
     def get(self, request, pro_id):
-        slots = (
-            AvailabilitySlot.objects.filter(professional_id=pro_id, starts_at__gt=timezone.now())
-            .exclude(sessions__status__in=Session.ACTIVE)
-        )
+        slots = free_slots().filter(professional_id=pro_id)
         return Response(SlotSerializer(slots, many=True).data)
 
 
@@ -1041,19 +1043,19 @@ class SessionView(APIView):
         if request.user.role != User.Role.USER:
             return Response({"detail": "Only users can book."}, status=403)
         # Lock the slot row so two women cannot grab it at the same moment.
-        slot = (
-            AvailabilitySlot.objects.select_for_update()
-            .filter(
-                pk=request.data.get("slot"),
-                starts_at__gt=timezone.now(),
-                professional__professional_profile__status="verified",
-            )
-            .first()
-        )
-        if not slot:
+        now = timezone.now()
+        slot = AvailabilitySlot.objects.select_for_update().filter(
+            pk=request.data.get("slot")
+        ).first()
+        if slot is None:
             return Response({"detail": "Slot not available."}, status=404)
-        if Session.objects.filter(slot=slot, status__in=Session.ACTIVE).exists():
-            return Response({"detail": "Slot already taken."}, status=409)
+        if not free_slots(now=now).filter(pk=slot.pk).exists():
+            if (
+                _booking_eligible_slots(now=now).filter(pk=slot.pk).exists()
+                and Session.objects.filter(slot=slot, status__in=Session.ACTIVE).exists()
+            ):
+                return Response({"detail": "Slot already taken."}, status=409)
+            return Response({"detail": "Slot not available."}, status=404)
         session = Session.objects.create(user=request.user, slot=slot)
         return Response(SessionSerializer(session).data, status=201)
 

@@ -154,11 +154,14 @@ class ContentCardAdmin(admin.ModelAdmin):
 
 @register(ProfessionalProfile)
 class ProfessionalProfileAdmin(admin.ModelAdmin):
-    list_display = ["display_name", "user", "city", "credential_kind", "status", "created_at"]
-    list_filter = ["status", "credential_kind", "city"]
+    list_display = ["display_name", "user", "city", "wilaya", "credential_kind", "status", "created_at"]
+    list_filter = ["status", "credential_kind", "city", "wilaya"]
     search_fields = ["display_name", "user__username", "user__email"]
     readonly_fields = [field.name for field in ProfessionalProfile._meta.fields]
     actions = ["verify_selected", "reject_selected"]
+
+    def get_readonly_fields(self, request, obj=None):
+        return [field for field in super().get_readonly_fields(request, obj) if field != "wilaya"]
 
     def get_urls(self):
         return [

@@ -33,6 +33,7 @@ from .models import (
 from .services import todo_status
 from .credentials import validate_credential
 from .text_rules import clean_display_name, clean_phone, clean_text, clean_private_text
+from .wilayas import WILAYA_CHOICES
 
 
 class StrictSerializerMixin:
@@ -182,6 +183,9 @@ class ProfessionalProfilePatchSerializer(StrictSerializerMixin, serializers.Seri
     bio = serializers.CharField(max_length=5000, required=False, allow_blank=True)
     city = serializers.CharField(max_length=80, required=False)
     address = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    wilaya = serializers.ChoiceField(
+        choices=WILAYA_CHOICES, required=False, allow_blank=True
+    )
 
     def validate_display_name(self, value):
         try:
@@ -353,6 +357,13 @@ class SlotSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("A slot must end after it starts.")
 
         professional = self._professional()
+        mode = data.get("mode", getattr(self.instance, "mode", None))
+        if mode == AvailabilitySlot.Mode.IN_PERSON and professional:
+            wilaya = ProfessionalProfile.objects.filter(user=professional).values_list(
+                "wilaya", flat=True
+            ).first()
+            if not wilaya:
+                raise serializers.ValidationError({"wilaya": "wilaya_required"})
         if professional and starts_at and ends_at:
             # Half-open comparison: a slot ending exactly when another begins is fine.
             overlapping = AvailabilitySlot.objects.filter(

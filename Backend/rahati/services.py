@@ -3,14 +3,38 @@
 Gate 3 (consent gate): a professional reads a patient's data only with an
 accepted/completed session AND a non-revoked consent for that category.
 """
+from datetime import timedelta
+
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from .models import AuditLog, Session, SharingConsent
+from .limits import MIN_BOOKING_LEAD_MINUTES
+from .models import (
+    AuditLog,
+    AvailabilitySlot,
+    ProfessionalProfile,
+    Session,
+    SharingConsent,
+)
 
 # Statuses that establish a real care relationship between a woman and a
 # professional. Nothing gated on consent may rely on anything weaker.
 RELATIONSHIP_STATUSES = ("accepted", "completed")
+
+
+def _booking_eligible_slots(now=None):
+    """Slots with sufficient lead time owned by an active, verified professional."""
+    now = now or timezone.now()
+    return AvailabilitySlot.objects.filter(
+        starts_at__gte=now + timedelta(minutes=MIN_BOOKING_LEAD_MINUTES),
+        professional__is_active=True,
+        professional__professional_profile__status=ProfessionalProfile.Status.VERIFIED,
+    )
+
+
+def free_slots(now=None):
+    """Return slots that can be booked at ``now`` without an active session."""
+    return _booking_eligible_slots(now).exclude(sessions__status__in=Session.ACTIVE)
 
 
 def has_relationship(professional, user_id):

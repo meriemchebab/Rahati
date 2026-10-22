@@ -32,7 +32,10 @@ class ProfessionalAdminTests(TestCase):
         request = self.factory.get("/admin/")
         request.user = self.staff
         readonly = set(self.model_admin.get_readonly_fields(request, self.profile))
-        self.assertEqual(readonly, {field.name for field in ProfessionalProfile._meta.fields})
+        self.assertEqual(
+            readonly,
+            {field.name for field in ProfessionalProfile._meta.fields} - {"wilaya"},
+        )
 
     def test_credential_view_streams_and_audits_for_active_staff(self):
         self.client.force_login(self.staff)

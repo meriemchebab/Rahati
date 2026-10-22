@@ -14,6 +14,7 @@ from django.db import models
 from django.utils import timezone
 
 from .storage import PrivateMediaStorage, private_credential_path
+from .wilayas import WILAYA_CHOICES
 
 
 # --------------------------------------------------------------------------
@@ -103,6 +104,7 @@ class ProfessionalProfile(models.Model):
     display_name = models.CharField(max_length=120)
     bio = models.TextField(blank=True)
     city = models.CharField(max_length=80)
+    wilaya = models.CharField(max_length=2, choices=WILAYA_CHOICES, blank=True)
     # Free-text address / district (optional, shown in directory).
     address = models.CharField(max_length=255, blank=True)
     # Credential file stored in PRIVATE_MEDIA_ROOT; never served via URL.
@@ -356,7 +358,10 @@ class AvailabilitySlot(models.Model):
 
     class Meta:
         ordering = ["starts_at"]
-        indexes = [models.Index(fields=["professional", "starts_at"])]
+        indexes = [
+            models.Index(fields=["professional", "starts_at"]),
+            models.Index(fields=["mode", "starts_at"], name="slot_mode_start_idx"),
+        ]
 
 
 class Session(models.Model):

@@ -33,15 +33,38 @@ class PrivateMediaStorage(FileSystemStorage):
     base_url is intentionally None: there is no URL that serves these files.
     Any attempt to call .url() on a FileField using this storage will raise
     ValueError, which is the correct fail-closed behaviour.
+
+    Both ``location`` and ``base_url`` are resolved *lazily* on every access
+    rather than being frozen in ``__init__``.  Django's ``FileSystemStorage``
+    only reacts to the ``MEDIA_ROOT`` / ``MEDIA_URL`` settings (see
+    ``StorageSettingsMixin._clear_cached_properties``), so caching
+    ``PRIVATE_MEDIA_ROOT`` at import time silently ignores
+    ``@override_settings(PRIVATE_MEDIA_ROOT=...)`` and made the test suite
+    write real uploads into ``Backend/private_media/``.
     """
 
     def __init__(self, *args, **kwargs):
-        # Allow callers to override location and base_url, but provide safe
-        # defaults so forgetting a kwarg does not silently fall back to
-        # MEDIA_ROOT or MEDIA_URL.
-        kwargs.setdefault("location", settings.PRIVATE_MEDIA_ROOT)
-        kwargs.setdefault("base_url", None)
+        # Callers may still pass an explicit location; otherwise it is read
+        # from settings on each access.
+        self._explicit_location = kwargs.pop("location", None)
+        # Not passed to super(): FileSystemStorage would fall back to
+        # MEDIA_URL whenever it is None, which would defeat the fail-closed
+        # guarantee.  The base_url property below is overridden instead.
+        kwargs.pop("base_url", None)
         super().__init__(*args, **kwargs)
+
+    @property
+    def base_location(self):
+        return self._explicit_location or settings.PRIVATE_MEDIA_ROOT
+
+    @property
+    def location(self):
+        return os.path.abspath(self.base_location)
+
+    @property
+    def base_url(self):
+        # Always None, so FileSystemStorage.url() raises ValueError.
+        return None
 
 
 def private_credential_path(instance, filename: str) -> str:
