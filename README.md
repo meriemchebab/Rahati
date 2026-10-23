@@ -502,6 +502,12 @@ uv run coverage report --include="rahati/*"
 
 The tests protect the rules that matter most: consent, encryption at rest, deletion, booking correctness and who may do what. Tests are deterministic: time is frozen, there are no network calls, and the AI is replaced by a fake in every test.
 
+### End-to-end smoke tests
+
+The Playwright suite starts the Next.js frontend and Django API, then tests the booking API with real HTTP requests. Its Django server migrates and seeds a fresh temporary SQLite database for every run; it does not use `Backend/db.sqlite3` or any staging data.
+
+Install frontend dependencies with `npm ci` from `frontend/`, install the backend requirements with `uv pip install --python .venv/Scripts/python.exe -r Backend/requirements.txt` on Windows (use `.venv/bin/python` on Linux/macOS), then run `npm run e2e` from `frontend/`. The same suite runs in GitHub Actions with Chromium. Browser coverage of login and booking is a follow-up once those screens are implemented.
+
 ## Key decisions
 
 | Decision | Why |
