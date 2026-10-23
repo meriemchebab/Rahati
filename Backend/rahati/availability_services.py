@@ -33,13 +33,28 @@ def check_slot_rules(professional, rule=None):
         if rule.starts_at.second or rule.ends_at.second or rule.starts_at == rule.ends_at:
             raise ValueError("A rule must have a non-empty time window.")
         for existing in rules.filter(weekday=rule.weekday, is_active=True):
-            # Rules crossing midnight are compared using a common anchor date.
-            day = datetime(2026, 1, 5 + rule.weekday)
-            candidate = expand_rule(rule, day.date())[0]
-            other = expand_rule(existing, day.date())[0]
-            if overlaps(*candidate, *other):
+            if rule.is_active and _weekly_rules_overlap(rule, existing):
                 raise ValueError("Weekly availability rules cannot overlap.")
     return True
+
+
+def _weekly_rules_overlap(first, second):
+    """Compare same-weekday local-time rules, including overnight windows."""
+    def interval(rule):
+        start = rule.starts_at.hour * 60 + rule.starts_at.minute
+        end = rule.ends_at.hour * 60 + rule.ends_at.minute
+        if end <= start:
+            end += 24 * 60
+        return start, end
+
+    first_start, first_end = interval(first)
+    second_start, second_end = interval(second)
+    # Shift one interval by a day to account for two overnight rules whose
+    # overlap falls after midnight.
+    return any(
+        first_start < second_end + shift and second_start + shift < first_end
+        for shift in (-24 * 60, 0, 24 * 60)
+    )
 
 
 def _rule_intervals(rule, start_date, end_date):
