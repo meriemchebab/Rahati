@@ -32,7 +32,7 @@ A private mental-wellbeing platform for Algerian women. A woman can understand h
 These rules decide every design question. If a feature breaks one, the feature changes.
 
 - **Show, don't diagnose.** The app shows a woman her own numbers. It never labels her, never says she has a condition and never gives medical advice.
-- **No model training.** Insights are plain statistics. AI is used only to put those statistics into words, and every AI sentence is checked by code before she sees it.
+- **No model training.** Planned insights use plain statistics. If AI summaries are added, they must use only those statistics and pass code checks before a woman sees them.
 - **Anonymous by default.** A nickname is enough to sign up. Email and phone are optional.
 - **Her data, her consent.** A professional sees a woman's data only with an accepted session and an explicit, revocable consent for each category (mood, journal, cycle).
 - **Delete means delete.** One action removes everything she owns.
@@ -43,22 +43,25 @@ These rules decide every design question. If a feature breaks one, the feature c
 Rahati has two modes that share one account.
 
 **Preventing: understand yourself.**
-Check in (mood, energy, optional cycle day and topics on her mind), see her own analytics, ask for a short AI summary of those numbers, learn something from a short card, take one small action.
+The backend accepts daily mood and energy check-ins, cycle start dates, and encrypted journal entries. It serves curated cards and to-dos. Topic tagging, analytics endpoints, and AI summaries are not implemented yet.
 
 **Healing: reach a professional.**
-Find a verified woman professional by mode, wilaya and time, book a free slot, share only what she chooses, and get the address or video link once the session is accepted.
+Find a verified woman professional by mode, wilaya and time, book a free slot, and share selected data after granting consent. For accepted or completed in-person sessions, the API returns the professional's address. Online meeting-link generation is not implemented yet.
 
 Three personas use the platform:
 
 | Persona | Uses | Does |
 |---|---|---|
-| **Woman (user)** | Mobile app| Tracks, learns, books, controls her sharing |
-| **Professional** | Web dashboard | Manages availability, accepts sessions, sees consented data, assigns cards and to-dos |
-| **Admin** | Django admin | Verifies professionals, manages content, reads the audit log |
+| **Woman (user)** | API; client UI not implemented | Tracks, learns, books, controls her sharing |
+| **Professional** | API; dashboard not implemented | Manages availability, accepts sessions, sees consented data, assigns cards and to-dos |
+| **Admin** | Django admin | Verifies professionals, reviews credentials, manages content |
+
+Audit events are recorded in the database, but there is no admin page for browsing them yet.
 
 
 
 ## Architecture
+
 
 ```mermaid
 flowchart LR
@@ -102,11 +105,7 @@ flowchart TD
   S --> J[JSON response]
 ```
 
-Every view passes three gates:
-
-1. **Role gate**: is this the right kind of person? (`permissions.py`)
-2. **Ownership**: every query is scoped to `request.user`, and "not yours" returns the same 404 as "does not exist".
-3. **Consent gate**: a professional reads a woman's data only with a relationship and an active consent (`services.can_read`).
+Private endpoints use role and ownership checks. Professional reads of a woman's check-ins, journal, or cycle data also require an accepted relationship and active category consent (`services.can_read`).
 
 ## Backend structure
 
@@ -114,7 +113,7 @@ Every view passes three gates:
 Rahati/
 ├── README.md
 ├── LICENSE
-├── pyproject.toml, uv.lock
+├── Backend/requirements.txt  tracked backend dependencies
 └── Backend/
     ├── manage.py
     ├── config/               settings.py, urls.py
@@ -256,7 +255,7 @@ sequenceDiagram
   Pro->>API: PATCH /api/sessions/{id} {status: accepted}
   API->>API: check the transition table
   API-->>Pro: 200
-  Note over Woman,Pro: Planned: address or video link shown to these two only,<br/>video link only 30 minutes before to 30 minutes after
+  Note over Woman,Pro: Accepted or completed in-person sessions expose the professional's address.<br/>Online meeting links are not implemented.
 ```
 
 **A free slot** is: at least 60 minutes in the future, belongs to a verified and active professional, is not closed, and has no requested or accepted session. Search, calendar and booking all use this one rule.
@@ -282,15 +281,15 @@ stateDiagram-v2
   [*] --> pending : applies with a credential
   pending --> verified : admin verifies
   pending --> rejected : admin rejects
-  verified --> rejected : admin suspends
-  rejected --> verified : admin reconsiders
-  rejected --> pending : uploads a new credential
-  verified --> pending : changes name or credential
+  verified --> pending : professional changes display name
+  rejected --> [*] : terminal state
 ```
 
-An unverified or suspended professional cannot publish slots, accept sessions or read patient data, and her slots are not free for women.
+Only pending profiles can be verified or rejected through the admin actions. An unverified professional cannot publish slots, accept sessions or read patient data, and her slots are not free for women. Rejected profiles have no reapplication or reconsideration flow yet.
 
 ### The Preventing loop (planned)
+
+The flow below is a product proposal, not an implemented API sequence. The current check-in endpoint accepts mood and energy; analytics, topic tagging, and summaries are not available.
 
 ```mermaid
 sequenceDiagram
@@ -298,7 +297,7 @@ sequenceDiagram
   participant API
   participant Stats as Analytics (plain code)
   participant LLM as Gemini (optional)
-  Woman->>API: POST /api/check-ins {mood, energy, topics}
+  Woman->>API: POST /api/check-ins {mood, energy}
   Woman->>API: GET /api/analytics?range=7
   API->>Stats: compute from her own check-ins
   Stats-->>Woman: averages, series, streak, topics
@@ -316,7 +315,7 @@ sequenceDiagram
   Woman->>API: POST /api/content-cards/{id}/add-todo
 ```
 
-### Availability (planned)
+### Professional availability
 
 ```mermaid
 flowchart LR
@@ -341,7 +340,7 @@ A slot that has ever had a session is closed, never deleted, so booking history 
 | Read a woman's mood, journal or cycle | no | only with relationship + consent | no | no |
 | Assign to-dos and cards | no | to her own patients | no | no |
 | Verify professionals, manage cards | no | no | no | yes |
-| Read the audit log | no | no | no | yes (read-only) |
+| Browse audit events in the admin UI | no | no | no | not implemented |
 | Read journals, check-ins, notes | own only | consented only | no | no |
 
 ## API overview
@@ -352,30 +351,29 @@ All routes are under `/api/`. Responses are JSON. Authentication is a JWT in the
 
 | Area | Endpoints |
 |---|---|
-| Auth and account | `POST auth/register`, `POST auth/login`, `POST auth/refresh`, `GET /me`, `DELETE /me` |
-| Tracking | `GET/POST check-ins`, `POST cycle-starts`, `GET/POST journal` |
-| To-dos | `GET/POST todos`, `POST todos/{id}/complete` |
-| Content | `GET content-cards` |
-| Finding a professional | `GET professionals`, `GET professionals/{id}/slots` |
-| Sessions | `GET/POST sessions`, `PATCH sessions/{id}` |
+| Auth and account | `POST auth/register`, `POST auth/register-professional`, `POST auth/login`, `POST auth/refresh`, `POST auth/verify`, `POST auth/logout`, `POST auth/change-password`, `GET/DELETE me` |
+| Professional profile | `GET/PATCH pro/profile`, `GET/PUT pro/profile/credential` |
+| Tracking | `GET/POST check-ins`, `POST cycle-starts`, `GET/POST journal`, `GET patterns` (reads stored pattern and weekly-summary rows) |
+| To-dos | `GET/POST todos`, `PATCH/DELETE todos/{id}`, `POST todos/{id}/complete`, `POST todos/{id}/reopen` |
+| Content cards | `GET content-cards`, `GET content-cards/{id}`, `POST content-cards/{id}/add-todo` |
+| Professional content | `GET/POST pro/content`, `GET/PATCH/DELETE pro/content/{id}`, `POST pro/patients/{id}/content` (assign a card) |
+| Directory | `GET wilayas`, `GET professionals?mode&wilaya&from&to&time_of_day`, `GET professionals/{id}/slots`, `GET professionals/{id}/calendar?month=YYYY-MM` |
+| Sessions | `GET/POST sessions`, `PATCH sessions/{id}` (status transitions) |
 | Consent | `GET/PUT consents` |
 | Professional availability | `GET/POST/PATCH/DELETE pro/slots`, `GET/POST/PATCH/DELETE pro/availability`, `GET/POST/DELETE pro/time-off`, `GET pro/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` |
-| Professional care | `GET pro/patients`, `GET pro/patients/{id}/check-ins`, `.../journal`, `.../cycle`, `POST pro/patients/{id}/todos`, `GET/PUT pro/sessions/{id}/note` |
-| Professional signup and profile | see `rahati/urls.py` |
+| Professional care | `GET pro/patients`, `GET pro/patients/{id}/check-ins`, `.../journal`, `.../cycle`, `GET/POST pro/patients/{id}/todos`, `PATCH/DELETE pro/patients/{id}/todos/{todo_id}`, `GET/PUT pro/sessions/{id}/note` |
 
-`GET patterns` exists but is deprecated.
+The Django admin supports professional verification and credential review, and content-card review and publishing. Audit events are stored but are not exposed in the admin UI. `GET patterns` only returns stored rows; this repository has no pattern-computation job or analytics API.
 
 ### Specified (not yet built)
 
 | Area | Endpoints |
 |---|---|
-| Analytics | `GET analytics?range=7\|30\|90`, `POST analytics/summary`, `GET pro/patients/{id}/analytics` |
-| Topics and cards | `GET topics`, `GET content-cards/library`, `GET content-cards/{id}`, `POST content-cards/{id}/read`, `POST content-cards/{id}/add-todo` |
-| Professional assigns | `POST pro/patients/{id}/content`, `GET pro/patients/{id}/todos` (progress) |
-| Directory | `GET wilayas`, `GET professionals?mode&wilaya&from&to&time_of_day`, `GET professionals/{id}/calendar` |
-| Sessions | `GET sessions/{id}` with `location` and `online` objects |
+| Analytics and summaries | `GET analytics?range=7\|30\|90`, `POST analytics/summary`, `GET pro/patients/{id}/analytics` |
+| Topics and card library | `GET topics`, `GET content-cards/library`, `POST content-cards/{id}/read` |
+| Session details and online meetings | `GET sessions/{id}` with a detail response, and generated/revealed online meeting links |
 
-A machine-readable API schema (Swagger, via `drf-spectacular`) is the next contract for the mobile and web developers. It must not be public in production.
+A machine-readable API schema (Swagger, via `drf-spectacular`) is not implemented yet. If added, it must not be public in production.
 
 ### Availability behavior
 
@@ -383,8 +381,8 @@ A machine-readable API schema (Swagger, via `drf-spectacular`) is the next contr
 - A weekly rule generates consecutive 30-minute template slots for its weekday through the configured 28-day horizon. Rule times align to quarter-hour boundaries. Generation is synchronous when a rule is saved and can also be run from the command line:
 
   ```bash
-  uv run python manage.py generate_availability
-  uv run python manage.py generate_availability --professional-id 42 --days 14
+  python manage.py generate_availability
+  python manage.py generate_availability --professional-id 42 --days 14
   ```
 
 - Generation skips existing overlaps and time-off ranges, and caps a professional at 300 open future slots. Weekly rules are capped at 30 per professional. Calendar requests accept inclusive local dates spanning at most 62 days.
@@ -394,56 +392,56 @@ A machine-readable API schema (Swagger, via `drf-spectacular`) is the next contr
 
 ## Security and privacy
 
-The security model follows **OWASP Top 10:2025** and the **OWASP API Security Top 10:2023**. Because an LLM is involved, the **OWASP Top 10 for LLM Applications** applies to the summary feature.
+The security model follows **OWASP Top 10:2025** and the **OWASP API Security Top 10:2023**. The **OWASP Top 10 for LLM Applications** will apply if the planned summary feature is built.
 
 ### What is in place
 
-- Role gates, ownership scoping and a consent gate on every endpoint (A01, API1, API5).
+- Role gates and ownership checks on private endpoints; consent gates on professional reads of a woman's check-ins, journal, and cycle data (A01, API1, API5).
 - Journal text and session notes are encrypted at rest (A04).
 - Responses are explicit allow-lists, with no emails, phones or file paths leaking (API3).
 - Booking uses a row lock so a slot cannot be double-booked.
-- Professional reads of a woman's data are written to an audit log (A09).
+- Professional reads of a woman's data are written to the audit-log table (A09); there is no admin browser for these rows yet.
 - Administrators cannot open check-ins, journals or session notes.
+- Directory search has allow-listed parameters, result caps, throttles, and private no-store responses; requests are not logged (A05, API4, API6, A09).
+- Slots with booking history are closed, not deleted (A08).
 
-### What the specified features add
+### Security requirements for planned features
 
-- The AI receives **numbers and topic codes only**. No text she wrote ever reaches the model (LLM01, LLM02).
-- Every AI sentence is verified. On any doubt the app uses a plain template instead (LLM05, API10).
-- Cached summaries, daily call caps and throttles limit cost and abuse (LLM10, API4).
-- Video links are an HMAC of the session id with a server secret, never stored, and shown only to the two participants inside a time window (A04, A01).
-- Directory searches are validated against allow-lists, capped, throttled and never logged (A05, API4, API6, A09).
-- Slots with history are closed, not deleted (A08).
+- If AI summaries are built, the model must receive **numbers and topic codes only**, never the woman's journal text. Every sentence needs validation and a plain-template fallback (LLM01, LLM02, LLM05, API10).
+- Summary caching, daily call caps, and throttles need to be part of that feature (LLM10, API4).
+- Online session links need an HMAC or equivalent server-side derivation and must be visible only to session participants during a limited time window (A04, A01).
 
 ### Before any real woman uses the app (demo-minimum)
 
-1. Secrets out of the code: `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS` from `.env`; `.env` and `db.sqlite3` in `.gitignore`.
-2. Deny by default: `DEFAULT_PERMISSION_CLASSES = IsAuthenticated`.
-3. Fix three known bugs: women can write `card` on their own to-dos; a suspended professional can still act; a duplicate email returns a 500.
-4. Token lifetimes: 15-minute access, 7-day refresh with rotation.
-5. Throttle login and registration.
-6. `DELETE /me` requires the password.
-7. Lock CORS to the front-end URL.
-8. Run `uv run pip-audit` and `uv run bandit -r rahati -x rahati/tests` once.
+1. Confirm production secrets, `DEBUG`, `ALLOWED_HOSTS`, encryption key, and CORS origin are set safely.
+2. Add a password confirmation step to `DELETE /me`.
+3. Add throttling to public patient registration; login and professional registration are throttled already.
+4. Add an admin audit-log viewer and review the audit-log retention/tamper policy.
+5. Run `pip-audit` and `bandit -r rahati -x rahati/tests` before deployment (install the tools in the project environment first).
 
 ### Before a real launch
 
-The full baseline: CI, immutable audit log, encryption key rotation, an admin IP allow-list and login throttling, a role-by-route test matrix, structured logging with redaction, and a `SECURITY.md` mapping every OWASP item to code and tests.
+The full baseline: CI for backend unit and security tests (the Playwright E2E workflow is present), an immutable audit log, encryption key rotation, an admin IP allow-list and stronger admin authentication, a role-by-route test matrix, structured logging with redaction, and a `SECURITY.md` mapping every OWASP item to code and tests.
 
 ### Accepted risks (for now)
 
 - Mood and cycle data are not encrypted per column (they are needed for aggregation). The database disk and backups must be encrypted at the hosting level.
 - Integer ids are sequential; object-level checks are the protection.
-- The public Jitsi server lets anyone holding a link join. Self-host it or add Jitsi authentication before a real launch.
+- Online sessions do not yet have a generated meeting link or provider integration.
 - Administrators have no two-factor login yet.
 - Wilaya, address and other professional details are only as trustworthy as the manual verification of her credential. A human must check a diploma against the official body.
 
 ## Getting started
 
-Requirements: Python 3.11 or newer and [uv](https://docs.astral.sh/uv/).
+Requirements: Python 3.12 or newer (Django 6.1 requirement). Node.js 22 and npm are needed for the frontend E2E suite.
 
 ```bash
-# from the repo root
-uv sync
+# from the repository root
+python -m venv .venv
+# Windows PowerShell:
+.\.venv\Scripts\Activate.ps1
+# macOS/Linux: source .venv/bin/activate
+python -m pip install -r Backend/requirements.txt
 
 cd Backend
 ```
@@ -457,7 +455,7 @@ FIELD_ENCRYPTION_KEY=<generate it, see below>
 Generate the encryption key:
 
 ```bash
-uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
 > **Back up this key.** If it is lost, every journal entry and session note becomes unreadable.
@@ -474,11 +472,11 @@ INSTALLED_APPS += ["rest_framework", "corsheaders", "rahati"]
 Create the tables and an administrator:
 
 ```bash
-uv run python manage.py makemigrations rahati
-uv run python manage.py migrate
-uv run python manage.py createsuperuser
-uv run python manage.py shell -c "from rahati.models import User; User.objects.filter(is_superuser=True).update(role='admin')"
-uv run python manage.py runserver
+python manage.py makemigrations rahati
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py shell -c "from rahati.models import User; User.objects.filter(is_superuser=True).update(role='admin')"
+python manage.py runserver
 ```
 
 - Admin: `http://127.0.0.1:8000/admin/`
@@ -490,23 +488,23 @@ uv run python manage.py runserver
 
 ```bash
 cd Backend
-uv run python manage.py test rahati
+python manage.py test rahati
 ```
 
 Coverage (once `coverage` is installed as a dev dependency):
 
 ```bash
-uv run coverage run manage.py test rahati
-uv run coverage report --include="rahati/*"
+coverage run manage.py test rahati
+coverage report --include="rahati/*"
 ```
 
-The tests protect the rules that matter most: consent, encryption at rest, deletion, booking correctness and who may do what. Tests are deterministic: time is frozen, there are no network calls, and the AI is replaced by a fake in every test.
+The backend tests protect consent, encryption at rest, deletion, booking correctness and role and ownership rules. They use local test data and do not call external services.
 
 ### End-to-end smoke tests
 
 The Playwright suite starts the Next.js frontend and Django API, then tests the booking API with real HTTP requests. Its Django server migrates and seeds a fresh temporary SQLite database for every run; it does not use `Backend/db.sqlite3` or any staging data.
 
-Install frontend dependencies with `npm ci` from `frontend/`, install the backend requirements with `uv pip install --python .venv/Scripts/python.exe -r Backend/requirements.txt` on Windows (use `.venv/bin/python` on Linux/macOS), then run `npm run e2e` from `frontend/`. The same suite runs in GitHub Actions with Chromium. Browser coverage of login and booking is a follow-up once those screens are implemented.
+After creating the root `.venv` and installing `Backend/requirements.txt` above, run `npm ci` from `frontend/` and install the browser once with `npx playwright install chromium`. Then run `npm run e2e` from `frontend/`. The suite starts both servers and uses a fresh temporary SQLite database. GitHub Actions runs it with Chromium. Browser coverage of login and booking can be added when those screens exist.
 
 ## Key decisions
 
@@ -525,18 +523,16 @@ Install frontend dependencies with `npm ci` from `frontend/`, install the backen
 
 Suggested build order (each item depends on the earlier ones):
 
-1. Demo-minimum security pass.
-2. Directory filters and the shared free-slot rule.
-3. Online link and in-person address reveal.
-4. Analytics, topics, AI summary and "learn something" cards, plus professional assignment.
-5. API schema for the front-end team, a demo seed command, a visible "talk to someone now" card.
-6. Before a real launch: the full OWASP baseline, a production database, hosting with TLS and encrypted storage, push notifications.
+1. Online meeting-link generation and reveal.
+2. Analytics endpoints, topic tagging, AI summaries, and a translated card library/read-tracking flow.
+3. API schema for client developers and a visible "talk to someone now" support card.
+4. Before a real launch: the full OWASP baseline, a production database, hosting with TLS and encrypted storage, push notifications.
 
 **People work that code cannot replace:** professionals to review the card texts and the AI wording, native speakers for the Arabic, a human check of every professional's credential, and a pilot with consenting women.
 
 ## Contributing
 
-- Work on a branch and open a pull request; every pull request must pass `uv run python manage.py test rahati`.
+- Work on a branch and open a pull request; every pull request must pass `python manage.py test rahati` from `Backend/` with the project virtual environment active.
 - Every new endpoint needs: an explicit role gate, ownership scoping, a strict serializer with an explicit field list (never `__all__`), a text policy for every string field, pagination for lists, a throttle scope, an audit event for sensitive actions and tests for each of these.
 - Never log request bodies, tokens, journal text, addresses or video links.
 - Never commit secrets. Add new environment variables to `.env.example`.
@@ -544,12 +540,12 @@ Suggested build order (each item depends on the earlier ones):
 
 ## Glossary
 
-- **Check-in**: a daily mood and energy score (1 to 5), with optional topics.
+- **Check-in**: a daily mood and energy score (1 to 5).
 - **Slot**: a block of time a professional offers. A **free slot** can still be booked.
 - **Session**: a booking of a slot by a woman, with a status.
 - **Consent**: a woman's permission for one professional to see one category of her data.
 - **Card**: a short lesson with one small action and a "when to reach out for support" line.
-- **Topic**: a theme (stress, sleep, family...) a woman can tag at check-in.
+- **Topic**: a planned theme (such as stress, sleep or family); topic tagging is not implemented.
 - **Wilaya**: an Algerian administrative province, used as the location filter.
 
 ## License
