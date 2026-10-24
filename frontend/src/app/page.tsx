@@ -825,16 +825,18 @@ export default function Home() {
                 </span>
               </div>
 
-              <div className="divide-y divide-border">
+              <div className="space-y-3 p-4 sm:p-5">
                 {requests.filter((request) => request.status === "Pending")
                   .length === 0 ? (
-                  <div className="px-6 py-12 text-center">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rahati-sage text-[#66876d]">
+                  <div className="rounded-2xl bg-[#f4f8f3] px-6 py-12 text-center">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#e3eee2] text-[#66876d]">
                       <CheckCircle2 size={23} />
                     </div>
-                    <p className="mt-3 text-sm font-medium text-rahati-plum">
+
+                    <p className="mt-3 text-sm font-semibold text-rahati-plum">
                       All caught up!
                     </p>
+
                     <p className="mt-1 text-xs text-muted-foreground">
                       You have no pending requests to review.
                     </p>
@@ -843,7 +845,11 @@ export default function Home() {
                   requests
                     .filter((request) => request.status === "Pending")
                     .map((request) => (
-                      <div key={request.id} className="p-5 sm:px-6">
+                      <div
+                        key={request.id}
+                        className="rounded-2xl bg-[#faf5f9] p-4 transition-colors hover:bg-[#f7eef5] sm:p-5"
+                      >
+                        {/* Patient information */}
                         <div className="flex items-start gap-3">
                           <div
                             className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${request.color}`}
@@ -857,54 +863,65 @@ export default function Home() {
                                 {request.name}
                               </h4>
 
-                              <span className="rounded-full bg-[#fbf2df] px-2 py-0.5 text-[10px] font-medium text-[#99783e]">
+                              <span className="rounded-full bg-[#fbf2df] px-2.5 py-1 text-[10px] font-medium text-[#99783e]">
                                 Pending
                               </span>
                             </div>
 
                             <p className="mt-1 text-xs text-muted-foreground">
-                              {request.age} years old
-                              {" · "}
-                              Requested {request.date}
+                              {request.age} years old · Requested {request.date}
                             </p>
-
-                            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                                <CalendarDays size={14} />
-                                Requested time: {request.time}
-                              </span>
-                            </div>
-
-                            <p className="mt-2 text-xs text-muted-foreground">
-                              {request.returningPatient
-                                ? "Has had a session with you before"
-                                : "First session with you"}
-                            </p>
-
-                            <div className="mt-4 flex flex-wrap gap-2">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  updateRequest(request.id, "Accepted")
-                                }
-                                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-rahati-mauve px-3.5 py-2 text-xs font-medium text-white transition hover:bg-rahati-mauve-dark"
-                              >
-                                <Check size={14} />
-                                Accept
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  updateRequest(request.id, "Declined")
-                                }
-                                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border px-3.5 py-2 text-xs font-medium text-muted-foreground transition hover:border-[#d8a8ad] hover:bg-[#fcf1f1] hover:text-[#a35e68]"
-                              >
-                                <X size={14} />
-                                Decline
-                              </button>
-                            </div>
                           </div>
+                        </div>
+
+                        {/* Appointment details */}
+                        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+                          <span className="inline-flex items-center gap-1.5 text-xs text-rahati-plum">
+                            <CalendarDays
+                              size={14}
+                              className="text-rahati-mauve"
+                            />
+                            Requested time: {request.time}
+                          </span>
+
+                          <span
+                            className={`inline-flex items-center gap-1.5 text-xs ${
+                              request.returningPatient
+                                ? "text-[#806b9a]"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            <UsersRound size={14} />
+
+                            {request.returningPatient
+                              ? "Returning patient"
+                              : "First session"}
+                          </span>
+                        </div>
+
+                        {/* Request actions */}
+                        <div className="mt-5 grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateRequest(request.id, "Accepted")
+                            }
+                            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-rahati-mauve px-3 py-2.5 text-xs font-semibold text-white transition hover:bg-rahati-mauve-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rahati-mauve focus-visible:ring-offset-2"
+                          >
+                            <Check size={15} />
+                            Accept
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateRequest(request.id, "Declined")
+                            }
+                            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-white px-3 py-2.5 text-xs font-semibold text-[#a35e68] transition hover:bg-[#fcf1f1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d8a8ad] focus-visible:ring-offset-2"
+                          >
+                            <X size={15} />
+                            Decline
+                          </button>
                         </div>
                       </div>
                     ))
