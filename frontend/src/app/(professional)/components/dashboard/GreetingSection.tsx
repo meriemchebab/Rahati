@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Plus } from "lucide-react";
+import { Clock3, Plus } from "lucide-react";
 
 interface GreetingSectionProps {
   greeting: string;
@@ -14,37 +14,38 @@ export default function GreetingSection({
   onAddAvailability,
 }: GreetingSectionProps) {
   return (
-    <section className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+    <section className="mb-7 flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
       <div>
-        <p className="text-[12px] font-medium text-rahati-mauve-dark">
-          Your professional workspace
+        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-rahati-mauve">
+          YOUR WORKSPACE
         </p>
 
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-rahati-plum sm:text-[30px]">
-          {greeting}, Dr. Sarah
-        </h1>
+        <h2 className="text-2xl font-semibold tracking-tight text-rahati-plum sm:text-[30px]">
+          {greeting} Dr. Sarah
+          <span className="ml-2 inline-block">✦</span>
+        </h2>
 
-        <p className="mt-2 max-w-xl text-[13px] leading-6 text-muted-foreground">
-          Here's what's happening with your practice today.
+        <p className="mt-2 text-sm text-muted-foreground">
+          Here&apos;s an overview of your practice and the women in your care.
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap gap-3">
         <button
           type="button"
           onClick={onOpenHours}
-          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-rahati-mauve/20 bg-background px-4 py-2 text-[12px] font-medium text-rahati-plum transition hover:bg-rahati-blush"
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 py-3 text-sm font-medium text-rahati-plum shadow-sm transition hover:border-rahati-mauve/50 hover:bg-rahati-blush"
         >
-          <CalendarDays size={16} />
+          <Clock3 size={17} />
           Weekly hours
         </button>
 
         <button
           type="button"
           onClick={onAddAvailability}
-          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-rahati-mauve px-4 py-2 text-[12px] font-medium text-white transition hover:bg-rahati-mauve-dark"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-rahati-mauve px-4 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-rahati-mauve-dark"
         >
-          <Plus size={16} />
+          <Plus size={18} />
           Add availability
         </button>
       </div>
