@@ -1,4 +1,3 @@
-export { cn } from "cn";
 export function getGreeting(): string {
   const hour = new Date().getHours();
 
@@ -26,7 +25,7 @@ export function getWeekDates(date: Date): Date[] {
   const start = new Date(date);
   const day = start.getDay();
 
-  // Start the week on Monday.
+  // Start the week on Monday : FOR NOW
   const difference = day === 0 ? -6 : 1 - day;
 
   start.setDate(start.getDate() + difference);

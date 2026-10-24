@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   HeartHandshake,
   LayoutDashboard,
@@ -288,13 +288,9 @@ const eventStyles: Record<CalendarEvent["status"], string> = {
 /* -------------------------------------------------------------------------- */
 /*                                  HELPERS                                   */
 /* -------------------------------------------------------------------------- */
-
-function getGreeting() {
-  const hour = new Date().getHours();
-
+function getGreeting(hour: number) {
   if (hour < 12) return "Good morning";
   if (hour < 18) return "Good afternoon";
-
   return "Good evening";
 }
 
@@ -333,6 +329,12 @@ function formatShortDate(date: Date) {
 /* -------------------------------------------------------------------------- */
 
 export default function Home() {
+  const [greeting, setGreeting] = useState("Good morning");
+
+  useEffect(() => {
+    setGreeting(getGreeting(new Date().getHours()));
+  }, []);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
@@ -341,7 +343,11 @@ export default function Home() {
 
   const [selectedPage, setSelectedPage] = useState("Overview");
   const [events, setEvents] = useState<CalendarEvent[]>(calendarEvents);
-  const [calendarDate, setCalendarDate] = useState(() => {
+  const [calendarDate, setCalendarDate] = useState<Date>(
+    new Date("2026-01-05T00:00:00"),
+  );
+
+  useEffect(() => {
     const date = new Date();
 
     // The calendar displays Monday through Friday: FOR NOW
@@ -351,8 +357,8 @@ export default function Home() {
       date.setDate(date.getDate() - 2);
     }
 
-    return date;
-  });
+    setCalendarDate(date);
+  }, []);
   const [calendarView, setCalendarView] = useState<"Week" | "Day">("Week");
 
   const [dialog, setDialog] = useState<"hours" | "availability" | null>(null);
@@ -360,8 +366,13 @@ export default function Home() {
   const [availabilityTime, setAvailabilityTime] = useState("09:00");
   const [availabilityMessage, setAvailabilityMessage] = useState("");
 
-  const today = new Date();
-  const formattedDate = formatDate(today);
+  const [today, setToday] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setToday(new Date());
+  }, []);
+
+  const formattedDate = today ? formatDate(today) : "";
   const weekDates = getWeekDates(calendarDate);
 
   const pendingRequests = requests.filter(
@@ -709,7 +720,7 @@ export default function Home() {
               </p>
 
               <h2 className="text-2xl font-semibold tracking-tight text-rahati-plum sm:text-[30px]">
-                {getGreeting()}, Dr. Sarah
+                {greeting} Dr. Sarah
                 <span className="ml-2 inline-block">✦</span>
               </h2>
 
@@ -1131,6 +1142,7 @@ export default function Home() {
                       : weekDates
                     ).map((date, index) => {
                       const isToday =
+                        today !== null &&
                         date.toDateString() === today.toDateString();
 
                       return (
