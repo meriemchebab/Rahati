@@ -305,7 +305,7 @@ class ContentCard(models.Model):
 
     def validate_publishable(self):
         """Return a list of human-readable problems (empty = publishable)."""
-        MARKER = "[DRAFT - NOT REVIEWED]"
+        MARKERS = ("[DRAFT - NOT REVIEWED]", "[DEMO]")
         problems = []
         translations = list(self.translations.all())
         if not translations:
@@ -326,7 +326,7 @@ class ContentCard(models.Model):
             ):
                 if not value or not value.strip():
                     problems.append(f"Translation '{t.language}' has empty {field}.")
-                elif MARKER in value:
+                elif any(marker in value for marker in MARKERS):
                     problems.append(f"Translation '{t.language}' {field} contains draft marker.")
         return problems
 

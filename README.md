@@ -388,6 +388,12 @@ bodies are empty and are fetched from the detail endpoint. Suggestions use only 
 woman's topic tags from the latest 14 local days. Woman-facing card responses use
 `Cache-Control: private, no-store`.
 
+From `Backend/`, `uv run python manage.py seed_starter_cards` seeds the six existing
+pattern cards plus nine topic demo cards, all as drafts, and seeds the fixed topic
+vocabulary if needed. Demo placeholders can only be published in a `DEBUG=True`
+environment with `uv run python manage.py seed_starter_cards --publish-demo`;
+replace and review placeholder text before publishing content for real users.
+
 ### Specified (not yet built)
 
 | Area | Endpoints |
