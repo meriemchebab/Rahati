@@ -809,8 +809,8 @@ export default function Home() {
           {/* Requests and calendar */}
           <section className="mb-8 grid grid-cols-1 items-start gap-5 2xl:grid-cols-2">
             {/* Pending requests */}
-            <article className="min-w-0 overflow-hidden rounded-2xl border border-border bg-white">
-              <div className="flex items-center justify-between border-b border-border px-5 py-5 sm:px-6">
+            <article className="min-w-0 overflow-hidden rounded-2xl bg-white/90 shadow-[0_4px_24px_rgba(64,53,65,0.04)]">
+              <div className="flex items-center justify-between px-5 py-5 sm:px-6">
                 <div>
                   <h3 className="text-base font-semibold text-rahati-plum">
                     Incoming requests
@@ -940,8 +940,8 @@ export default function Home() {
             </article>
 
             {/* Calendar */}
-            <article className="min-w-0 overflow-hidden rounded-2xl border border-border bg-white">
-              <div className="border-b border-border px-5 py-5 sm:px-6">
+            <article className="min-w-0 overflow-hidden rounded-2xl bg-white/90 shadow-[0_4px_24px_rgba(64,53,65,0.04)]">
+              <div className="px-5 py-5 sm:px-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h3 className="text-base font-semibold text-rahati-plum">
@@ -1142,7 +1142,7 @@ export default function Home() {
           </section>
 
           {/* Patient table */}
-          <section className="overflow-hidden rounded-2xl border border-border bg-white">
+          <section className="overflow-hidden rounded-2xl bg-white/90 shadow-[0_4px_24px_rgba(64,53,65,0.04)]">
             <div className="flex flex-col justify-between gap-3 border-b border-border px-5 py-5 sm:flex-row sm:items-center sm:px-6">
               <div>
                 <h3 className="text-base font-semibold text-rahati-plum">
@@ -1197,7 +1197,7 @@ export default function Home() {
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-border">
+                <tbody>
                   {patients.map((patient) => {
                     const progress =
                       (patient.actionsDone / patient.actionsTotal) * 100;
@@ -1205,7 +1205,7 @@ export default function Home() {
                     return (
                       <tr
                         key={patient.id}
-                        className="transition hover:bg-rahati-blush/40"
+                        className="transition-colors hover:bg-[#faf5f9]"
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
