@@ -140,6 +140,24 @@ class ProfessionalProfile(models.Model):
 # --------------------------------------------------------------------------
 # TRACKING (everything here belongs to one user and cascades on delete)
 # --------------------------------------------------------------------------
+class Topic(models.Model):
+    code = models.SlugField(unique=True)
+
+    def __str__(self):
+        return self.code
+
+
+class TopicTranslation(models.Model):
+    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="translations")
+    language = models.CharField(max_length=2, choices=User.Language.choices)
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["topic", "language"], name="uniq_topic_language")
+        ]
+
+
 class CheckIn(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="check_ins")
     checkin_date = models.DateField()
@@ -148,6 +166,9 @@ class CheckIn(models.Model):
     )
     energy = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
+    topics = models.ManyToManyField(
+        Topic, through="CheckInTopic", related_name="check_ins", blank=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -158,6 +179,16 @@ class CheckIn(models.Model):
             models.UniqueConstraint(
                 fields=["user", "checkin_date"], name="uniq_checkin_per_day"
             )
+        ]
+
+
+class CheckInTopic(models.Model):
+    check_in = models.ForeignKey(CheckIn, on_delete=models.CASCADE, related_name="topic_links")
+    topic = models.ForeignKey(Topic, on_delete=models.PROTECT, related_name="checkin_links")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["check_in", "topic"], name="uniq_checkin_topic")
         ]
 
 
@@ -255,6 +286,9 @@ class ContentCard(models.Model):
     # null pattern_type = general or onboarding card, shown to everyone
     pattern_type = models.ForeignKey(
         PatternType, null=True, blank=True, on_delete=models.SET_NULL, related_name="cards"
+    )
+    topic = models.ForeignKey(
+        Topic, null=True, blank=True, on_delete=models.SET_NULL, related_name="cards"
     )
     reviewed_by = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL, related_name="reviewed_cards"

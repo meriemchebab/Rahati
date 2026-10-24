@@ -46,6 +46,8 @@ from .models import (
     WeeklySummary,
     WeeklyAvailability,
     TimeOff,
+    Topic,
+    TopicTranslation,
 )
 from .permissions import IsSessionActor, IsUserRole, IsVerifiedProfessional, IsProfessionalRole
 from .serializers import (
@@ -376,20 +378,38 @@ class CheckInView(APIView):
     permission_classes = [IsUserRole]
 
     def get(self, request):
-        rows = CheckIn.objects.filter(user=request.user)[:90]
+        rows = CheckIn.objects.filter(user=request.user).prefetch_related("topics")[:90]
         return Response(CheckInSerializer(rows, many=True).data)
 
     def post(self, request):
-        s = CheckInSerializer(data=request.data)
-        s.is_valid(raise_exception=True)
-        d = s.validated_data
-        # One check-in per day: posting again the same day edits it.
-        obj, created = CheckIn.objects.update_or_create(
-            user=request.user,
-            checkin_date=d["checkin_date"],
-            defaults={"mood": d["mood"], "energy": d["energy"]},
-        )
+        with transaction.atomic():
+            s = CheckInSerializer(data=request.data)
+            s.is_valid(raise_exception=True)
+            d = s.validated_data
+            # One check-in per day: posting again the same day edits it.
+            obj, created = CheckIn.objects.update_or_create(
+                user=request.user,
+                checkin_date=d["checkin_date"],
+                defaults={"mood": d["mood"], "energy": d["energy"]},
+            )
+            if "topics" in d:
+                obj.topics.set(d["topics"])
         return Response(CheckInSerializer(obj).data, status=201 if created else 200)
+
+
+class TopicListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        translations = TopicTranslation.objects.filter(
+            language=request.user.language,
+        ).select_related("topic").order_by("topic__code")
+        return Response(
+            [
+                {"code": translation.topic.code, "name": translation.name}
+                for translation in translations
+            ]
+        )
 
 
 class CycleStartView(APIView):
@@ -1513,7 +1533,10 @@ class PatientCheckIns(PatientData):
     category = SharingConsent.Category.MOOD
 
     def rows(self, user_id):
-        return CheckInSerializer(CheckIn.objects.filter(user_id=user_id)[:180], many=True).data
+        return CheckInSerializer(
+            CheckIn.objects.filter(user_id=user_id).prefetch_related("topics")[:180],
+            many=True,
+        ).data
 
 
 class PatientJournal(PatientData):

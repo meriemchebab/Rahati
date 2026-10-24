@@ -31,7 +31,9 @@ from .models import (
     Todo,
     User,
     ProfessionalProfile,
+    Topic,
 )
+from .limits import MAX_TOPICS_PER_CHECKIN
 from .services import todo_status
 from .credentials import validate_credential
 from .text_rules import clean_display_name, clean_phone, clean_text, clean_private_text
@@ -329,10 +331,42 @@ class ProfessionalProfilePatchSerializer(StrictSerializerMixin, serializers.Seri
 # --------------------------------------------------------------------------
 # Tracking
 # --------------------------------------------------------------------------
+class TopicCodesField(serializers.Field):
+    default_error_messages = {
+        "not_a_list": "Expected a list of topic codes.",
+        "too_many": f"Select no more than {MAX_TOPICS_PER_CHECKIN} topics.",
+        "not_strings": "Each topic code must be a string.",
+        "duplicate": "Topic codes must be unique.",
+        "invalid": "One or more topic codes are invalid.",
+    }
+
+    def to_internal_value(self, data):
+        if not isinstance(data, list):
+            self.fail("not_a_list")
+        if len(data) > MAX_TOPICS_PER_CHECKIN:
+            self.fail("too_many")
+        if any(not isinstance(code, str) for code in data):
+            self.fail("not_strings")
+        if len(set(data)) != len(data):
+            self.fail("duplicate")
+        if any(not code or len(code) > 50 for code in data):
+            self.fail("invalid")
+
+        topics_by_code = Topic.objects.in_bulk(data, field_name="code")
+        if len(topics_by_code) != len(data):
+            self.fail("invalid")
+        return [topics_by_code[code] for code in data]
+
+    def to_representation(self, value):
+        return sorted(topic.code for topic in value.all())
+
+
 class CheckInSerializer(serializers.ModelSerializer):
+    topics = TopicCodesField(required=False)
+
     class Meta:
         model = CheckIn
-        fields = ["id", "checkin_date", "mood", "energy"]
+        fields = ["id", "checkin_date", "mood", "energy", "topics"]
 
     def validate_checkin_date(self, value):
         if value > timezone.localdate():

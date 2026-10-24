@@ -43,7 +43,7 @@ These rules decide every design question. If a feature breaks one, the feature c
 Rahati has two modes that share one account.
 
 **Preventing: understand yourself.**
-The backend accepts daily mood and energy check-ins, cycle start dates, and encrypted journal entries. It serves curated cards and to-dos. Topic tagging, analytics endpoints, and AI summaries are not implemented yet.
+The backend accepts daily mood and energy check-ins with an optional fixed set of translated topic tags, cycle start dates, and encrypted journal entries. It serves curated cards and to-dos. Analytics endpoints and AI summaries are not implemented yet.
 
 **Healing: reach a professional.**
 Find a verified woman professional by mode, wilaya and time, book a free slot, and share selected data after granting consent. For accepted or completed in-person sessions, the API returns the professional's address. Online meeting-link generation is not implemented yet.
@@ -289,7 +289,7 @@ Only pending profiles can be verified or rejected through the admin actions. An 
 
 ### The Preventing loop (planned)
 
-The flow below is a product proposal, not an implemented API sequence. The current check-in endpoint accepts mood and energy; analytics, topic tagging, and summaries are not available.
+The flow below is a product proposal, not an implemented API sequence. Check-ins currently accept mood, energy, and optional topic codes; analytics and summaries are not available.
 
 ```mermaid
 sequenceDiagram
@@ -297,7 +297,7 @@ sequenceDiagram
   participant API
   participant Stats as Analytics (plain code)
   participant LLM as Gemini (optional)
-  Woman->>API: POST /api/check-ins {mood, energy}
+  Woman->>API: POST /api/check-ins {mood, energy, topics?}
   Woman->>API: GET /api/analytics?range=7
   API->>Stats: compute from her own check-ins
   Stats-->>Woman: averages, series, streak, topics
@@ -311,7 +311,7 @@ sequenceDiagram
     API-->>Woman: plain template summary
   end
   Woman->>API: GET /api/content-cards
-  API-->>Woman: cards for topics she tagged
+  API-->>Woman: curated cards (currently suggested from pattern rows)
   Woman->>API: POST /api/content-cards/{id}/add-todo
 ```
 
@@ -353,7 +353,7 @@ All routes are under `/api/`. Responses are JSON. Authentication is a JWT in the
 |---|---|
 | Auth and account | `POST auth/register`, `POST auth/register-professional`, `POST auth/login`, `POST auth/refresh`, `POST auth/verify`, `POST auth/logout`, `POST auth/change-password`, `GET/DELETE me` |
 | Professional profile | `GET/PATCH pro/profile`, `GET/PUT pro/profile/credential` |
-| Tracking | `GET/POST check-ins`, `POST cycle-starts`, `GET/POST journal`, `GET patterns` (reads stored pattern and weekly-summary rows) |
+| Tracking | `GET/POST check-ins`, `GET topics`, `POST cycle-starts`, `GET/POST journal`, `GET patterns` (reads stored pattern and weekly-summary rows) |
 | To-dos | `GET/POST todos`, `PATCH/DELETE todos/{id}`, `POST todos/{id}/complete`, `POST todos/{id}/reopen` |
 | Content cards | `GET content-cards`, `GET content-cards/{id}`, `POST content-cards/{id}/add-todo` |
 | Professional content | `GET/POST pro/content`, `GET/PATCH/DELETE pro/content/{id}`, `POST pro/patients/{id}/content` (assign a card) |
@@ -365,12 +365,26 @@ All routes are under `/api/`. Responses are JSON. Authentication is a JWT in the
 
 The Django admin supports professional verification and credential review, and content-card review and publishing. Audit events are stored but are not exposed in the admin UI. `GET patterns` only returns stored rows; this repository has no pattern-computation job or analytics API.
 
+`GET /api/topics` returns `[{ "code": "stress", "name": "ضغط" }]` in the authenticated caller's language, ordered by code. A check-in response has exactly these keys:
+
+```json
+{
+  "id": 1,
+  "checkin_date": "2026-10-24",
+  "mood": 3,
+  "energy": 4,
+  "topics": ["stress"]
+}
+```
+
+`POST /api/check-ins` may omit `topics` to leave an existing day's tags unchanged, or provide a list of up to three distinct topic codes to replace them (an empty list clears them). Topics on professional check-in reads are included only when the existing mood-consent gate allows that read.
+
 ### Specified (not yet built)
 
 | Area | Endpoints |
 |---|---|
 | Analytics and summaries | `GET analytics?range=7\|30\|90`, `POST analytics/summary`, `GET pro/patients/{id}/analytics` |
-| Topics and card library | `GET topics`, `GET content-cards/library`, `POST content-cards/{id}/read` |
+| Card library | `GET content-cards/library`, `POST content-cards/{id}/read` |
 | Session details and online meetings | `GET sessions/{id}` with a detail response, and generated/revealed online meeting links |
 
 A machine-readable API schema (Swagger, via `drf-spectacular`) is not implemented yet. If added, it must not be public in production.
@@ -524,7 +538,7 @@ After creating the root `.venv` and installing `Backend/requirements.txt` above,
 Suggested build order (each item depends on the earlier ones):
 
 1. Online meeting-link generation and reveal.
-2. Analytics endpoints, topic tagging, AI summaries, and a translated card library/read-tracking flow.
+2. Analytics endpoints, AI summaries, and a translated card library/read-tracking flow.
 3. API schema for client developers and a visible "talk to someone now" support card.
 4. Before a real launch: the full OWASP baseline, a production database, hosting with TLS and encrypted storage, push notifications.
 
@@ -545,7 +559,7 @@ Suggested build order (each item depends on the earlier ones):
 - **Session**: a booking of a slot by a woman, with a status.
 - **Consent**: a woman's permission for one professional to see one category of her data.
 - **Card**: a short lesson with one small action and a "when to reach out for support" line.
-- **Topic**: a planned theme (such as stress, sleep or family); topic tagging is not implemented.
+- **Topic**: a fixed translated theme (such as stress, sleep or family) that can be attached to a check-in.
 - **Wilaya**: an Algerian administrative province, used as the location filter.
 
 ## License

@@ -36,6 +36,7 @@ urlpatterns = [
         name="pro-profile-credential",
     ),
     # ----- tracking -----
+    path("topics", views.TopicListView.as_view(), name="topics"),
     path("check-ins", views.CheckInView.as_view(), name="check-ins"),
     path("cycle-starts", views.CycleStartView.as_view(), name="cycle-starts"),
     path("journal", views.JournalView.as_view(), name="journal"),
