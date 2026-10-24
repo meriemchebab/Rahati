@@ -241,22 +241,26 @@ class ContentTests(BaseCase):
         ContentCardTranslation.objects.create(card=card, language="fr", title="FR title", body="b", action_text="a")
         return card
 
-    def test_cards_match_her_patterns_language_and_published_status(self):
+    def test_card_suggestions_use_general_fallback_without_checkin_topics(self):
         dip = PatternType.objects.create(code="mood_dip", name="Mood dip")
         other = PatternType.objects.create(code="big_swings", name="Big swings")
         UserPattern.objects.create(
             user=self.nour, pattern_type=dip,
             window_start=self.today - timedelta(days=3), window_end=self.today, value=1,
         )
-        self.make_card(pattern=dip)                      # matches her pattern -> shown
-        self.make_card(pattern=None)                     # general card, suppressed when pattern cards exist
-        self.make_card(pattern=other)                    # a pattern she did not show -> excluded
-        self.make_card(pattern=dip, status="draft")      # not published yet -> excluded
+        matching_pattern = self.make_card(pattern=dip)
+        general = self.make_card(pattern=None)
+        other_pattern = self.make_card(pattern=other)
+        self.make_card(pattern=dip, status="draft")
+
         cards = api(self.nour).get("/api/content-cards").data
-        # New behaviour (section 3e): general cards only shown when no pattern cards match.
-        # Here one pattern card matches, so general card is suppressed: expect 1 card.
-        self.assertEqual(len(cards), 1)
-        self.assertTrue(all(c["title"] == "AR title" for c in cards))
+
+        # Pattern rows no longer affect suggestions; every published topic-null card
+        # participates in the rotating general fallback.
+        self.assertEqual(
+            {item["id"] for item in cards},
+            {matching_pattern.id, general.id, other_pattern.id},
+        )
 
     def test_cards_come_in_the_users_language(self):
         self.make_card(pattern=None)

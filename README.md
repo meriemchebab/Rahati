@@ -311,7 +311,7 @@ sequenceDiagram
     API-->>Woman: plain template summary
   end
   Woman->>API: GET /api/content-cards
-  API-->>Woman: curated cards (currently suggested from pattern rows)
+  API-->>Woman: cards suggested from recent check-in topics
   Woman->>API: POST /api/content-cards/{id}/add-todo
 ```
 
@@ -355,7 +355,7 @@ All routes are under `/api/`. Responses are JSON. Authentication is a JWT in the
 | Professional profile | `GET/PATCH pro/profile`, `GET/PUT pro/profile/credential` |
 | Tracking | `GET/POST check-ins`, `GET topics`, `POST cycle-starts`, `GET/POST journal`, `GET patterns` (reads stored pattern and weekly-summary rows) |
 | To-dos | `GET/POST todos`, `PATCH/DELETE todos/{id}`, `POST todos/{id}/complete`, `POST todos/{id}/reopen` |
-| Content cards | `GET content-cards`, `GET content-cards/{id}`, `POST content-cards/{id}/add-todo` |
+| Content cards | `GET content-cards`, `GET content-cards/{id}`, `POST content-cards/{id}/read`, `GET content-cards/library?topic&limit&offset`, `POST content-cards/{id}/add-todo` |
 | Professional content | `GET/POST pro/content`, `GET/PATCH/DELETE pro/content/{id}`, `POST pro/patients/{id}/content` (assign a card) |
 | Directory | `GET wilayas`, `GET professionals?mode&wilaya&from&to&time_of_day`, `GET professionals/{id}/slots`, `GET professionals/{id}/calendar?month=YYYY-MM` |
 | Sessions | `GET/POST sessions`, `PATCH sessions/{id}` (status transitions) |
@@ -379,12 +379,20 @@ The Django admin supports professional verification and credential review, and c
 
 `POST /api/check-ins` may omit `topics` to leave an existing day's tags unchanged, or provide a list of up to three distinct topic codes to replace them (an empty list clears them). Topics on professional check-in reads are included only when the existing mood-consent gate allows that read.
 
+Every woman-facing card item has exactly these keys: `id`, `topic`, `topic_name`,
+`title`, `body`, `action`, `support_note`, `pattern`, `source`, `author_name`,
+`read`, `has_open_todo`, `reviewed_by_name`, and `language`.
+`GET /api/content-cards/library` returns
+`{ "count": 0, "next": null, "previous": null, "results": [] }`; library item
+bodies are empty and are fetched from the detail endpoint. Suggestions use only the
+woman's topic tags from the latest 14 local days. Woman-facing card responses use
+`Cache-Control: private, no-store`.
+
 ### Specified (not yet built)
 
 | Area | Endpoints |
 |---|---|
 | Analytics and summaries | `GET analytics?range=7\|30\|90`, `POST analytics/summary`, `GET pro/patients/{id}/analytics` |
-| Card library | `GET content-cards/library`, `POST content-cards/{id}/read` |
 | Session details and online meetings | `GET sessions/{id}` with a detail response, and generated/revealed online meeting links |
 
 A machine-readable API schema (Swagger, via `drf-spectacular`) is not implemented yet. If added, it must not be public in production.
@@ -538,7 +546,7 @@ After creating the root `.venv` and installing `Backend/requirements.txt` above,
 Suggested build order (each item depends on the earlier ones):
 
 1. Online meeting-link generation and reveal.
-2. Analytics endpoints, AI summaries, and a translated card library/read-tracking flow.
+2. Analytics endpoints and AI summaries.
 3. API schema for client developers and a visible "talk to someone now" support card.
 4. Before a real launch: the full OWASP baseline, a production database, hosting with TLS and encrypted storage, push notifications.
 

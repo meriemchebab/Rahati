@@ -7,10 +7,11 @@ Every view passes three gates:
 """
 from datetime import timedelta
 from calendar import monthrange
+from urllib.parse import urlencode
 
 from django.db import transaction
 from django.http import FileResponse, Http404
-from django.db.models import Count, F, Q, Min
+from django.db.models import Count, F, Q, Min, Max, Case, When, Value, IntegerField
 from django.db.models.functions import TruncDate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -26,10 +27,11 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import update_session_auth_hash
 from rest_framework_simplejwt.exceptions import TokenError
 
-from .content_rules import PATTERN_PRIORITY, MAX_CARDS_PER_PROFESSIONAL
+from .content_rules import MAX_CARDS_PER_PROFESSIONAL
 from .availability_services import retire_slot
 from .models import (
     AvailabilitySlot,
+    CardRead,
     CheckIn,
     ContentCard,
     ContentCardTranslation,
@@ -46,13 +48,12 @@ from .models import (
     WeeklySummary,
     WeeklyAvailability,
     TimeOff,
-    Topic,
     TopicTranslation,
 )
 from .permissions import IsSessionActor, IsUserRole, IsVerifiedProfessional, IsProfessionalRole
 from .serializers import (
     CardAssignSerializer,
-    CardTodoSerializer,
+    CardLibraryQuerySerializer,
     CheckInSerializer,
     JournalSerializer,
     ProCardCreateSerializer,
@@ -127,17 +128,41 @@ class PrivateDirectoryAPIView(APIView):
         return response
 
 
-def _card_item(card, translation, source, author_name, reviewed_by_name, lang):
-    """Build the standard card item dict."""
+def _card_item(
+    card,
+    translation,
+    source,
+    author_name,
+    reviewed_by_name,
+    lang,
+    user,
+    read_ids,
+    open_todo_ids,
+    body=None,
+):
+    """Build the standard woman-facing card item dict."""
+    topic_translation = None
+    if card.topic_id:
+        topic_translation = next(
+            (
+                item for item in card.topic.translations.all()
+                if item.language == user.language
+            ),
+            None,
+        )
     return {
         "id": card.id,
+        "topic": card.topic.code if card.topic_id else None,
+        "topic_name": topic_translation.name if topic_translation else None,
         "title": translation.title,
-        "body": translation.body,
+        "body": translation.body if body is None else body,
         "action": translation.action_text,
         "support_note": translation.support_note,
         "pattern": card.pattern_type.code if card.pattern_type_id else None,
         "source": source,
         "author_name": author_name,
+        "read": card.id in read_ids,
+        "has_open_todo": card.id in open_todo_ids,
         "reviewed_by_name": reviewed_by_name,
         "language": lang,
     }
@@ -464,227 +489,275 @@ class PatternsView(APIView):
 # Content cards — woman's side
 # ==========================================================================
 
-# Priority index lookup for sorting
-_PATTERN_PRIORITY_INDEX = {code: i for i, code in enumerate(PATTERN_PRIORITY)}
-
-
-class ContentCardsView(APIView):
-    """GET /api/content-cards — curated suggestions for this woman.
-
-    Priority order (per spec section 3):
-    a. Candidates: published platform cards matching HER UserPattern rows
-       with window_end in the last 7 days.
-    b. Order by pattern priority, then pattern value (desc), then card id.
-    c. Exclude open-todo cards and cards completed within last 14 days.
-    d. At most 2 per pattern, 3 total.
-    e. Fallback: one rotating general card (no pattern).
-    f. Skip cards with no translation in her language.
-    g. Never returns professional-authored cards.
-    """
-
+class PrivateWomanCardView(APIView):
     permission_classes = [IsUserRole]
     throttle_scope = "content_read"
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
+
+
+def _card_translation(card, language):
+    translations = {item.language: item for item in card.translations.all()}
+    translation = translations.get(language)
+    if translation is not None:
+        return translation, language
+    fallback = "fr" if language == "ar" else "ar"
+    translation = translations.get(fallback)
+    return (translation, fallback) if translation is not None else (None, None)
+
+
+def _card_item_for_user(card, user, read_ids, open_todo_ids, body=None):
+    translation, actual_language = _card_translation(card, user.language)
+    if translation is None:
+        return None
+    return _card_item(
+        card,
+        translation,
+        source="platform",
+        author_name=None,
+        reviewed_by_name=_reviewed_by_name(card),
+        lang=actual_language,
+        user=user,
+        read_ids=read_ids,
+        open_todo_ids=open_todo_ids,
+        body=body,
+    )
+
+
+class ContentCardsView(PrivateWomanCardView):
+    """Return topic-ranked, private card suggestions for the current woman."""
 
     def get(self, request):
         user = request.user
-        lang = user.language
         today = timezone.localdate()
-        since = today - timedelta(days=7)
-
-        # ------- Build candidate set -------
-        # Her recent patterns (last 7 days)
-        recent_patterns = (
-            UserPattern.objects.filter(user=user, window_end__gte=since)
-            .select_related("pattern_type")
-        )
-        pattern_type_ids = [p.pattern_type_id for p in recent_patterns]
-
-        # Build a map: pattern_type_id -> best (highest) value for her
-        pattern_value = {}
-        for p in recent_patterns:
-            pattern_value[p.pattern_type_id] = max(
-                pattern_value.get(p.pattern_type_id, float("-inf")), p.value
+        since = today - timedelta(days=13)
+        topic_ranks = list(
+            CheckIn.topics.through.objects.filter(
+                check_in__user=user,
+                check_in__checkin_date__gte=since,
+                check_in__checkin_date__lte=today,
             )
-
-        if not pattern_type_ids:
-            # No patterns — go straight to fallback
-            return _private_response(self._fallback(lang))
-
-        # Fetch published platform cards matching her patterns
-        candidates = (
+            .values("topic_id", "topic__code")
+            .annotate(tag_count=Count("id"), latest_tag=Max("check_in__checkin_date"))
+            .order_by("-tag_count", "-latest_tag", "topic__code")
+        )
+        ranked_topic_ids = [row["topic_id"] for row in topic_ranks]
+        cards = list(
             ContentCard.objects.filter(
                 author__isnull=True,
                 status=ContentCard.Status.PUBLISHED,
-                pattern_type_id__in=pattern_type_ids,
             )
-            .select_related("reviewed_by__professional_profile", "pattern_type")
-            .prefetch_related("translations")
+            .filter(Q(topic_id__in=ranked_topic_ids) | Q(topic__isnull=True))
+            .select_related("topic", "reviewed_by__professional_profile", "pattern_type")
+            .prefetch_related("translations", "topic__translations")
+            .order_by("id")
         )
+        read_ids, open_todo_ids = self._user_card_state(user, cards)
+        by_topic = {}
+        general = []
+        for card in cards:
+            if card.topic_id:
+                by_topic.setdefault(card.topic_id, []).append(card)
+            else:
+                general.append(card)
 
-        # ------- Exclusion: open todos and recently completed todos -------
-        fourteen_ago = today - timedelta(days=14)
-        open_card_ids = set(
-            Todo.objects.filter(user=user, card__isnull=False)
+        output = []
+        if ranked_topic_ids:
+            for topic_id in ranked_topic_ids:
+                candidates = sorted(
+                    by_topic.get(topic_id, []),
+                    key=lambda card: (card.id in read_ids, card.id),
+                )
+                added = 0
+                for card in candidates:
+                    item = _card_item_for_user(card, user, read_ids, open_todo_ids)
+                    if item is None:
+                        continue
+                    output.append(item)
+                    added += 1
+                    if added == 2 or len(output) == 4:
+                        break
+                if len(output) == 4:
+                    break
+
+        if not output:
+            output = self._rotating_general(
+                general, user, read_ids, open_todo_ids, today.isocalendar().week
+            )
+        return _private_response(output)
+
+    @staticmethod
+    def _user_card_state(user, cards):
+        card_ids = [card.id for card in cards]
+        read_ids = set(
+            CardRead.objects.filter(user=user, card_id__in=card_ids)
+            .values_list("card_id", flat=True)
+        )
+        open_todo_ids = set(
+            Todo.objects.filter(user=user, card_id__in=card_ids)
             .filter(todo_status_query("open"))
             .values_list("card_id", flat=True)
         )
-        recent_done_ids = set(
-            Todo.objects.filter(
-                user=user,
-                card__isnull=False,
-                done_at__isnull=False,
-                done_at__date__gte=fourteen_ago,
-            )
-            .values_list("card_id", flat=True)
-        )
-        excluded_ids = open_card_ids | recent_done_ids
-
-        # ------- Apply language + exclusion filter -------
-        # Group by pattern code, apply limits
-        pattern_counts = {}
-        total = 0
-        out = []
-
-        # Sort candidates: pattern priority, then value (desc), then card id
-        def sort_key(card):
-            pt_code = card.pattern_type.code if card.pattern_type else ""
-            priority = _PATTERN_PRIORITY_INDEX.get(pt_code, 999)
-            val = -(pattern_value.get(card.pattern_type_id, 0))  # desc
-            return (priority, val, card.id)
-
-        sorted_cards = sorted(candidates, key=sort_key)
-
-        for card in sorted_cards:
-            if total >= 3:
-                break
-            if card.id in excluded_ids:
-                continue
-            pt_code = card.pattern_type.code
-            if pattern_counts.get(pt_code, 0) >= 2:
-                continue
-            # Find translation
-            translation = next(
-                (t for t in card.translations.all() if t.language == lang), None
-            )
-            if translation is None:
-                continue
-            out.append(
-                _card_item(
-                    card, translation,
-                    source="platform",
-                    author_name=None,
-                    reviewed_by_name=_reviewed_by_name(card),
-                    lang=lang,
-                )
-            )
-            pattern_counts[pt_code] = pattern_counts.get(pt_code, 0) + 1
-            total += 1
-
-        if not out:
-            out = self._fallback(lang)
-
-        return _private_response(out)
+        return read_ids, open_todo_ids
 
     @staticmethod
-    def _fallback(lang):
-        """Return at most one general platform card, rotating by ISO week."""
-        general = list(
-            ContentCard.objects.filter(
-                author__isnull=True,
-                status=ContentCard.Status.PUBLISHED,
-                pattern_type__isnull=True,
-            )
-            .select_related("reviewed_by__professional_profile")
-            .prefetch_related("translations")
-            .order_by("id")
-        )
-        if not general:
-            return []
-        # Rotate by ISO week number
-        week_num = timezone.localdate().isocalendar()[1]
-        card = general[week_num % len(general)]
-        translation = next(
-            (t for t in card.translations.all() if t.language == lang), None
-        )
-        if translation is None:
-            return []
+    def _rotating_general(cards, user, read_ids, open_todo_ids, week_number):
+        eligible = [
+            (card, _card_translation(card, user.language))
+            for card in cards
+        ]
+        eligible = [(card, translation) for card, translation in eligible if translation[0] is not None]
+        unread = [(card, translation) for card, translation in eligible if card.id not in read_ids]
+        read = [(card, translation) for card, translation in eligible if card.id in read_ids]
+        selected = []
+        for group in (unread, read):
+            if group and len(selected) < 3:
+                start = week_number % len(group)
+                rotated = group[start:] + group[:start]
+                selected.extend(rotated[: 3 - len(selected)])
         return [
             _card_item(
-                card, translation,
+                card,
+                translation,
                 source="platform",
                 author_name=None,
                 reviewed_by_name=_reviewed_by_name(card),
-                lang=lang,
+                lang=actual_language,
+                user=user,
+                read_ids=read_ids,
+                open_todo_ids=open_todo_ids,
             )
+            for card, (translation, actual_language) in selected
         ]
 
 
-class CardDetailView(APIView):
-    """GET /api/content-cards/{id} — card detail for a woman.
+class CardLibraryView(PrivateWomanCardView):
+    def get(self, request):
+        query = CardLibraryQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        params = query.validated_data
+        cards = ContentCard.objects.filter(
+            author__isnull=True,
+            status=ContentCard.Status.PUBLISHED,
+        )
+        if params.get("topic") == "general":
+            cards = cards.filter(topic__isnull=True)
+        elif "topic" in params:
+            cards = cards.filter(topic__code=params["topic"])
 
-    Allowed when:
-    - Published platform card (author null, status published).
-    - She has a to-do referencing the card AND card status is published or archived.
-    Everything else → 404 (same body for draft/removed/nonexistent/someone else's).
-    Language fallback: try her language, then the other, report which was used.
-    """
-
-    permission_classes = [IsUserRole]
-    throttle_scope = "content_read"
-
-    def get(self, request, pk):
-        try:
-            card = (
-                ContentCard.objects.select_related(
-                    "reviewed_by__professional_profile",
-                    "author__professional_profile",
-                    "pattern_type",
+        cards = list(
+            cards.select_related("topic", "reviewed_by__professional_profile", "pattern_type")
+            .prefetch_related("translations", "topic__translations")
+            .annotate(
+                general_last=Case(
+                    When(topic__isnull=True, then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField(),
                 )
-                .prefetch_related("translations")
-                .get(pk=pk)
             )
-        except ContentCard.DoesNotExist:
-            return _private_response(NOT_FOUND_DETAIL, status=404)
-
-        lang = request.user.language
-        accessible = self._is_accessible(card, request.user)
-        if not accessible:
-            return _private_response(NOT_FOUND_DETAIL, status=404)
-
-        # Language selection with fallback
-        translations_by_lang = {t.language: t for t in card.translations.all()}
-        translation = translations_by_lang.get(lang)
-        actual_lang = lang
-        if translation is None:
-            # Fallback to any available language
-            if translations_by_lang:
-                actual_lang, translation = next(iter(translations_by_lang.items()))
-            else:
-                return _private_response(NOT_FOUND_DETAIL, status=404)
-
-        # Determine source and author_name
-        if card.author_id is None:
-            source = "platform"
-            author_name = None
-        else:
-            source = "professional"
-            profile = getattr(card.author, "professional_profile", None)
-            author_name = profile.display_name if profile else None
-
+            .order_by("general_last", "topic__code", "id")
+        )
+        visible = [
+            (card, _card_translation(card, request.user.language))
+            for card in cards
+        ]
+        visible = [
+            (card, translation)
+            for card, translation in visible
+            if translation[0] is not None
+        ]
+        count = len(visible)
+        start = params["offset"]
+        page = visible[start : start + params["limit"]]
+        read_ids, open_todo_ids = ContentCardsView._user_card_state(
+            request.user, [card for card, _ in page]
+        )
+        results = [
+            _card_item(
+                card,
+                translation,
+                source="platform",
+                author_name=None,
+                reviewed_by_name=_reviewed_by_name(card),
+                lang=actual_language,
+                user=request.user,
+                read_ids=read_ids,
+                open_todo_ids=open_todo_ids,
+                body="",
+            )
+            for card, (translation, actual_language) in page
+        ]
+        next_offset = start + params["limit"]
+        next_query = {"limit": params["limit"], "offset": next_offset}
+        previous_query = {
+            "limit": params["limit"],
+            "offset": max(0, start - params["limit"]),
+        }
+        if "topic" in params:
+            next_query["topic"] = params["topic"]
+            previous_query["topic"] = params["topic"]
         return _private_response(
-            _card_item(card, translation, source, author_name, _reviewed_by_name(card), actual_lang)
+            {
+                "count": count,
+                "next": (
+                    f"?{urlencode(next_query)}"
+                    if next_offset < count else None
+                ),
+                "previous": (
+                    f"?{urlencode(previous_query)}"
+                    if start > 0 else None
+                ),
+                "results": results,
+            }
         )
 
-    @staticmethod
-    def _is_accessible(card, user):
-        """True if this user may see this card."""
-        if card.author is None:
-            # Platform card: accessible if published
-            return card.status == ContentCard.Status.PUBLISHED
-        # Professional card: accessible if she has a to-do and card is published/archived
-        if card.status in (ContentCard.Status.PUBLISHED, ContentCard.Status.ARCHIVED):
-            return Todo.objects.filter(user=user, card=card).exists()
-        return False
+
+class CardDetailView(PrivateWomanCardView):
+    def get(self, request, pk):
+        card = (
+            ContentCard.objects.filter(
+                pk=pk,
+                author__isnull=True,
+                status=ContentCard.Status.PUBLISHED,
+            )
+            .select_related("topic", "reviewed_by__professional_profile", "pattern_type")
+            .prefetch_related("translations", "topic__translations")
+            .first()
+        )
+        if card is None:
+            return _private_response(NOT_FOUND_DETAIL, status=404)
+        translation, actual_language = _card_translation(card, request.user.language)
+        if translation is None:
+            return _private_response(NOT_FOUND_DETAIL, status=404)
+        read_ids, open_todo_ids = ContentCardsView._user_card_state(request.user, [card])
+        return _private_response(
+            _card_item(
+                card,
+                translation,
+                source="platform",
+                author_name=None,
+                reviewed_by_name=_reviewed_by_name(card),
+                lang=actual_language,
+                user=request.user,
+                read_ids=read_ids,
+                open_todo_ids=open_todo_ids,
+            )
+        )
+
+
+class CardReadView(PrivateWomanCardView):
+    def post(self, request, pk):
+        if not ContentCard.objects.filter(
+            pk=pk,
+            author__isnull=True,
+            status=ContentCard.Status.PUBLISHED,
+        ).exists():
+            return _private_response(NOT_FOUND_DETAIL, status=404)
+        _, created = CardRead.objects.get_or_create(user=request.user, card_id=pk)
+        return _private_response(None, status=201 if created else 200)
 
 
 # ==========================================================================
@@ -1016,7 +1089,7 @@ class TodoReopenView(APIView):
         return Response(TodoSerializer(todo).data)
 
 
-class AddCardTodoView(APIView):
+class AddCardTodoView(PrivateWomanCardView):
     """Add a published content card's translated action to her to-do list."""
 
     permission_classes = [IsUserRole]
@@ -1025,6 +1098,7 @@ class AddCardTodoView(APIView):
         card = get_object_or_404(
             ContentCard.objects.prefetch_related("translations"),
             pk=card_id,
+            author__isnull=True,
             status=ContentCard.Status.PUBLISHED,
         )
         title = card_action_text(card, request.user.language)

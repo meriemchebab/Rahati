@@ -351,6 +351,17 @@ class ContentCardTranslation(models.Model):
         ]
 
 
+class CardRead(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="card_reads")
+    card = models.ForeignKey(ContentCard, on_delete=models.CASCADE, related_name="reads")
+    read_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "card"], name="uniq_card_read_user")
+        ]
+
+
 class Todo(models.Model):
     """Source is derived, not stored:
     card set -> from a content card; assigned_by set -> from a professional;

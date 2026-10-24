@@ -361,6 +361,51 @@ class TopicCodesField(serializers.Field):
         return sorted(topic.code for topic in value.all())
 
 
+class CardLibraryQuerySerializer(serializers.Serializer):
+    topic = serializers.CharField(required=False, max_length=50)
+    limit = serializers.IntegerField(required=False, min_value=1)
+    offset = serializers.IntegerField(required=False, min_value=0, max_value=10000)
+
+    def to_internal_value(self, data):
+        allowed = {"topic", "limit", "offset"}
+        normalized = {}
+        errors = {}
+        for key in data.keys():
+            values = data.getlist(key) if hasattr(data, "getlist") else [data[key]]
+            if key not in allowed:
+                errors.setdefault(str(key), []).append("Unknown query parameter.")
+                continue
+            if len(values) != 1:
+                errors.setdefault(key, []).append("Repeated query parameters are not allowed.")
+                continue
+            value = values[0]
+            if not isinstance(value, str) or len(value) > 50_000:
+                errors.setdefault(key, []).append("Invalid query parameter.")
+                continue
+            if "\x00" in value or any(char in _DIRECTORY_BIDI for char in value):
+                errors.setdefault(key, []).append("Unsafe characters are not allowed.")
+                continue
+            if key in {"limit", "offset"} and (
+                not value or len(value) > 10 or not value.isascii() or not value.isdigit()
+            ):
+                errors.setdefault(key, []).append("A non-negative integer is required.")
+                continue
+            normalized[key] = value
+        if errors:
+            raise serializers.ValidationError(errors)
+        validated = super().to_internal_value(normalized)
+        validated["limit"] = min(validated.get("limit", 20), 50)
+        validated.setdefault("offset", 0)
+        return validated
+
+    def validate_topic(self, value):
+        if value == "general":
+            return value
+        if not Topic.objects.filter(code=value).exists():
+            raise serializers.ValidationError("Unknown topic.")
+        return value
+
+
 class CheckInSerializer(serializers.ModelSerializer):
     topics = TopicCodesField(required=False)
 
