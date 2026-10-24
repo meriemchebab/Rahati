@@ -35,11 +35,14 @@ urlpatterns = [
         views.ProfessionalCredentialView.as_view(),
         name="pro-profile-credential",
     ),
+
     # ----- tracking -----
     path("check-ins", views.CheckInView.as_view(), name="check-ins"),
     path("cycle-starts", views.CycleStartView.as_view(), name="cycle-starts"),
     path("journal", views.JournalView.as_view(), name="journal"),
     path("patterns", views.PatternsView.as_view(), name="patterns"),
+    path("analytics", views.AnalyticsView.as_view(), name="analytics"),
+
     # ----- content and to-dos (woman) -----
     path("content-cards", views.ContentCardsView.as_view(), name="content-cards"),
     path("content-cards/<int:pk>", views.CardDetailView.as_view(), name="content-card-detail"),
@@ -52,6 +55,7 @@ urlpatterns = [
     path("todos/<int:pk>", views.TodoDetailView.as_view(), name="todo-detail"),
     path("todos/<int:pk>/complete", views.TodoCompleteView.as_view(), name="todo-complete"),
     path("todos/<int:pk>/reopen", views.TodoReopenView.as_view(), name="todo-reopen"),
+
     # ----- care: user side -----
     path("wilayas", views.WilayaListView.as_view(), name="wilayas"),
     path("professionals", views.ProfessionalListView.as_view(), name="professionals"),
@@ -68,9 +72,11 @@ urlpatterns = [
     path("sessions", views.SessionView.as_view(), name="sessions"),
     path("sessions/<int:pk>", views.SessionUpdateView.as_view(), name="session-update"),
     path("consents", views.ConsentView.as_view(), name="consents"),
+
     # ----- care: professional side — content management -----
     path("pro/content", views.ProContentListView.as_view(), name="pro-content"),
     path("pro/content/<int:pk>", views.ProContentDetailView.as_view(), name="pro-content-detail"),
+
     # ----- care: professional side — slots -----
     path("pro/slots", views.ProSlotsView.as_view(), name="pro-slots"),
     path("pro/availability", views.ProAvailabilityView.as_view(), name="pro-availability"),
