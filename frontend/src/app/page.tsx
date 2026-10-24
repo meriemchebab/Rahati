@@ -59,6 +59,7 @@ type Patient = {
 type CalendarEvent = {
   id: number;
   day: number;
+  date?: string;
   start: number;
   duration: number;
   title: string;
@@ -339,7 +340,19 @@ export default function Home() {
   const [patients] = useState(initialPatients);
 
   const [selectedPage, setSelectedPage] = useState("Overview");
-  const [calendarDate, setCalendarDate] = useState(new Date());
+  const [events, setEvents] = useState<CalendarEvent[]>(calendarEvents);
+  const [calendarDate, setCalendarDate] = useState(() => {
+    const date = new Date();
+
+    // The calendar displays Monday through Friday: FOR NOW
+    if (date.getDay() === 6) {
+      date.setDate(date.getDate() - 1);
+    } else if (date.getDay() === 0) {
+      date.setDate(date.getDate() - 2);
+    }
+
+    return date;
+  });
   const [calendarView, setCalendarView] = useState<"Week" | "Day">("Week");
 
   const [dialog, setDialog] = useState<"hours" | "availability" | null>(null);
@@ -389,28 +402,105 @@ export default function Home() {
     setSelectedPage(label);
     setSidebarOpen(false);
   }
-
   function saveAvailability() {
+    setAvailabilityMessage("");
+
     if (!availabilityDate) {
       setAvailabilityMessage("Please select a date.");
       return;
     }
 
+    const selectedDate = new Date(`${availabilityDate}T00:00:00`);
+    const dayOfWeek = selectedDate.getDay();
+
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      setAvailabilityMessage("Please select a weekday, Monday through Friday.");
+      return;
+    }
+
+    const [hours, minutes] = availabilityTime.split(":").map(Number);
+
+    if (minutes !== 0 || hours < 9 || hours > 16) {
+      setAvailabilityMessage(
+        "Choose a full-hour slot between 09:00 and 16:00.",
+      );
+      return;
+    }
+
+    const weekdayIndex = dayOfWeek - 1;
+
+    const alreadyExists = events.some(
+      (event) =>
+        event.day === weekdayIndex &&
+        event.start === hours &&
+        (!event.date || event.date === availabilityDate),
+    );
+
+    if (alreadyExists) {
+      setAvailabilityMessage(
+        "There is already an event at that time. Please choose another slot.",
+      );
+      return;
+    }
+
+    const newEvent: CalendarEvent = {
+      id: Date.now(),
+      day: weekdayIndex,
+      date: availabilityDate,
+      start: hours,
+      duration: 1,
+      title: "Available",
+      subtitle: "Free time slot",
+      status: "Free",
+    };
+
+    setEvents((currentEvents) => [...currentEvents, newEvent]);
+
+    // Show the week containing the newly created availability.
+    setCalendarDate(selectedDate);
+    setCalendarView("Week");
+
     setAvailabilityMessage(
-      `Demo: availability noted for ${availabilityDate} at ${availabilityTime}. No data was sent to a server.`,
+      `Availability added for ${availabilityDate} at ${availabilityTime}.`,
     );
   }
 
-  const visibleEvents = calendarEvents.filter((event) => {
+  const visibleEvents = events.filter((event) => {
+    // Events created through the availability form belong to an exact date.
+    if (event.date) {
+      const eventDate = new Date(`${event.date}T00:00:00`);
+
+      if (calendarView === "Day") {
+        return (
+          event.date ===
+          [
+            calendarDate.getFullYear(),
+            String(calendarDate.getMonth() + 1).padStart(2, "0"),
+            String(calendarDate.getDate()).padStart(2, "0"),
+          ].join("-")
+        );
+      }
+
+      const weekDates = getWeekDates(calendarDate);
+      const firstDay = weekDates[0];
+      const lastDay = weekDates[4];
+
+      if (!firstDay || !lastDay) {
+        return false;
+      }
+
+      return eventDate >= firstDay && eventDate <= lastDay;
+    }
+
     if (calendarView === "Day") {
       const selectedDay = calendarDate.getDay();
       const weekdayIndex = selectedDay === 0 ? 6 : selectedDay - 1;
+
       return event.day === weekdayIndex;
     }
 
     return true;
   });
-
   /* ------------------------------------------------------------------------ */
   /*                                   JSX                                    */
   /* ------------------------------------------------------------------------ */
@@ -1037,13 +1127,7 @@ export default function Home() {
                     <div className="border-b border-border pb-3" />
 
                     {(calendarView === "Day"
-                      ? [
-                          weekDates[
-                            calendarDate.getDay() === 0
-                              ? 6
-                              : calendarDate.getDay() - 1
-                          ],
-                        ]
+                      ? [weekDates[calendarDate.getDay() - 1]]
                       : weekDates
                     ).map((date, index) => {
                       const isToday =
@@ -1081,25 +1165,28 @@ export default function Home() {
                         </div>
 
                         {(calendarView === "Day"
-                          ? [
-                              weekDates[
-                                calendarDate.getDay() === 0
-                                  ? 6
-                                  : calendarDate.getDay() - 1
-                              ],
-                            ]
+                          ? [weekDates[calendarDate.getDay() - 1]]
                           : weekDates
                         ).map((date, columnIndex) => {
                           const actualDay =
                             calendarView === "Day"
-                              ? calendarDate.getDay() === 0
-                                ? 6
-                                : calendarDate.getDay() - 1
+                              ? calendarDate.getDay() - 1
                               : columnIndex;
 
                           const event = visibleEvents.find(
                             (item) =>
-                              item.day === actualDay && item.start === hour,
+                              item.day === actualDay &&
+                              item.start === hour &&
+                              (!item.date ||
+                                item.date ===
+                                  [
+                                    date.getFullYear(),
+                                    String(date.getMonth() + 1).padStart(
+                                      2,
+                                      "0",
+                                    ),
+                                    String(date.getDate()).padStart(2, "0"),
+                                  ].join("-")),
                           );
 
                           return (
