@@ -3,7 +3,7 @@ import os
 import re
 import time
 
-from google import genai
+from google.genai import Client
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,7 @@ def _fallback_summary(stats, language="en"):
     mood = stats.get("average_mood")
     energy = stats.get("average_energy")
     change = stats.get("mood_change")
+    change_magnitude = abs(change) if isinstance(change, (int, float)) else 0
     streak = stats.get("check_in_streak") or 0
 
     messages = {
@@ -46,7 +47,7 @@ def _fallback_summary(stats, language="en"):
                 "compared with the previous period."
             ),
             "down": (
-                f"Your average mood decreased by {abs(change)} points "
+                f"Your average mood decreased by {change_magnitude} points "
                 "compared with the previous period."
             ),
             "stable": (
@@ -75,7 +76,7 @@ def _fallback_summary(stats, language="en"):
                 "par rapport à la période précédente."
             ),
             "down": (
-                f"Votre humeur moyenne a diminué de {abs(change)} point(s) "
+                f"Votre humeur moyenne a diminué de {change_magnitude} point(s) "
                 "par rapport à la période précédente."
             ),
             "stable": (
@@ -104,7 +105,7 @@ def _fallback_summary(stats, language="en"):
                 f"ارتفع متوسط مزاجك بمقدار {change} مقارنة بالفترة السابقة."
             ),
             "down": (
-                f"انخفض متوسط مزاجك بمقدار {abs(change)} "
+                f"انخفض متوسط مزاجك بمقدار {change_magnitude} "
                 "مقارنة بالفترة السابقة."
             ),
             "stable": "ظل متوسط مزاجك مستقراً مقارنة بالفترة السابقة.",
@@ -129,7 +130,7 @@ def _fallback_summary(stats, language="en"):
     if energy is not None:
         parts.append(text["energy"])
 
-    if change is not None:
+    if isinstance(change, (int, float)):
         if change > 0:
             parts.append(text["up"])
         elif change < 0:
@@ -172,10 +173,13 @@ def _get_status_code(exc):
         except Exception:
             status = None
 
-    try:
-        return int(status)
-    except (TypeError, ValueError):
-        return None
+    if isinstance(status, (int, str)):
+        try:
+            return int(status)
+        except ValueError:
+            return None
+
+    return None
 
 
 def generate_analytics_summary(stats, language="en"):
@@ -229,7 +233,7 @@ def generate_analytics_summary(stats, language="en"):
     )
 
     try:
-        client = genai.Client(api_key=api_key)
+        client = Client(api_key=api_key)
 
         for attempt in range(MAX_ATTEMPTS):
             try:
