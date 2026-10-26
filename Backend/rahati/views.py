@@ -29,6 +29,8 @@ from rest_framework_simplejwt.exceptions import TokenError
 
 from .content_rules import MAX_CARDS_PER_PROFESSIONAL
 from .availability_services import retire_slot
+from .analytics_services import get_user_analytics
+from .gemini_summary_service import generate_analytics_summary
 from .models import (
     AvailabilitySlot,
     CardRead,
@@ -456,6 +458,49 @@ class JournalView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+
+class AnalyticsView(APIView):
+    permission_classes = [IsUserRole]
+
+    def get(self, request):
+        raw_range = request.query_params.get("range", "7")
+
+        try:
+            days = int(raw_range)
+        except (TypeError, ValueError):
+            raise ValidationError({"range": "Choose 7, 30, or 90."})
+
+        if days not in (7, 30, 90):
+            raise ValidationError({"range": "Choose 7, 30, or 90."})
+
+        response = Response(get_user_analytics(request.user, days))
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
+
+    def post(self, request):
+        raw_range = request.data.get("range", 7)
+
+        try:
+            days = int(raw_range)
+        except (TypeError, ValueError):
+            raise ValidationError({"range": "Choose 7, 30, or 90."})
+
+        if days not in (7, 30, 90):
+            raise ValidationError({"range": "Choose 7, 30, or 90."})
+
+        stats = get_user_analytics(request.user, days)
+        summary = generate_analytics_summary(
+            stats,
+            language=getattr(request.user, "language", "en"),
+        )
+
+        response = Response({
+            "range": days,
+            "summary": summary,
+            "analytics": stats,
+        })
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
 
 class PatternsView(APIView):
     """Read-only: patterns and summaries are written by the Celery jobs."""
