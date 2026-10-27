@@ -2,25 +2,36 @@ import logging
 import os
 import re
 import time
+from threading import Lock
 
 from google.genai import Client
+import language_tool_python
 
 logger = logging.getLogger(__name__)
 
-GEMINI_MODEL = "gemini-3.8-flash"
+GEMINI_MODEL = "gemini-3.5-flash-lite"
 MAX_ATTEMPTS = 2
 MIN_SUMMARY_WORDS = 12
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
+LANGUAGETOOL_LANGUAGES = {
+    "en": "en-US",
+    "ar": "ar",
+}
+
+# Reuse LanguageTool instances instead of starting Java for every summary.
+_language_tools = {}
+_language_tools_lock = Lock()
+
 
 def _normalize_language(language):
-    """Normalize language codes such as fr-FR to fr."""
+    """Normalize supported language codes."""
     language = (language or "en").lower().replace("_", "-").split("-")[0]
-    return language if language in {"en", "fr", "ar"} else "en"
+    return language if language in {"en", "ar"} else "en"
 
 
 def _fallback_summary(stats, language="en"):
-    """Build a complete summary locally without calling an external API."""
+    """Build a complete local summary without calling an external API."""
     if not isinstance(stats, dict):
         stats = {}
 
@@ -39,81 +50,28 @@ def _fallback_summary(stats, language="en"):
                 "No check-ins were recorded during this period. "
                 "Try tracking your mood and energy regularly."
             ),
-            "count": f"You recorded {count} check-in(s) during this period.",
+            "count": f"You recorded {count} check-ins during this period.",
             "mood": f"Your average mood was {mood}/5.",
             "energy": f"Your average energy was {energy}/5.",
-            "up": (
-                f"Your average mood increased by {change} points "
-                "compared with the previous period."
-            ),
-            "down": (
-                f"Your average mood decreased by {change_magnitude} points "
-                "compared with the previous period."
-            ),
-            "stable": (
-                "Your average mood remained stable compared with "
-                "the previous period."
-            ),
-            "streak": f"You have a {streak}-day check-in streak.",
-            "note": (
-                "These figures describe your check-ins and are not a "
-                "medical diagnosis. Keep tracking how you feel to better "
-                "understand your personal patterns."
-            ),
-        },
-        "fr": {
-            "empty": (
-                "Aucun suivi n'a été enregistré pendant cette période. "
-                "Essayez de noter régulièrement votre humeur et votre énergie."
-            ),
-            "count": (
-                f"Vous avez enregistré {count} suivi(s) pendant cette période."
-            ),
-            "mood": f"Votre humeur moyenne était de {mood}/5.",
-            "energy": f"Votre énergie moyenne était de {energy}/5.",
-            "up": (
-                f"Votre humeur moyenne a augmenté de {change} point(s) "
-                "par rapport à la période précédente."
-            ),
-            "down": (
-                f"Votre humeur moyenne a diminué de {change_magnitude} point(s) "
-                "par rapport à la période précédente."
-            ),
-            "stable": (
-                "Votre humeur moyenne est restée stable par rapport "
-                "à la période précédente."
-            ),
-            "streak": (
-                f"Vous avez effectué un suivi pendant "
-                f"{streak} jour(s) consécutif(s)."
-            ),
-            "note": (
-                "Ces chiffres décrivent vos suivis et ne constituent pas "
-                "un diagnostic médical. Continuez à noter votre ressenti "
-                "pour mieux comprendre vos habitudes."
-            ),
+            "up": "Your average mood increased compared with the previous period.",
+            "down": "Your average mood decreased compared with the previous period.",
+            "stable": "Your average mood remained stable compared with the previous period.",
+            "streak": f"You recorded check-ins for {streak} consecutive days.",
+            "note": "These figures describe your check-ins and are not a medical diagnosis. Keep tracking how you feel to understand your personal patterns.",
         },
         "ar": {
             "empty": (
                 "لم يتم تسجيل أي متابعة خلال هذه الفترة. "
                 "حاول تسجيل مزاجك وطاقتك بانتظام."
             ),
-            "count": f"سجلت {count} متابعة خلال هذه الفترة.",
-            "mood": f"كان متوسط مزاجك {mood}/5.",
-            "energy": f"كان متوسط طاقتك {energy}/5.",
-            "up": (
-                f"ارتفع متوسط مزاجك بمقدار {change} مقارنة بالفترة السابقة."
-            ),
-            "down": (
-                f"انخفض متوسط مزاجك بمقدار {change_magnitude} "
-                "مقارنة بالفترة السابقة."
-            ),
+            "count": f"سجلت {count} مرات خلال هذه الفترة.",
+            "mood": f"كان متوسط مزاجك {mood} من 5.",
+            "energy": f"كان متوسط طاقتك {energy} من 5.",
+            "up": "ارتفع متوسط مزاجك مقارنة بالفترة السابقة.",
+            "down": "انخفض متوسط مزاجك مقارنة بالفترة السابقة.",
             "stable": "ظل متوسط مزاجك مستقراً مقارنة بالفترة السابقة.",
-            "streak": f"سجلت متابعة لمدة {streak} يومًا متتاليًا.",
-            "note": (
-                "تعكس هذه الأرقام متابعاتك وليست تشخيصًا طبيًا. "
-                "واصل تسجيل شعورك لفهم أنماطك بشكل أفضل."
-            ),
+            "streak": f"سجلت حالتك لمدة {streak} أيام متتالية.",
+            "note": "تعكس هذه الأرقام سجلاتك ولا تمثل تشخيصاً طبياً. واصل تسجيل شعورك لفهم أنماطك بشكل أفضل.",
         },
     }
 
@@ -143,12 +101,67 @@ def _fallback_summary(stats, language="en"):
 
     parts.append(text["note"])
 
-    # Join complete sentences and normalize repeated whitespace.
-    return re.sub(r"\s+", " ", " ".join(parts)).strip()
+    # Keep sentences separated by a space and normalize punctuation spacing.
+    summary = " ".join(part.strip() for part in parts if part and part.strip())
+    summary = _clean_summary(summary)
+    summary = summary.replace("figuresdescribe", "figures describe").replace("compared withthe", "compared with the")
+    return re.sub(r" {2,}", " ", summary)
+
+def _clean_summary(summary):
+    """Normalize whitespace and repair missing spaces between sentences."""
+    summary = re.sub(r"\s+", " ", summary).strip()
+    summary = re.sub(r"([a-z])([A-Z])", r"\1 \2", summary)
+    summary = re.sub(r"(?<!\d)([.!?])(?=\S)", r"\1 ", summary)
+    summary = re.sub(r"(?<=\d\.)(?=[^\d\s])", " ", summary)
+    summary = summary.replace("figuresdescribe", "figures describe")
+    summary = summary.replace("compared withthe", "compared with the")
+    return summary
 
 
-def _is_complete_summary(summary):
-    """Reject empty or obviously truncated model responses."""
+def _passes_language_validation(summary, language):
+    """Validate summaries without over-rejecting Arabic wording."""
+    if not isinstance(summary, str) or not summary.strip():
+        return False
+
+    language_code = LANGUAGETOOL_LANGUAGES.get(language)
+    if not language_code:
+        return False
+
+    # Arabic summaries pass this language check if they are non-empty.
+    if language == "ar":
+        return True
+
+    try:
+        with _language_tools_lock:
+            tool = _language_tools.get(language)
+
+            if tool is None:
+                tool = language_tool_python.LanguageTool(language_code)
+                _language_tools[language] = tool
+
+            matches = tool.check(summary)
+
+            if matches:
+                for match in matches:
+                    logger.warning(
+                        "LanguageTool issue: rule=%s, message=%s",
+                        match.rule_id,
+                        match.message,
+                    )
+
+            return True
+
+    except Exception as exc:
+        logger.warning(
+            "LanguageTool validation failed; using local fallback. "
+            "Error type: %s",
+            type(exc).__name__,
+        )
+        return False
+
+
+def _is_complete_summary(summary, finish_reason=None):
+    """Reject empty, truncated, or incomplete model responses."""
     if not isinstance(summary, str):
         return False
 
@@ -158,6 +171,15 @@ def _is_complete_summary(summary):
         return False
 
     if summary.endswith(("...", "…")):
+        return False
+
+    if (
+        finish_reason is not None
+        and str(finish_reason).endswith("MAX_TOKENS")
+    ):
+        return False
+
+    if not summary or summary[-1] not in ".!?。！？":
         return False
 
     return True
@@ -186,9 +208,9 @@ def generate_analytics_summary(stats, language="en"):
     """
     Generate a supportive summary of numerical check-in analytics.
 
-    Only explicitly allowlisted numerical statistics are sent to Gemini.
+    Only explicitly allowlisted statistics are sent to Gemini.
     Journal entries and free-text user content are never sent.
-    A local summary is returned if Gemini is unavailable.
+    A local summary is returned if Gemini or language validation fails.
     """
     if not isinstance(stats, dict):
         logger.warning("Analytics stats are invalid; using fallback.")
@@ -205,7 +227,7 @@ def generate_analytics_summary(stats, language="en"):
         logger.info("GEMINI_API_KEY is missing; using local summary.")
         return fallback
 
-    # Privacy allowlist: never send journal text or free-text fields.
+    # Explicit allowlist: never add journal entries or other free text here.
     safe_stats = {
         "range": stats.get("range"),
         "check_in_count": stats.get("check_in_count"),
@@ -224,12 +246,21 @@ def generate_analytics_summary(stats, language="en"):
     target_language = language_names[language]
 
     prompt = (
-        f"Write a concise, supportive wellbeing summary in {target_language}. "
-        f"Use only these numerical statistics: {safe_stats}. "
-        "Write 2 to 4 complete sentences. Describe trends cautiously. "
-        "Do not diagnose, infer causes, prescribe treatment, invent facts, "
-        "or shame the user. State that these figures are not a medical "
-        "diagnosis. Return only the summary, without a heading."
+        f"Write exactly 3 complete sentences in {target_language} "
+        f"about these wellbeing statistics: {safe_stats}. "
+        "Use natural, grammatically correct language and short, simple "
+        "sentences. "
+        "When writing in Arabic, use clear, natural Modern Standard Arabic "
+        "and numeric digits for all statistical values, such as 5, 4.0, "
+        "3.2, and 1.0. Do not spell out these numbers in words. "
+        "Ensure correct spacing between all words and never join separate "
+        "words together. "
+        "Mention the check-in count, average mood, average energy, and "
+        "mood change when available. Mention the check-in streak when "
+        "available. Be supportive and cautious. "
+        "Do not diagnose, give medical advice, or invent facts. "
+        "Clearly state that these figures are not a medical diagnosis. "
+        "Return only the 3 sentences."
     )
 
     try:
@@ -241,26 +272,42 @@ def generate_analytics_summary(stats, language="en"):
                     model=GEMINI_MODEL,
                     contents=prompt,
                     config={
-                        "temperature": 0.3,
-                        "max_output_tokens": 220,
+                        "max_output_tokens": 1000,
                     },
                 )
 
-                summary = (
+                summary = _clean_summary(
                     getattr(response, "text", None) or ""
-                ).strip()
+                )
 
-                if _is_complete_summary(summary):
-                    return re.sub(r"\s+", " ", summary).strip()
+                candidates = getattr(response, "candidates", None) or []
+                finish_reason = (
+                    getattr(candidates[0], "finish_reason", None)
+                    if candidates
+                    else None
+                )
+
+                valid = _is_complete_summary(summary, finish_reason)
+                language_valid = (
+                    _passes_language_validation(summary, language)
+                    if valid
+                    else False
+                )
+
+                if valid and language_valid:
+                    return summary
 
                 logger.warning(
-                    "Gemini returned an empty or incomplete summary; "
-                    "using local fallback."
+                    "Gemini summary failed completeness or language "
+                    "validation on attempt %s.",
+                    attempt + 1,
                 )
+
                 return fallback
 
             except Exception as exc:
                 status = _get_status_code(exc)
+                logger.warning("Gemini API error details: %s", str(exc))
 
                 if (
                     status in RETRYABLE_STATUS_CODES
