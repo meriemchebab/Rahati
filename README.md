@@ -11,20 +11,20 @@ A private mental-wellbeing platform for Algerian women. A woman can understand h
 1. [Principles](#principles)
 2. [What the product does](#what-the-product-does)
 3. [AI and analytics](#ai-and-analytics)
-4. [Status](#status)
-5. [Architecture](#architecture)
-6. [Backend structure](#backend-structure)
-7. [Data model](#data-model)
-8. [Key flows](#key-flows)
-9. [Roles and permissions](#roles-and-permissions)
-10. [API overview](#api-overview)
-11. [Security and privacy](#security-and-privacy)
-12. [Getting started](#getting-started)
-13. [Testing](#testing)
-14. [Key decisions](#key-decisions)
-15. [Roadmap](#roadmap)
-16. [Contributing](#contributing)
-17. [Glossary](#glossary)
+4. [Architecture](#architecture)
+5. [Backend structure](#backend-structure)
+6. [Data model](#data-model)
+7. [Key flows](#key-flows)
+8. [Roles and permissions](#roles-and-permissions)
+9. [API overview](#api-overview)
+10. [Security and privacy](#security-and-privacy)
+11. [Getting started](#getting-started)
+12. [Testing](#testing)
+13. [Key decisions](#key-decisions)
+14. [Roadmap](#roadmap)
+15. [Contributing](#contributing)
+16. [Glossary](#glossary)
+17. [License](#license)
 
 ---
 
@@ -47,25 +47,25 @@ Rahati has two modes that share one account.
 The backend accepts daily mood and energy check-ins with an optional fixed set of translated topic tags, cycle start dates, and encrypted journal entries. It serves curated cards and to-dos, and provides check-in analytics with an optional AI-generated summary.
 
 **Healing: reach a professional.**
-Find a verified woman professional by mode, wilaya and time, book a free slot, and share selected data after granting consent. For accepted or completed in-person sessions, the API returns the professional's address. Online meeting-link generation is not implemented yet.
+Find a verified woman professional by mode (online/in person), wilaya and time, book a free slot, and share selected data after granting consent. For accepted or completed in-person sessions, the API returns the professional's address. Online meeting-link generation is not implemented yet.
 
 Three personas use the platform:
 
 | Persona | Uses | Does |
 |---|---|---|
-| **Woman (user)** | API; client UI not implemented | Tracks, learns, books, controls her sharing |
-| **Professional** | API; dashboard not implemented | Manages availability, accepts sessions, sees consented data, assigns cards and to-dos |
+| **Woman (user)** | API; client UI  implemented | Tracks, learns, books, controls her sharing |
+| **Professional** | API; dashboard  implemented | Manages availability, accepts sessions, sees consented data, assigns cards and to-dos |
 | **Admin** | Django admin | Verifies professionals, reviews credentials, manages content |
 
 Audit events are recorded in the database, but there is no admin page for browsing them yet.
 
 ## AI and analytics
 
-The analytics API calculates statistics from the authenticated woman's own check-ins; it does not train or run a predictive model. `GET /api/analytics?range=7|30|90` returns the selected date range, daily mood and energy series, check-in count, mood and energy averages, previous-period mood average and change, current check-in streak, and lowest mood and its dates. The `topics` field is currently empty; topic aggregation is not implemented.
+Analytics are calculated on request from the authenticated woman's own check-ins using plain statistics; no model is trained and no prediction is made. `GET /api/analytics?range=7|30|90` returns start and end dates, a daily mood and energy series, check-in count, averages, previous-period mood average and change, current streak, and lowest mood with its dates. The `topics` response field is currently empty; topic aggregation is not implemented.
 
-`POST /api/analytics` accepts the same `range` values and returns both the statistics and a supportive summary in the woman's selected language (Arabic, French, or English). If `GEMINI_API_KEY` is configured and there are check-ins, the backend can request a summary from Gemini. The request contains only an allow-list of numeric statistics (range, count, averages, change, and streak); journal entries and free-text user content are not sent. If no key is configured, there are no check-ins, Gemini fails, or its response is empty or obviously incomplete, the API returns a locally generated template summary instead.
+`POST /api/analytics` accepts the same ranges and returns the statistics plus a summary in the woman's selected language (Arabic, French, or English). With check-ins and `GEMINI_API_KEY` configured, the backend asks Gemini to write the summary using an explicit allow-list of numeric statistics: range, count, averages, mood change, and streak. Journal entries and other free-text user content are not sent. Without a key or check-ins, or when Gemini errors or its output fails the basic completeness or language-service availability checks, the backend returns a locally generated summary. These checks do not confirm that each generated claim matches the statistics, and the requested sentence count is not enforced; verify generated summaries against the returned `analytics` object. Both endpoints are private, authenticated user endpoints and return `Cache-Control: private, no-store`.
 
-The Gemini response is currently checked for minimum length and obvious truncation, not for factual accuracy or prohibited clinical claims. The summary endpoint does not currently have dedicated caching or a daily call cap. AI summaries are informational, not a diagnosis or medical advice.
+Summaries are informational and are not a diagnosis or medical advice. The prompt instructs Gemini not to diagnose, give medical advice, or invent facts, but that instruction is not a factual-accuracy safeguard.
 
 
 ## Architecture
@@ -145,23 +145,37 @@ Rahati/
 erDiagram
   USER ||--o| PROFESSIONAL_PROFILE : "has, if professional"
   USER ||--o{ CHECK_IN : records
+  CHECK_IN ||--o{ CHECK_IN_TOPIC : tags
+  TOPIC ||--o{ CHECK_IN_TOPIC : "tagged in"
+  TOPIC ||--o{ TOPIC_TRANSLATION : "has translations"
   USER ||--o{ CYCLE_START : logs
   USER ||--o{ JOURNAL_ENTRY : writes
-  CHECK_IN ||--o{ JOURNAL_ENTRY : "may link"
+  CHECK_IN o|--o{ JOURNAL_ENTRY : "may link"
+  PATTERN_TYPE ||--o{ USER_PATTERN : detects
+  USER ||--o{ USER_PATTERN : has
+  WEEKLY_SUMMARY o|--o{ USER_PATTERN : summarizes
+  USER ||--o{ WEEKLY_SUMMARY : receives
+  PATTERN_TYPE o|--o{ CONTENT_CARD : "may group"
+  TOPIC o|--o{ CONTENT_CARD : "may group"
+  USER o|--o{ CONTENT_CARD : authors
+  USER o|--o{ CONTENT_CARD : reviews
+  CONTENT_CARD ||--o{ CONTENT_CARD_TRANSLATION : "may have translations"
+  USER ||--o{ CARD_READ : marks
+  CONTENT_CARD ||--o{ CARD_READ : "marked as read"
   USER ||--o{ TODO : owns
-  CONTENT_CARD ||--o{ TODO : "may source"
-  CONTENT_CARD ||--|{ CONTENT_CARD_TRANSLATION : "has ar/fr"
+  CONTENT_CARD o|--o{ TODO : "may source"
+  USER o|--o{ TODO : assigns
   USER ||--o{ AVAILABILITY_SLOT : offers
+  WEEKLY_AVAILABILITY o|--o{ AVAILABILITY_SLOT : generates
   USER ||--o{ WEEKLY_AVAILABILITY : defines
   USER ||--o{ TIME_OFF : blocks
-  WEEKLY_AVAILABILITY ||--o{ AVAILABILITY_SLOT : generates
   AVAILABILITY_SLOT ||--o{ SESSION : "booked as"
   USER ||--o{ SESSION : books
   SESSION ||--o| SESSION_NOTE : has
   USER ||--o{ SHARING_CONSENT : grants
-  USER ||--o{ SHARING_CONSENT : "receives (professional)"
+  USER ||--o{ SHARING_CONSENT : "is recipient professional"
   USER ||--o{ DEVICE_TOKEN : registers
-  USER ||--o{ AUDIT_LOG : "acts in"
+  USER o|--o{ AUDIT_LOG : acts
 
   USER {
     string username "the nickname"
@@ -178,6 +192,10 @@ erDiagram
     int mood "1 to 5"
     int energy "1 to 5"
   }
+  CONTENT_CARD {
+    string status "draft, published, archived, removed"
+    string starter_key "optional, unique"
+  }
   AVAILABILITY_SLOT {
     datetime starts_at
     datetime ends_at
@@ -187,13 +205,14 @@ erDiagram
   }
   WEEKLY_AVAILABILITY {
     int weekday "Monday=0 through Sunday=6"
-    time starts_at "Africa/Algiers local time"
-    time ends_at "Africa/Algiers local time"
+    time starts_at "local time"
+    time ends_at "local time"
     string mode "online, in_person"
+    boolean is_active
   }
   TIME_OFF {
-    datetime starts_at "UTC instant for local date boundary"
-    datetime ends_at "UTC instant for local date boundary"
+    datetime starts_at
+    datetime ends_at
   }
   SESSION {
     string status "requested, accepted, declined, cancelled, completed"
@@ -202,27 +221,30 @@ erDiagram
     string category "mood, journal, cycle"
     datetime revoked_at
   }
+  AUDIT_LOG {
+    string action
+    string target_type
+    int target_id "not a foreign key"
+  }
 ```
+
+`USER_PATTERN` stores rule-detected patterns; `WEEKLY_SUMMARY` stores a generated weekly text summary. Analytics are computed on request and are not stored in an analytics-summary table. Card translations are stored per language, but the database does not enforce that a card has any translations; publishing validation checks required translations.
 
 Design notes:
 
-- **Third normal form.** the database is normelized to the third normal form for coherance and integrity
+- **Normalization:** the model keeps topic names and card text in translation tables, and derives a session's professional through its availability slot.
 - **Encrypted columns:** journal text and session notes are encrypted before they reach the database.
-- **Deletion:** every table that belongs to a woman cascades from `USER`. The audit log keeps its rows but loses the link to her (`SET NULL`).
+- **Deletion:** user-owned records generally cascade when their user is deleted. Audit rows remain, with the actor link set to `NULL`; their target type and ID are not foreign keys.
 - **Translations** live in their own table, so adding a language adds rows, not columns.
 
 ### Planned additions
 
 ```mermaid
 erDiagram
-  TOPIC ||--|{ TOPIC_TRANSLATION : "has ar/fr"
-  CHECK_IN ||--o{ CHECK_IN_TOPIC : tags
-  TOPIC ||--o{ CHECK_IN_TOPIC : "tagged in"
-  TOPIC ||--o{ CONTENT_CARD : groups
-  USER ||--o{ CARD_READ : marks
-  CONTENT_CARD ||--o{ CARD_READ : "read as"
-  USER ||--o{ ANALYTICS_SUMMARY : "caches (per range and day)"
+  USER ||--o{ ANALYTICS_SUMMARY : "would cache (per range and day)"
 ```
+
+`ANALYTICS_SUMMARY` is a proposal only; no such model or cache is implemented.
 
 ## Key flows
 
