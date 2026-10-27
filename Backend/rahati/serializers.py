@@ -512,15 +512,25 @@ class SessionSerializer(serializers.ModelSerializer):
         model = Session
         fields = [
             "id", "slot", "professional", "starts_at", "mode", "status",
-            "professional_address", "created_at",
+            "meeting_link", "professional_address", "created_at",
         ]
         read_only_fields = ["status", "created_at"]
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.status != Session.Status.ACCEPTED:
+            data.pop("meeting_link", None)
+            data.pop("professional_address", None)
+        elif instance.slot.mode == AvailabilitySlot.Mode.ONLINE:
+            data.pop("professional_address", None)
+            if not instance.meeting_link:
+                data.pop("meeting_link", None)
+        else:
+            data.pop("meeting_link", None)
+        return data
+
     def get_professional_address(self, obj):
-        if (
-            obj.status not in (Session.Status.ACCEPTED, Session.Status.COMPLETED)
-            or obj.slot.mode != AvailabilitySlot.Mode.IN_PERSON
-        ):
+        if obj.status != Session.Status.ACCEPTED or obj.slot.mode != AvailabilitySlot.Mode.IN_PERSON:
             return None
         profile = getattr(obj.slot.professional, "professional_profile", None)
         return profile.address if profile else None

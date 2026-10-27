@@ -479,6 +479,7 @@ class Session(models.Model):
     # session per slot" rule is enforced in the booking view inside a transaction.
     slot = models.ForeignKey(AvailabilitySlot, on_delete=models.CASCADE, related_name="sessions")
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.REQUESTED)
+    meeting_link = models.URLField(max_length=255, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

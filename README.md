@@ -47,7 +47,7 @@ Rahati has two modes that share one account.
 The backend accepts daily mood and energy check-ins with an optional fixed set of translated topic tags, cycle start dates, and encrypted journal entries. It serves curated cards and to-dos, and provides check-in analytics with an optional AI-generated summary.
 
 **Healing: reach a professional.**
-Find a verified woman professional by mode (online/in person), wilaya and time, book a free slot, and share selected data after granting consent. For accepted or completed in-person sessions, the API returns the professional's address. Online meeting-link generation is not implemented yet.
+Find a verified woman professional by mode (online/in person), wilaya and time, book a free slot, and share selected data after granting consent. When the professional accepts, an online session gets a private Jitsi room link and an in-person session reveals the professional's address to the two participants.
 
 Three personas use the platform:
 
@@ -285,7 +285,7 @@ sequenceDiagram
   Pro->>API: PATCH /api/sessions/{id} {status: accepted}
   API->>API: check the transition table
   API-->>Pro: 200
-  Note over Woman,Pro: Accepted or completed in-person sessions expose the professional's address.<br/>Online meeting links are not implemented.
+  Note over Woman,Pro: On acceptance, online sessions reveal a random Jitsi link and in-person sessions reveal the professional's address to both participants.
 ```
 
 **A free slot** is: at least 60 minutes in the future, belongs to a verified and active professional, is not closed, and has no requested or accepted session. Search, calendar and booking all use this one rule.
@@ -386,7 +386,7 @@ All routes are under `/api/`. Responses are JSON. Authentication is a JWT in the
 | Content cards | `GET content-cards`, `GET content-cards/{id}`, `POST content-cards/{id}/read`, `GET content-cards/library?topic&limit&offset`, `POST content-cards/{id}/add-todo` |
 | Professional content | `GET/POST pro/content`, `GET/PATCH/DELETE pro/content/{id}`, `POST pro/patients/{id}/content` (assign a card) |
 | Directory | `GET wilayas`, `GET professionals?mode&wilaya&from&to&time_of_day`, `GET professionals/{id}/slots`, `GET professionals/{id}/calendar?month=YYYY-MM` |
-| Sessions | `GET/POST sessions`, `PATCH sessions/{id}` (status transitions) |
+| Sessions | `GET/POST sessions`, `GET/PATCH sessions/{id}` (participant-scoped details and status transitions) |
 | Consent | `GET/PUT consents` |
 | Professional availability | `GET/POST/PATCH/DELETE pro/slots`, `GET/POST/PATCH/DELETE pro/availability`, `GET/POST/DELETE pro/time-off`, `GET pro/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` |
 | Professional care | `GET pro/patients`, `GET pro/patients/{id}/check-ins`, `.../journal`, `.../cycle`, `GET/POST pro/patients/{id}/todos`, `PATCH/DELETE pro/patients/{id}/todos/{todo_id}`, `GET/PUT pro/sessions/{id}/note` |
@@ -427,7 +427,6 @@ replace and review placeholder text before publishing content for real users.
 | Area | Endpoints |
 |---|---|
 | Professional patient analytics | `GET pro/patients/{id}/analytics` |
-| Session details and online meetings | `GET sessions/{id}` with a detail response, and generated/revealed online meeting links |
 
 A machine-readable API schema (Swagger, via `drf-spectacular`) is not implemented yet. If added, it must not be public in production.
 
@@ -442,6 +441,7 @@ The security model follows **OWASP Top 10:2025** and the **OWASP API Security To
 - Journal text and session notes are encrypted at rest (A04).
 - Responses are explicit allow-lists, with no emails, phones or file paths leaking (API3).
 - Booking uses a row lock so a slot cannot be double-booked.
+- Online meeting links use a cryptographically random room name, are generated only when the professional accepts, and are revealed only to the session participants while it is accepted (API1, API3, A02).
 - Professional reads of a woman's data are written to the audit-log table (A09); there is no admin browser for these rows yet.
 - Administrators cannot open check-ins, journals or session notes.
 - Directory search has allow-listed parameters, result caps, throttles, and private no-store responses; requests are not logged (A05, API4, API6, A09).
@@ -470,7 +470,6 @@ The full baseline: CI for backend unit and security tests (the Playwright E2E wo
 
 - Mood and cycle data are not encrypted per column (they are needed for aggregation). The database disk and backups must be encrypted at the hosting level.
 - Integer ids are sequential; object-level checks are the protection.
-- Online sessions do not yet have a generated meeting link or provider integration.
 - Administrators have no two-factor login yet.
 - Wilaya, address and other professional details are only as trustworthy as the manual verification of her credential. A human must check a diploma against the official body.
 
@@ -568,10 +567,9 @@ After creating the root `.venv` and installing `Backend/requirements.txt` above,
 
 Suggested build order (each item depends on the earlier ones):
 
-1. Online meeting-link generation and reveal.
-2. Improve AI-summary validation, and add summary-specific caching and daily call caps.
-3. Add professional patient analytics, an API schema for client developers, and a visible "talk to someone now" support card.
-4. Before a real launch: the full OWASP baseline, a production database, hosting with TLS and encrypted storage, push notifications.
+1. Improve AI-summary validation, and add summary-specific caching and daily call caps.
+2. Add professional patient analytics, an API schema for client developers, and a visible "talk to someone now" support card.
+3. Before a real launch: the full OWASP baseline, a production database, hosting with TLS and encrypted storage, push notifications.
 
 **People work that code cannot replace:** professionals to review the card texts and the AI wording, native speakers for the Arabic, a human check of every professional's credential, and a pilot with consenting women.
 

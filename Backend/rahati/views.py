@@ -7,6 +7,7 @@ Every view passes three gates:
 """
 from datetime import timedelta
 from calendar import monthrange
+import secrets
 from urllib.parse import urlencode
 
 from django.db import transaction
@@ -1370,9 +1371,15 @@ class SessionView(APIView):
     def get(self, request):
         if request.user.role == User.Role.PROFESSIONAL:
             qs = Session.objects.filter(slot__professional=request.user)
-        else:
+        elif request.user.role == User.Role.USER:
             qs = Session.objects.filter(user=request.user)
-        return Response(SessionSerializer(qs.select_related("slot"), many=True).data)
+        else:
+            qs = Session.objects.none()
+        response = Response(SessionSerializer(
+            qs.select_related("slot__professional__professional_profile"), many=True
+        ).data)
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
 
     @transaction.atomic
     def post(self, request):
@@ -1393,7 +1400,9 @@ class SessionView(APIView):
                 return Response({"detail": "Slot already taken."}, status=409)
             return Response({"detail": "Slot not available."}, status=404)
         session = Session.objects.create(user=request.user, slot=slot)
-        return Response(SessionSerializer(session).data, status=201)
+        response = Response(SessionSerializer(session).data, status=201)
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
 
 
 # Who may move a session from which status to which. Everything else is refused.
@@ -1411,18 +1420,57 @@ class SessionUpdateView(APIView):
     # which is what unlocks the whole consent flow.
     permission_classes = [IsSessionActor]
 
+    def get(self, request, pk):
+        session = get_object_or_404(
+            Session.objects.select_related("slot__professional__professional_profile"), pk=pk
+        )
+        user = request.user
+        is_participant = (
+            user.role == User.Role.USER and session.user_id == user.id
+        ) or (
+            user.role == User.Role.PROFESSIONAL and session.slot.professional_id == user.id
+        )
+        if not is_participant:
+            return Response({"detail": "Not found."}, status=404)
+        response = Response(SessionSerializer(session).data)
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
+
+    @transaction.atomic
     def patch(self, request, pk):
-        session = get_object_or_404(Session.objects.select_related("slot"), pk=pk)
+        session = get_object_or_404(
+            Session.objects.select_for_update().select_related("slot__professional__professional_profile"),
+            pk=pk,
+        )
         u = request.user
         is_owner = (u.role == User.Role.USER and session.user_id == u.id) or (
             u.role == User.Role.PROFESSIONAL and session.slot.professional_id == u.id
         )
         new = request.data.get("status")
-        if not is_owner or new not in TRANSITIONS.get((u.role, session.status), set()):
+        if not is_owner:
             return Response({"detail": "Not allowed."}, status=403)
+
+        if session.status == Session.Status.ACCEPTED and new == Session.Status.ACCEPTED:
+            if u.role != User.Role.PROFESSIONAL:
+                return Response({"detail": "Not allowed."}, status=403)
+            response = Response(SessionSerializer(session).data)
+            response["Cache-Control"] = _PRIVATE_NO_STORE
+            return response
+
+        if new not in TRANSITIONS.get((u.role, session.status), set()):
+            return Response({"detail": "Not allowed."}, status=403)
+
+        if new == Session.Status.ACCEPTED and session.slot.mode == AvailabilitySlot.Mode.ONLINE:
+            if not session.meeting_link:
+                session.meeting_link = f"https://meet.jit.si/rahati-{secrets.token_hex(16)}"
         session.status = new
-        session.save(update_fields=["status"])
-        return Response(SessionSerializer(session).data)
+        update_fields = ["status"]
+        if new == Session.Status.ACCEPTED and session.slot.mode == AvailabilitySlot.Mode.ONLINE:
+            update_fields.append("meeting_link")
+        session.save(update_fields=update_fields)
+        response = Response(SessionSerializer(session).data)
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
 
 
 class ConsentView(APIView):
