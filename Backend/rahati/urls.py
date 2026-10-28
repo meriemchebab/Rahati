@@ -42,6 +42,11 @@ urlpatterns = [
     path("journal", views.JournalView.as_view(), name="journal"),
     path("patterns", views.PatternsView.as_view(), name="patterns"),
     path("analytics", views.AnalyticsView.as_view(), name="analytics"),
+    path("analytics/summary", views.AnalyticsView.as_view(), name="analytics-summary"),
+    path("analytics/history", views.AnalyticsHistoryView.as_view(), name="analytics-history"),
+    path("analytics/history/<int:pk>", views.AnalyticsHistoryDetailView.as_view(), name="analytics-history-detail"),
+    path("analytics/summaries", views.AnalyticsHistoryView.as_view(), name="analytics-summaries"),
+    path("analytics/summaries/<int:pk>", views.AnalyticsHistoryDetailView.as_view(), name="analytics-summaries-detail"),
 
     # ----- content and to-dos (woman) -----
     path("content-cards", views.ContentCardsView.as_view(), name="content-cards"),

@@ -20,6 +20,7 @@ from .content_rules import (
     clean_text,
 )
 from .models import (
+    AnalyticsSummary,
     AvailabilitySlot,
     WeeklyAvailability,
     CheckIn,
@@ -357,6 +358,13 @@ class JournalSerializer(serializers.ModelSerializer):
         if value and request and value.user_id != request.user.id:
             raise serializers.ValidationError("Not your check-in.")
         return value
+
+
+class AnalyticsSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnalyticsSummary
+        fields = ["id", "range", "language", "body", "created_at"]
+        read_only_fields = ["id", "range", "language", "body", "created_at"]
 
 
 # --------------------------------------------------------------------------
