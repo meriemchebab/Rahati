@@ -2,6 +2,7 @@ asgiref==3.12.1
 cffi==2.1.1
 cryptography==50.0.2
 django==6.1.2
+psycopg[binary]==3.2.12
 django-cors-headers==4.9.0
 djangorestframework==3.18.3
 djangorestframework-simplejwt==5.5.1

@@ -61,7 +61,7 @@ CSRF_COOKIE_SECURE = env("CSRF_COOKIE_SECURE", "false" if DEBUG else "true").low
     "1", "true", "yes", "on"
 )
 
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
+ALLOWED_HOSTS = ["*"]
 
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
 
@@ -89,6 +89,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -119,28 +120,17 @@ ASGI_APPLICATION = "config.asgi.application"
 
 
 # --------------------------------------------------------------------------
-# Database (MySQL when DB_ENGINE is set, SQLite otherwise)
+# Database (DATABASE_URL for managed PostgreSQL, SQLite otherwise for local development)
 # --------------------------------------------------------------------------
 
-if env("DB_ENGINE"):
-    DATABASES = {
-        "default": {
-            "ENGINE": env("DB_ENGINE"),
-            "NAME": env("DB_NAME", "rahati"),
-            "USER": env("DB_USER", "root"),
-            "PASSWORD": env("DB_PASSWORD", ""),
-            "HOST": env("DB_HOST", "127.0.0.1"),
-            "PORT": env("DB_PORT", "3306"),
-            "OPTIONS": {"charset": "utf8mb4"},
-        }
-    }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
+import dj_database_url
+
+DATABASES = {
+    "default": dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+    )
+}
 
 
 # --------------------------------------------------------------------------
@@ -228,6 +218,7 @@ SIMPLE_JWT = {
 # --------------------------------------------------------------------------
 
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 
