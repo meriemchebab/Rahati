@@ -473,6 +473,48 @@ The full baseline: CI for backend unit and security tests (the Playwright E2E wo
 - Administrators have no two-factor login yet.
 - Wilaya, address and other professional details are only as trustworthy as the manual verification of her credential. A human must check a diploma against the official body.
 
+## Deploy the backend on Render
+
+The repository root contains `build.sh`, `pyproject.toml`, and `uv.lock`; the Django
+project is in `Backend/`. In Render, set **Root Directory** to the repository root
+(the folder containing those three files), not `Backend` or `Backend/rahati`.
+
+Create a PostgreSQL database in Render first, then create a Python web service for
+this repository with:
+
+| Setting | Value |
+| --- | --- |
+| Root Directory | repository root |
+| Build Command | `bash build.sh` |
+| Start Command | `cd Backend && uv run --project .. gunicorn config.wsgi:application --bind 0.0.0.0:$PORT` |
+
+Add these environment variables to the web service. Copy the PostgreSQL database's
+**Internal Database URL** into `DATABASE_URL`:
+
+```text
+DJANGO_DEBUG=false
+DJANGO_SECRET_KEY=<unique-long-random-secret>
+FIELD_ENCRYPTION_KEY=<unique-Fernet-key>
+DATABASE_URL=<Render-PostgreSQL-Internal-Database-URL>
+```
+
+Generate keys locally with:
+
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(64))"
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Keep the actual values in Render's environment settings, never in Git or this
+README. `GEMINI_API_KEY` is optional. `build.sh` syncs dependencies from the root
+uv lockfile, collects static files, applies migrations, and seeds the demo topics
+and starter cards. The public health check is `https://<service>.onrender.com/api/health/`.
+
+The current configuration permits all host names and CORS origins for the demo.
+Before a public production launch, restrict these to the deployed domains. Uploaded
+credential files currently use local storage, which is not durable across Render
+deployments; configure private persistent/object storage before accepting real uploads.
+
 ## Deploy the backend on Vercel
 
 The Django API can be deployed as its own Vercel project before the web frontend.
