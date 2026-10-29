@@ -14,6 +14,7 @@ from django.db import models
 from django.utils import timezone
 
 from .storage import PrivateMediaStorage, private_credential_path
+from .wilayas import WILAYA_CHOICES
 
 
 # --------------------------------------------------------------------------
@@ -103,6 +104,7 @@ class ProfessionalProfile(models.Model):
     display_name = models.CharField(max_length=120)
     bio = models.TextField(blank=True)
     city = models.CharField(max_length=80)
+    wilaya = models.CharField(max_length=2, choices=WILAYA_CHOICES, blank=True)
     # Free-text address / district (optional, shown in directory).
     address = models.CharField(max_length=255, blank=True)
     # Credential file stored in PRIVATE_MEDIA_ROOT; never served via URL.
@@ -344,6 +346,10 @@ class AvailabilitySlot(models.Model):
         ONLINE = "online"
         IN_PERSON = "in_person"
 
+    class Source(models.TextChoices):
+        MANUAL = "manual"
+        TEMPLATE = "template"
+
     professional = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -353,10 +359,63 @@ class AvailabilitySlot(models.Model):
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField()
     mode = models.CharField(max_length=10, choices=Mode.choices)
+    source = models.CharField(max_length=10, choices=Source.choices, default=Source.MANUAL)
+    rule = models.ForeignKey(
+        "WeeklyAvailability", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="slots",
+    )
+    closed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["starts_at"]
-        indexes = [models.Index(fields=["professional", "starts_at"])]
+        indexes = [
+            models.Index(fields=["professional", "starts_at"]),
+            models.Index(fields=["mode", "starts_at"], name="slot_mode_start_idx"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["professional", "starts_at"], name="uniq_professional_slot_start"
+            )
+        ]
+
+
+class WeeklyAvailability(models.Model):
+    """A recurring local-time availability window for one weekday."""
+
+    professional = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="weekly_availability",
+        limit_choices_to={"role": "professional"},
+    )
+    weekday = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(6)],
+        help_text="Monday is 0 and Sunday is 6.",
+    )
+    starts_at = models.TimeField()
+    ends_at = models.TimeField()
+    mode = models.CharField(max_length=10, choices=AvailabilitySlot.Mode.choices)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["weekday", "starts_at"]
+        indexes = [models.Index(fields=["professional", "weekday"])]
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        from .availability_services import generate_slots
+
+        generate_slots(self.professional)
+
+
+class TimeOff(models.Model):
+    """A local Algiers-time interval during which the professional is away."""
+
+    professional = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="time_off_entries",
+        limit_choices_to={"role": "professional"},
+    )
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class Session(models.Model):

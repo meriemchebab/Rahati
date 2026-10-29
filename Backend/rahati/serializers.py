@@ -6,6 +6,7 @@ Rules for every serializer:
 - All card text goes through clean_text() from content_rules.
 """
 from django.utils import timezone
+from datetime import timedelta
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
@@ -20,6 +21,7 @@ from .content_rules import (
 )
 from .models import (
     AvailabilitySlot,
+    WeeklyAvailability,
     CheckIn,
     ContentCard,
     ContentCardTranslation,
@@ -33,6 +35,8 @@ from .models import (
 from .services import todo_status
 from .credentials import validate_credential
 from .text_rules import clean_display_name, clean_phone, clean_text, clean_private_text
+from .wilayas import WILAYA_CHOICES
+_DIRECTORY_BIDI = frozenset(chr(code) for code in (*range(0x202A, 0x202F), *range(0x2066, 0x206A)))
 
 
 class StrictSerializerMixin:
@@ -45,6 +49,117 @@ class StrictSerializerMixin:
                 raise serializers.ValidationError(
                     {key: ["Unknown field."] for key in sorted(unknown)}
                 )
+        return super().to_internal_value(data)
+
+
+class DirectorySearchSerializer(serializers.Serializer):
+    """Strict query validation for the public professional directory."""
+
+    mode = serializers.ChoiceField(choices=["in_person", "online"], required=False)
+    wilaya = serializers.ChoiceField(choices=WILAYA_CHOICES, required=False, allow_blank=False)
+    from_date = serializers.DateField(required=False)
+    to = serializers.DateField(required=False)
+    time_of_day = serializers.ChoiceField(choices=["morning", "afternoon", "evening"], required=False)
+    limit = serializers.IntegerField(required=False, default=20, min_value=1, max_value=50)
+    offset = serializers.IntegerField(required=False, default=0, min_value=0, max_value=10000)
+
+    def to_internal_value(self, data):
+        allowed = {"mode", "wilaya", "from", "to", "time_of_day", "limit", "offset"}
+        errors = {}
+        for key in data.keys():
+            if key not in allowed:
+                errors.setdefault(str(key), []).append("Unknown query parameter.")
+            values = data.getlist(key) if hasattr(data, "getlist") else [data[key]]
+            if len(values) != 1:
+                errors.setdefault(str(key), []).append("Repeated query parameters are not allowed.")
+            if any(isinstance(value, str) and ("\x00" in value or any(ch in _DIRECTORY_BIDI for ch in value)) for value in values):
+                errors.setdefault(str(key), []).append("Unsafe characters are not allowed.")
+        if errors:
+            raise serializers.ValidationError(errors)
+        normalized = {("from_date" if key == "from" else key): data[key] for key in data.keys()}
+        return super().to_internal_value(normalized)
+
+    def validate(self, attrs):
+        attrs.setdefault("mode", "in_person")
+        attrs.setdefault("limit", 20)
+        attrs.setdefault("offset", 0)
+        start, end = attrs.get("from_date"), attrs.get("to")
+        today = timezone.localdate()
+        if start and end and end < start:
+            raise serializers.ValidationError({"to": "Must be on or after from."})
+        if start and end and (end - start).days > 60:
+            raise serializers.ValidationError({"to": "Search window cannot exceed 60 days."})
+        if end and end > today + timedelta(days=180):
+            raise serializers.ValidationError({"to": "Date cannot be more than 180 days ahead."})
+        if start and start > today + timedelta(days=180):
+            raise serializers.ValidationError({"from": "Date cannot be more than 180 days ahead."})
+        return attrs
+
+
+class ProfessionalSlotsQuerySerializer(serializers.Serializer):
+    """Strict pagination and optional mode filter for a professional's slots."""
+
+    mode = serializers.ChoiceField(choices=["in_person", "online"], required=False)
+    limit = serializers.IntegerField(required=False, default=20, min_value=1, max_value=100)
+    offset = serializers.IntegerField(required=False, default=0, min_value=0, max_value=10000)
+
+    def to_internal_value(self, data):
+        allowed = {"mode", "limit", "offset"}
+        errors = {}
+        for key in data.keys():
+            values = data.getlist(key) if hasattr(data, "getlist") else [data[key]]
+            if key not in allowed:
+                errors.setdefault(str(key), []).append("Unknown query parameter.")
+            if len(values) != 1:
+                errors.setdefault(str(key), []).append("Repeated query parameters are not allowed.")
+            if any(isinstance(value, str) and ("\x00" in value or any(ch in _DIRECTORY_BIDI for ch in value)) for value in values):
+                errors.setdefault(str(key), []).append("Unsafe characters are not allowed.")
+        if errors:
+            raise serializers.ValidationError(errors)
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        attrs.setdefault("limit", 20)
+        attrs.setdefault("offset", 0)
+        return attrs
+
+
+class ProfessionalCalendarQuerySerializer(serializers.Serializer):
+    month = serializers.CharField()
+    mode = serializers.ChoiceField(choices=["in_person", "online"], required=False)
+
+    def validate_month(self, value):
+        import re
+        from datetime import date
+
+        if not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", value):
+            raise serializers.ValidationError("Use YYYY-MM.")
+        year, month = map(int, value.split("-"))
+        try:
+            date(year, month, 1)
+        except ValueError as exc:
+            raise serializers.ValidationError("Month is out of range.") from exc
+        today = timezone.localdate()
+        month_start = date(year, month, 1)
+        if month_start < date(today.year, today.month, 1):
+            raise serializers.ValidationError("Month must be current or future.")
+        if month_start > date(today.year + (today.month + 5) // 13, ((today.month + 5 - 1) % 12) + 1, 1):
+            raise serializers.ValidationError("Month cannot be more than six months ahead.")
+        return month_start
+
+    def to_internal_value(self, data):
+        allowed = {"month", "mode"}
+        errors = {}
+        for key in data.keys():
+            values = data.getlist(key) if hasattr(data, "getlist") else [data[key]]
+            if key not in allowed:
+                errors.setdefault(str(key), []).append("Unknown query parameter.")
+            if len(values) != 1:
+                errors.setdefault(str(key), []).append("Repeated query parameters are not allowed.")
+            if any(isinstance(value, str) and ("\x00" in value or any(ch in _DIRECTORY_BIDI for ch in value)) for value in values):
+                errors.setdefault(str(key), []).append("Unsafe characters are not allowed.")
+        if errors:
+            raise serializers.ValidationError(errors)
         return super().to_internal_value(data)
 
 
@@ -182,6 +297,9 @@ class ProfessionalProfilePatchSerializer(StrictSerializerMixin, serializers.Seri
     bio = serializers.CharField(max_length=5000, required=False, allow_blank=True)
     city = serializers.CharField(max_length=80, required=False)
     address = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    wilaya = serializers.ChoiceField(
+        choices=WILAYA_CHOICES, required=False, allow_blank=True
+    )
 
     def validate_display_name(self, value):
         try:
@@ -353,6 +471,13 @@ class SlotSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("A slot must end after it starts.")
 
         professional = self._professional()
+        mode = data.get("mode", getattr(self.instance, "mode", None))
+        if mode == AvailabilitySlot.Mode.IN_PERSON and professional:
+            wilaya = ProfessionalProfile.objects.filter(user=professional).values_list(
+                "wilaya", flat=True
+            ).first()
+            if not wilaya:
+                raise serializers.ValidationError({"wilaya": "wilaya_required"})
         if professional and starts_at and ends_at:
             # Half-open comparison: a slot ending exactly when another begins is fine.
             overlapping = AvailabilitySlot.objects.filter(
@@ -364,6 +489,28 @@ class SlotSerializer(serializers.ModelSerializer):
                 overlapping = overlapping.exclude(pk=self.instance.pk)
             if overlapping.exists():
                 raise serializers.ValidationError("This slot overlaps one you already published.")
+        return data
+
+
+class WeeklyAvailabilitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WeeklyAvailability
+        fields = ["id", "weekday", "starts_at", "ends_at", "mode", "is_active"]
+        read_only_fields = ["id"]
+
+    def validate(self, data):
+        from .availability_services import check_slot_rules
+
+        professional = self.context["request"].user
+        rule = WeeklyAvailability(**data, professional=professional)
+        if self.instance is not None:
+            for field in ("weekday", "starts_at", "ends_at", "mode", "is_active"):
+                setattr(rule, field, data.get(field, getattr(self.instance, field)))
+            rule.pk = self.instance.pk
+        try:
+            check_slot_rules(professional, rule)
+        except ValueError as exc:
+            raise serializers.ValidationError({"detail": str(exc)}) from exc
         return data
 
 

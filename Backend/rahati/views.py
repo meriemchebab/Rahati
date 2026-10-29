@@ -6,14 +6,16 @@ Every view passes three gates:
 3. Consent gate    -> services.can_read (professionals reading a patient)
 """
 from datetime import timedelta
+from calendar import monthrange
 
 from django.db import transaction
 from django.http import FileResponse, Http404
-from django.db.models import Count, F, Q
+from django.db.models import Count, F, Q, Min
+from django.db.models.functions import TruncDate
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, serializers
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError, Throttled
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -25,6 +27,7 @@ from django.contrib.auth import update_session_auth_hash
 from rest_framework_simplejwt.exceptions import TokenError
 
 from .content_rules import PATTERN_PRIORITY, MAX_CARDS_PER_PROFESSIONAL
+from .availability_services import retire_slot
 from .models import (
     AvailabilitySlot,
     CheckIn,
@@ -41,6 +44,8 @@ from .models import (
     User,
     UserPattern,
     WeeklySummary,
+    WeeklyAvailability,
+    TimeOff,
 )
 from .permissions import IsSessionActor, IsUserRole, IsVerifiedProfessional, IsProfessionalRole
 from .serializers import (
@@ -56,14 +61,22 @@ from .serializers import (
     SessionSerializer,
     SlotSerializer,
     TodoSerializer,
+    DirectorySearchSerializer,
+    ProfessionalSlotsQuerySerializer,
+    ProfessionalCalendarQuerySerializer,
+    WeeklyAvailabilitySerializer,
 )
+from .availability_services import retire_slot
+from .wilayas import WILAYAS
 from .serializers import _PRO_STATUS_TRANSITIONS  # noqa: internal only
 from .services import (
     RELATIONSHIP_STATUSES,
     audit,
     can_read,
     card_action_text,
+    free_slots,
     has_relationship,
+    _booking_eligible_slots,
     professional_todo_summary,
     todo_status_query,
 )
@@ -83,6 +96,33 @@ def _private_response(data, status=200):
     r = Response(data, status=status)
     r["Cache-Control"] = _PRIVATE_NO_STORE
     return r
+
+
+class PrivateDirectoryAPIView(APIView):
+    """Directory endpoints always use private caching, including error responses."""
+
+    def handle_exception(self, exc):
+        if isinstance(exc, ValidationError):
+            response = Response(exc.detail, status=400)
+            response.exception = True
+            return response
+        if isinstance(exc, Throttled):
+            response = Response({"detail": "Request was throttled."}, status=429)
+            response.exception = True
+            return response
+        try:
+            response = super().handle_exception(exc)
+        except Exception:
+            response = Response({"detail": "Server error."}, status=500)
+            response.exception = True
+        if response.status_code >= 500:
+            response.data = {"detail": "Server error."}
+        return response
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
 
 
 def _card_item(card, translation, source, author_name, reviewed_by_name, lang):
@@ -244,6 +284,7 @@ class ProfessionalProfileView(APIView):
             "bio": profile.bio,
             "city": profile.city,
             "address": profile.address,
+            "wilaya": profile.wilaya,
             "credential_kind": profile.credential_kind,
             "status": profile.status,
             "credential_uploaded_at": profile.credential_uploaded_at,
@@ -260,6 +301,7 @@ class ProfessionalProfileView(APIView):
                 "bio": profile.bio,
                 "city": profile.city,
                 "address": profile.address,
+                "wilaya": profile.wilaya,
                 "credential_kind": profile.credential_kind,
                 "status": profile.status,
                 "credential_uploaded_at": profile.credential_uploaded_at,
@@ -281,6 +323,7 @@ class ProfessionalProfileView(APIView):
             "bio": profile.bio,
             "city": profile.city,
             "address": profile.address,
+            "wilaya": profile.wilaya,
             "credential_kind": profile.credential_kind,
             "status": profile.status,
             "credential_uploaded_at": profile.credential_uploaded_at,
@@ -1001,27 +1044,183 @@ class TodoCompleteView(APIView):
 # ==========================================================================
 
 
-class ProfessionalListView(APIView):
+class ProfessionalListView(PrivateDirectoryAPIView):
     permission_classes = [IsUserRole]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "directory_search"
 
     def get(self, request):
-        qs = ProfessionalProfile.objects.filter(status=ProfessionalProfile.Status.VERIFIED)
-        if request.query_params.get("city"):
-            qs = qs.filter(city__iexact=request.query_params["city"])
-        return Response(
-            [{"id": p.user_id, "name": p.display_name, "bio": p.bio, "city": p.city} for p in qs]
+        try:
+            response = self._search(request)
+        except ValidationError as exc:
+            response = Response(exc.detail, status=400)
+        except Throttled as exc:
+            response = Response({"detail": "Request was throttled."}, status=429)
+        except Exception:
+            response = Response({"detail": "Server error."}, status=500)
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
+
+    def _search(self, request):
+        serializer = DirectorySearchSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        params = serializer.validated_data
+        now = timezone.now()
+        start_date = params.get("from_date") or timezone.localdate()
+        end_date = params.get("to") or (start_date + timedelta(days=60))
+        start = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time()))
+        end = timezone.make_aware(timezone.datetime.combine(end_date + timedelta(days=1), timezone.datetime.min.time()))
+        slots = free_slots(now=now).filter(starts_at__gte=start, starts_at__lt=end, mode=params["mode"])
+        if params.get("time_of_day"):
+            ranges = {"morning": (5, 12), "afternoon": (12, 17), "evening": (17, 22)}
+            low, high = ranges[params["time_of_day"]]
+            slots = slots.filter(starts_at__hour__gte=low, starts_at__hour__lt=high)
+
+        requested_wilaya = params.get("wilaya")
+        profile_filter = Q()
+        if requested_wilaya and params["mode"] == AvailabilitySlot.Mode.IN_PERSON:
+            profile_filter &= Q(professional__professional_profile__wilaya=requested_wilaya)
+        aggregation = slots.filter(profile_filter).values("professional_id").annotate(
+            next_slot=Min("starts_at"), free_count=Count("id"),
+            selected_modes=Count("mode", distinct=True),
         )
+        summary = {row["professional_id"]: row for row in aggregation}
+        profile_query = ProfessionalProfile.objects.filter(
+            status=ProfessionalProfile.Status.VERIFIED,
+            user__is_active=True,
+            user_id__in=summary.keys(),
+        ).select_related("user").order_by("display_name", "user_id")
+        if requested_wilaya and params["mode"] == AvailabilitySlot.Mode.IN_PERSON:
+            profile_query = profile_query.filter(wilaya=requested_wilaya)
+        elif params["mode"] == AvailabilitySlot.Mode.IN_PERSON:
+            profile_query = profile_query.exclude(wilaya="")
+        profiles = list(profile_query[params["offset"]:params["offset"] + params["limit"]])
+        lang = request.user.language
+        names = dict(WILAYAS)
+        output = [{
+            "id": profile.user_id,
+            "name": profile.display_name,
+            "bio": profile.bio,
+            "city": profile.city,
+            "wilaya": profile.wilaya or None,
+            "wilaya_name": names.get(profile.wilaya) if profile.wilaya else None,
+            "modes": [params["mode"]] if summary[profile.user_id]["selected_modes"] else [],
+            "next_slot": timezone.localtime(summary[profile.user_id]["next_slot"]).isoformat(),
+            "free_slots_in_window": summary[profile.user_id]["free_count"],
+        } for profile in profiles]
+        return _private_response(output)
 
 
-class FreeSlotsView(APIView):
+class WilayaListView(PrivateDirectoryAPIView):
     permission_classes = [IsUserRole]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "directory_search"
+
+    def get(self, request):
+        try:
+            response = _private_response([{"code": code, "name": name} for code, name in WILAYAS])
+        except Exception:
+            response = Response({"detail": "Server error."}, status=500)
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
+
+
+class FreeSlotsView(PrivateDirectoryAPIView):
+    permission_classes = [IsUserRole]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "directory_search"
 
     def get(self, request, pro_id):
-        slots = (
-            AvailabilitySlot.objects.filter(professional_id=pro_id, starts_at__gt=timezone.now())
-            .exclude(sessions__status__in=Session.ACTIVE)
+        try:
+            response = self._get_slots(request, pro_id)
+        except ValidationError as exc:
+            response = Response(exc.detail, status=400)
+        except Throttled:
+            response = Response({"detail": "Request was throttled."}, status=429)
+        except Exception:
+            response = Response({"detail": "Server error."}, status=500)
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
+
+    def _get_slots(self, request, pro_id):
+        query = ProfessionalSlotsQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        professional = User.objects.filter(
+            pk=pro_id,
+            is_active=True,
+            role=User.Role.PROFESSIONAL,
+            professional_profile__status=ProfessionalProfile.Status.VERIFIED,
+        ).first()
+        if professional is None:
+            return Response({"detail": "Not found."}, status=404)
+        slots = free_slots().filter(professional_id=pro_id).order_by("starts_at", "pk")
+        if query.validated_data.get("mode"):
+            slots = slots.filter(mode=query.validated_data["mode"])
+        offset = query.validated_data["offset"]
+        limit = query.validated_data["limit"]
+        return _private_response(SlotSerializer(slots[offset:offset + limit], many=True).data)
+
+
+class ProfessionalCalendarView(PrivateDirectoryAPIView):
+    permission_classes = [IsUserRole]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "directory_calendar"
+
+    def get(self, request, pro_id):
+        try:
+            response = self._get_calendar(request, pro_id)
+        except ValidationError as exc:
+            response = Response(exc.detail, status=400)
+        except Throttled:
+            response = Response({"detail": "Request was throttled."}, status=429)
+        except Exception:
+            response = Response({"detail": "Server error."}, status=500)
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
+
+    def _get_calendar(self, request, pro_id):
+        query = ProfessionalCalendarQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        professional = User.objects.filter(
+            pk=pro_id,
+            is_active=True,
+            role=User.Role.PROFESSIONAL,
+            professional_profile__status=ProfessionalProfile.Status.VERIFIED,
+        ).first()
+        if professional is None:
+            return Response({"detail": "Not found."}, status=404)
+
+        month_start = query.validated_data["month"]
+        month_end = month_start.replace(day=monthrange(month_start.year, month_start.month)[1]) + timedelta(days=1)
+        tz = timezone.get_current_timezone()
+        start = timezone.make_aware(timezone.datetime.combine(month_start, timezone.datetime.min.time()), tz)
+        end = timezone.make_aware(timezone.datetime.combine(month_end, timezone.datetime.min.time()), tz)
+        slots = free_slots().filter(
+            professional_id=pro_id,
+            starts_at__gte=start,
+            starts_at__lt=end,
         )
-        return Response(SlotSerializer(slots, many=True).data)
+        if query.validated_data.get("mode"):
+            slots = slots.filter(mode=query.validated_data["mode"])
+        # A single grouped database query produces all day counts and modes.
+        rows = slots.annotate(local_day=TruncDate("starts_at", tzinfo=tz)).values("local_day").annotate(
+            free_slots=Count("id"),
+        ).order_by("local_day")
+        day_rows = list(rows)
+        mode_rows = slots.annotate(local_day=TruncDate("starts_at", tzinfo=tz)).values("local_day", "mode").annotate(
+            free_slots=Count("id"),
+        ).order_by("local_day", "mode")
+        modes_by_day = {}
+        for row in mode_rows:
+            modes_by_day.setdefault(row["local_day"], []).append(row["mode"])
+        return _private_response([
+            {
+                "date": row["local_day"].isoformat(),
+                "modes": modes_by_day[row["local_day"]],
+                "free_slots": row["free_slots"],
+            }
+            for row in day_rows
+        ])
 
 
 class SessionView(APIView):
@@ -1041,19 +1240,19 @@ class SessionView(APIView):
         if request.user.role != User.Role.USER:
             return Response({"detail": "Only users can book."}, status=403)
         # Lock the slot row so two women cannot grab it at the same moment.
-        slot = (
-            AvailabilitySlot.objects.select_for_update()
-            .filter(
-                pk=request.data.get("slot"),
-                starts_at__gt=timezone.now(),
-                professional__professional_profile__status="verified",
-            )
-            .first()
-        )
-        if not slot:
+        now = timezone.now()
+        slot = AvailabilitySlot.objects.select_for_update().filter(
+            pk=request.data.get("slot")
+        ).first()
+        if slot is None:
             return Response({"detail": "Slot not available."}, status=404)
-        if Session.objects.filter(slot=slot, status__in=Session.ACTIVE).exists():
-            return Response({"detail": "Slot already taken."}, status=409)
+        if not free_slots(now=now).filter(pk=slot.pk).exists():
+            if (
+                _booking_eligible_slots(now=now).filter(pk=slot.pk).exists()
+                and Session.objects.filter(slot=slot, status__in=Session.ACTIVE).exists()
+            ):
+                return Response({"detail": "Slot already taken."}, status=409)
+            return Response({"detail": "Slot not available."}, status=404)
         session = Session.objects.create(user=request.user, slot=slot)
         return Response(SessionSerializer(session).data, status=201)
 
@@ -1126,6 +1325,131 @@ class ProSlotsView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(professional=self.request.user)
+
+    def patch(self, request, *args, **kwargs):
+        slot = get_object_or_404(AvailabilitySlot, pk=request.data.get("id"), professional=request.user)
+        if slot.closed_at is not None:
+            return Response({"detail": "Closed slots cannot be edited."}, status=400)
+        serializer = SlotSerializer(slot, data=request.data, partial=True, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        slot = serializer.save(source=AvailabilitySlot.Source.MANUAL, rule=None)
+        return Response(SlotSerializer(slot).data)
+
+    def delete(self, request, *args, **kwargs):
+        slot = get_object_or_404(AvailabilitySlot, pk=request.data.get("id") or request.query_params.get("id"), professional=request.user)
+        if slot.sessions.filter(status__in=Session.ACTIVE).exists():
+            return Response({"detail": "A slot with an active session cannot be retired."}, status=409)
+        if slot.closed_at is None:
+            slot.closed_at = timezone.now()
+            slot.save(update_fields=["closed_at"])
+        return Response(status=204)
+
+
+class ProTimeOffView(APIView):
+    permission_classes = [IsVerifiedProfessional]
+
+    def get(self, request):
+        rows = TimeOff.objects.filter(professional=request.user).order_by("starts_at")
+        return Response([{"id": row.pk, "starts_at": row.starts_at, "ends_at": row.ends_at} for row in rows])
+
+    def post(self, request):
+        from .availability import local_to_utc
+        from datetime import date, datetime, time, timedelta
+
+        try:
+            start_date = date.fromisoformat(request.data["from"])
+            end_date = date.fromisoformat(request.data["to"])
+            if end_date < start_date:
+                raise ValueError
+        except (KeyError, TypeError, ValueError):
+            return Response({"detail": "Provide valid from and to dates."}, status=400)
+        if (end_date - start_date).days >= 62:
+            return Response({"detail": "Time-off range cannot exceed 62 days."}, status=400)
+        start = local_to_utc(datetime.combine(start_date, time.min))
+        end = local_to_utc(datetime.combine(end_date + timedelta(days=1), time.min))
+        row = TimeOff.objects.create(professional=request.user, starts_at=start, ends_at=end)
+        slots = AvailabilitySlot.objects.filter(
+            professional=request.user, starts_at__lt=end, ends_at__gt=start, closed_at__isnull=True
+        ).prefetch_related("sessions")
+        for slot in slots:
+            retire_slot(slot)
+        return Response({"id": row.pk, "starts_at": row.starts_at, "ends_at": row.ends_at}, status=201)
+
+    def delete(self, request):
+        row = get_object_or_404(TimeOff, pk=request.data.get("id") or request.query_params.get("id"), professional=request.user)
+        row.delete()
+        return Response(status=204)
+
+
+class ProCalendarView(APIView):
+    permission_classes = [IsVerifiedProfessional]
+
+    def get(self, request):
+        from .availability import local_to_utc
+        from datetime import date, datetime, time, timedelta
+        from .limits import CALENDAR_MAX_WINDOW_DAYS
+
+        try:
+            start_date = date.fromisoformat(request.query_params["from"])
+            end_date = date.fromisoformat(request.query_params["to"])
+        except (KeyError, TypeError, ValueError):
+            return Response({"detail": "Provide valid from and to dates."}, status=400)
+        if end_date < start_date or (end_date - start_date).days >= CALENDAR_MAX_WINDOW_DAYS:
+            return Response({"detail": "Calendar range must be between 1 and 62 days."}, status=400)
+        start = local_to_utc(datetime.combine(start_date, time.min))
+        end = local_to_utc(datetime.combine(end_date + timedelta(days=1), time.min))
+        now = timezone.now()
+        rows = AvailabilitySlot.objects.filter(
+            professional=request.user, starts_at__gte=start, starts_at__lt=end
+        ).prefetch_related("sessions").order_by("starts_at", "pk")
+        items = []
+        for slot in rows:
+            statuses = set(slot.sessions.values_list("status", flat=True))
+            if "accepted" in statuses:
+                state = "accepted"
+            elif "requested" in statuses:
+                state = "requested"
+            elif "completed" in statuses:
+                state = "completed"
+            elif slot.closed_at is not None or slot.starts_at <= now:
+                state = "expired"
+            else:
+                state = "free"
+            items.append({"id": slot.pk, "starts_at": slot.starts_at, "ends_at": slot.ends_at, "mode": slot.mode, "state": state})
+        return Response(items)
+
+
+class ProAvailabilityView(APIView):
+    permission_classes = [IsVerifiedProfessional]
+
+    def get(self, request):
+        rows = WeeklyAvailability.objects.filter(professional=request.user)
+        return Response(WeeklyAvailabilitySerializer(rows, many=True).data)
+
+    def post(self, request):
+        serializer = WeeklyAvailabilitySerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        rule = serializer.save(professional=request.user)
+        return Response(WeeklyAvailabilitySerializer(rule).data, status=201)
+
+    def patch(self, request):
+        rule_id = request.data.get("id")
+        rule = get_object_or_404(WeeklyAvailability, pk=rule_id, professional=request.user)
+        serializer = WeeklyAvailabilitySerializer(
+            rule, data=request.data, partial=True, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        rule = serializer.save()
+        return Response(WeeklyAvailabilitySerializer(rule).data)
+
+    def delete(self, request):
+        rule_id = request.data.get("id") or request.query_params.get("id")
+        rule = get_object_or_404(WeeklyAvailability, pk=rule_id, professional=request.user)
+        now = timezone.now()
+        for slot in rule.slots.filter(starts_at__gt=now, closed_at__isnull=True):
+            retire_slot(slot, now=now)
+        rule.delete()
+        return Response(status=204)
 
 
 class PatientListView(APIView):

@@ -209,6 +209,8 @@ REST_FRAMEWORK = {
         "content_write": "60/hour",
         "pro_register": "5/hour",
         "auth_login": "10/minute",
+        "directory_search": "120/hour",
+        "directory_calendar": "240/hour",
     },
 }
 

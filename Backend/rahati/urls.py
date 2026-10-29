@@ -53,11 +53,17 @@ urlpatterns = [
     path("todos/<int:pk>/complete", views.TodoCompleteView.as_view(), name="todo-complete"),
     path("todos/<int:pk>/reopen", views.TodoReopenView.as_view(), name="todo-reopen"),
     # ----- care: user side -----
+    path("wilayas", views.WilayaListView.as_view(), name="wilayas"),
     path("professionals", views.ProfessionalListView.as_view(), name="professionals"),
     path(
         "professionals/<int:pro_id>/slots",
         views.FreeSlotsView.as_view(),
         name="professional-slots",
+    ),
+    path(
+        "professionals/<int:pro_id>/calendar",
+        views.ProfessionalCalendarView.as_view(),
+        name="professional-calendar",
     ),
     path("sessions", views.SessionView.as_view(), name="sessions"),
     path("sessions/<int:pk>", views.SessionUpdateView.as_view(), name="session-update"),
@@ -67,6 +73,9 @@ urlpatterns = [
     path("pro/content/<int:pk>", views.ProContentDetailView.as_view(), name="pro-content-detail"),
     # ----- care: professional side — slots -----
     path("pro/slots", views.ProSlotsView.as_view(), name="pro-slots"),
+    path("pro/availability", views.ProAvailabilityView.as_view(), name="pro-availability"),
+    path("pro/time-off", views.ProTimeOffView.as_view(), name="pro-time-off"),
+    path("pro/calendar", views.ProCalendarView.as_view(), name="pro-calendar"),
     path("pro/patients", views.PatientListView.as_view(), name="pro-patients"),
     path(
         "pro/patients/<int:user_id>/todos",

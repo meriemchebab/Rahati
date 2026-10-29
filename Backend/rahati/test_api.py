@@ -285,7 +285,7 @@ class ContentTests(BaseCase):
 # --------------------------------------------------------------------------
 class BookingTests(BaseCase):
     def test_directory_lists_only_verified_professionals(self):
-        names = [p["name"] for p in api(self.nour).get("/api/professionals").data]
+        names = [p["name"] for p in api(self.nour).get("/api/professionals?mode=online").data]
         self.assertEqual(names, ["Dr_Sara"])
 
     def test_booked_slot_disappears_from_free_slots(self):

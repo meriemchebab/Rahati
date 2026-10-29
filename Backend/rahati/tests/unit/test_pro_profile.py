@@ -40,8 +40,20 @@ class ProfessionalProfileEndpointTests(TestCase):
         self.assertEqual(audit.actor_id, self.user.id)
         self.assertNotIn("Updated", audit.action)
         self.assertEqual(set(response.data), {
-            "display_name", "bio", "city", "address", "credential_kind", "status", "credential_uploaded_at"
+            "display_name", "bio", "city", "address", "wilaya", "credential_kind",
+            "status", "credential_uploaded_at"
         })
+
+    def test_wilaya_can_be_updated_and_is_returned(self):
+        response = self.client.patch(self.url, {"wilaya": "16"}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.wilaya, "16")
+        self.assertEqual(response.data["wilaya"], "16")
+
+    def test_invalid_wilaya_is_rejected(self):
+        response = self.client.patch(self.url, {"wilaya": "99"}, format="json")
+        self.assertEqual(response.status_code, 400)
 
     def test_changing_verified_display_name_returns_to_pending(self):
         reviewer = User.objects.create_user(username="reviewer", password="Pass!2026")
