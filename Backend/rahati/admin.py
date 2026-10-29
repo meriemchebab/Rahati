@@ -10,6 +10,7 @@ ContentCardAdmin features:
 """
 from django.contrib import admin, messages
 from django.contrib.admin import register
+from django.db.models.deletion import ProtectedError
 from django.http import FileResponse, Http404
 from django.urls import path
 from django.shortcuts import get_object_or_404
@@ -20,6 +21,8 @@ from .models import (
     ContentCardTranslation,
     PatternType,
     ProfessionalProfile,
+    Topic,
+    TopicTranslation,
     User,
 )
 from .services import audit
@@ -41,6 +44,62 @@ class ContentCardTranslationInline(admin.TabularInline):
         if obj and obj.author_id is not None:
             return ["language", "title", "body", "action_text", "support_note"]
         return []
+
+
+class TopicTranslationInline(admin.TabularInline):
+    model = TopicTranslation
+    extra = 0
+    max_num = 2
+    fields = ["language", "name"]
+
+
+@register(Topic)
+class TopicAdmin(admin.ModelAdmin):
+    list_display = ["code", "arabic_name", "french_name"]
+    search_fields = ["code", "translations__name"]
+    inlines = [TopicTranslationInline]
+
+    def get_readonly_fields(self, request, obj=None):
+        return ["code"] if obj else []
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("translations")
+
+    @staticmethod
+    def _translation_name(obj, language):
+        translation = next(
+            (item for item in obj.translations.all() if item.language == language),
+            None,
+        )
+        return translation.name if translation else "—"
+
+    def arabic_name(self, obj):
+        return self._translation_name(obj, "ar")
+    arabic_name.short_description = "Arabic name"
+
+    def french_name(self, obj):
+        return self._translation_name(obj, "fr")
+    french_name.short_description = "French name"
+
+    def delete_model(self, request, obj):
+        try:
+            super().delete_model(request, obj)
+        except ProtectedError:
+            self.message_user(
+                request,
+                "This topic is in use by check-ins and cannot be deleted.",
+                level=messages.ERROR,
+            )
+
+    def delete_queryset(self, request, queryset):
+        try:
+            super().delete_queryset(request, queryset)
+        except ProtectedError:
+            self.message_user(
+                request,
+                "One or more topics are in use by check-ins and cannot be deleted.",
+                level=messages.ERROR,
+            )
 
 
 # --------------------------------------------------------------------------
@@ -106,8 +165,8 @@ def restore_cards(modeladmin, request, queryset):
 # --------------------------------------------------------------------------
 @register(ContentCard)
 class ContentCardAdmin(admin.ModelAdmin):
-    list_display = ["id", "starter_key", "get_pattern", "get_author", "status", "get_languages"]
-    list_filter = ["status", "pattern_type"]
+    list_display = ["id", "starter_key", "get_pattern", "get_topic", "get_author", "status", "get_languages"]
+    list_filter = ["status", "pattern_type", "topic"]
     search_fields = ["starter_key", "author__username"]
     readonly_fields = ["starter_key", "author", "reviewed_by", "created_at", "updated_at"]
     inlines = [ContentCardTranslationInline]
@@ -116,6 +175,10 @@ class ContentCardAdmin(admin.ModelAdmin):
     def get_pattern(self, obj):
         return obj.pattern_type.code if obj.pattern_type else "—"
     get_pattern.short_description = "Pattern"
+
+    def get_topic(self, obj):
+        return obj.topic.code if obj.topic else "—"
+    get_topic.short_description = "Topic"
 
     def get_author(self, obj):
         if obj.author_id is None:

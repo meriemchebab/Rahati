@@ -140,6 +140,24 @@ class ProfessionalProfile(models.Model):
 # --------------------------------------------------------------------------
 # TRACKING (everything here belongs to one user and cascades on delete)
 # --------------------------------------------------------------------------
+class Topic(models.Model):
+    code = models.SlugField(unique=True)
+
+    def __str__(self):
+        return self.code
+
+
+class TopicTranslation(models.Model):
+    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="translations")
+    language = models.CharField(max_length=2, choices=User.Language.choices)
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["topic", "language"], name="uniq_topic_language")
+        ]
+
+
 class CheckIn(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="check_ins")
     checkin_date = models.DateField()
@@ -148,6 +166,9 @@ class CheckIn(models.Model):
     )
     energy = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
+    topics = models.ManyToManyField(
+        Topic, through="CheckInTopic", related_name="check_ins", blank=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -158,6 +179,16 @@ class CheckIn(models.Model):
             models.UniqueConstraint(
                 fields=["user", "checkin_date"], name="uniq_checkin_per_day"
             )
+        ]
+
+
+class CheckInTopic(models.Model):
+    check_in = models.ForeignKey(CheckIn, on_delete=models.CASCADE, related_name="topic_links")
+    topic = models.ForeignKey(Topic, on_delete=models.PROTECT, related_name="checkin_links")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["check_in", "topic"], name="uniq_checkin_topic")
         ]
 
 
@@ -256,6 +287,9 @@ class ContentCard(models.Model):
     pattern_type = models.ForeignKey(
         PatternType, null=True, blank=True, on_delete=models.SET_NULL, related_name="cards"
     )
+    topic = models.ForeignKey(
+        Topic, null=True, blank=True, on_delete=models.SET_NULL, related_name="cards"
+    )
     reviewed_by = models.ForeignKey(
         User, null=True, blank=True, on_delete=models.SET_NULL, related_name="reviewed_cards"
     )
@@ -271,7 +305,7 @@ class ContentCard(models.Model):
 
     def validate_publishable(self):
         """Return a list of human-readable problems (empty = publishable)."""
-        MARKER = "[DRAFT - NOT REVIEWED]"
+        MARKERS = ("[DRAFT - NOT REVIEWED]", "[DEMO]")
         problems = []
         translations = list(self.translations.all())
         if not translations:
@@ -292,7 +326,7 @@ class ContentCard(models.Model):
             ):
                 if not value or not value.strip():
                     problems.append(f"Translation '{t.language}' has empty {field}.")
-                elif MARKER in value:
+                elif any(marker in value for marker in MARKERS):
                     problems.append(f"Translation '{t.language}' {field} contains draft marker.")
         return problems
 
@@ -314,6 +348,17 @@ class ContentCardTranslation(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["card", "language"], name="uniq_card_language")
+        ]
+
+
+class CardRead(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="card_reads")
+    card = models.ForeignKey(ContentCard, on_delete=models.CASCADE, related_name="reads")
+    read_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "card"], name="uniq_card_read_user")
         ]
 
 
@@ -434,6 +479,7 @@ class Session(models.Model):
     # session per slot" rule is enforced in the booking view inside a transaction.
     slot = models.ForeignKey(AvailabilitySlot, on_delete=models.CASCADE, related_name="sessions")
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.REQUESTED)
+    meeting_link = models.URLField(max_length=255, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

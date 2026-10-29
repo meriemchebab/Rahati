@@ -31,7 +31,9 @@ from .models import (
     Todo,
     User,
     ProfessionalProfile,
+    Topic,
 )
+from .limits import MAX_TOPICS_PER_CHECKIN
 from .services import todo_status
 from .credentials import validate_credential
 from .text_rules import clean_display_name, clean_phone, clean_text, clean_private_text
@@ -329,10 +331,87 @@ class ProfessionalProfilePatchSerializer(StrictSerializerMixin, serializers.Seri
 # --------------------------------------------------------------------------
 # Tracking
 # --------------------------------------------------------------------------
+class TopicCodesField(serializers.Field):
+    default_error_messages = {
+        "not_a_list": "Expected a list of topic codes.",
+        "too_many": f"Select no more than {MAX_TOPICS_PER_CHECKIN} topics.",
+        "not_strings": "Each topic code must be a string.",
+        "duplicate": "Topic codes must be unique.",
+        "invalid": "One or more topic codes are invalid.",
+    }
+
+    def to_internal_value(self, data):
+        if not isinstance(data, list):
+            self.fail("not_a_list")
+        if len(data) > MAX_TOPICS_PER_CHECKIN:
+            self.fail("too_many")
+        if any(not isinstance(code, str) for code in data):
+            self.fail("not_strings")
+        if len(set(data)) != len(data):
+            self.fail("duplicate")
+        if any(not code or len(code) > 50 for code in data):
+            self.fail("invalid")
+
+        topics_by_code = Topic.objects.in_bulk(data, field_name="code")
+        if len(topics_by_code) != len(data):
+            self.fail("invalid")
+        return [topics_by_code[code] for code in data]
+
+    def to_representation(self, value):
+        return sorted(topic.code for topic in value.all())
+
+
+class CardLibraryQuerySerializer(serializers.Serializer):
+    topic = serializers.CharField(required=False, max_length=50)
+    limit = serializers.IntegerField(required=False, min_value=1)
+    offset = serializers.IntegerField(required=False, min_value=0, max_value=10000)
+
+    def to_internal_value(self, data):
+        allowed = {"topic", "limit", "offset"}
+        normalized = {}
+        errors = {}
+        for key in data.keys():
+            values = data.getlist(key) if hasattr(data, "getlist") else [data[key]]
+            if key not in allowed:
+                errors.setdefault(str(key), []).append("Unknown query parameter.")
+                continue
+            if len(values) != 1:
+                errors.setdefault(key, []).append("Repeated query parameters are not allowed.")
+                continue
+            value = values[0]
+            if not isinstance(value, str) or len(value) > 50_000:
+                errors.setdefault(key, []).append("Invalid query parameter.")
+                continue
+            if "\x00" in value or any(char in _DIRECTORY_BIDI for char in value):
+                errors.setdefault(key, []).append("Unsafe characters are not allowed.")
+                continue
+            if key in {"limit", "offset"} and (
+                not value or len(value) > 10 or not value.isascii() or not value.isdigit()
+            ):
+                errors.setdefault(key, []).append("A non-negative integer is required.")
+                continue
+            normalized[key] = value
+        if errors:
+            raise serializers.ValidationError(errors)
+        validated = super().to_internal_value(normalized)
+        validated["limit"] = min(validated.get("limit", 20), 50)
+        validated.setdefault("offset", 0)
+        return validated
+
+    def validate_topic(self, value):
+        if value == "general":
+            return value
+        if not Topic.objects.filter(code=value).exists():
+            raise serializers.ValidationError("Unknown topic.")
+        return value
+
+
 class CheckInSerializer(serializers.ModelSerializer):
+    topics = TopicCodesField(required=False)
+
     class Meta:
         model = CheckIn
-        fields = ["id", "checkin_date", "mood", "energy"]
+        fields = ["id", "checkin_date", "mood", "energy", "topics"]
 
     def validate_checkin_date(self, value):
         if value > timezone.localdate():
@@ -433,15 +512,25 @@ class SessionSerializer(serializers.ModelSerializer):
         model = Session
         fields = [
             "id", "slot", "professional", "starts_at", "mode", "status",
-            "professional_address", "created_at",
+            "meeting_link", "professional_address", "created_at",
         ]
         read_only_fields = ["status", "created_at"]
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.status != Session.Status.ACCEPTED:
+            data.pop("meeting_link", None)
+            data.pop("professional_address", None)
+        elif instance.slot.mode == AvailabilitySlot.Mode.ONLINE:
+            data.pop("professional_address", None)
+            if not instance.meeting_link:
+                data.pop("meeting_link", None)
+        else:
+            data.pop("meeting_link", None)
+        return data
+
     def get_professional_address(self, obj):
-        if (
-            obj.status not in (Session.Status.ACCEPTED, Session.Status.COMPLETED)
-            or obj.slot.mode != AvailabilitySlot.Mode.IN_PERSON
-        ):
+        if obj.status != Session.Status.ACCEPTED or obj.slot.mode != AvailabilitySlot.Mode.IN_PERSON:
             return None
         profile = getattr(obj.slot.professional, "professional_profile", None)
         return profile.address if profile else None

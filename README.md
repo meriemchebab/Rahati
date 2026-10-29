@@ -10,7 +10,7 @@ A private mental-wellbeing platform for Algerian women. A woman can understand h
 
 1. [Principles](#principles)
 2. [What the product does](#what-the-product-does)
-3. [Status](#status)
+3. [AI and analytics](#ai-and-analytics)
 4. [Architecture](#architecture)
 5. [Backend structure](#backend-structure)
 6. [Data model](#data-model)
@@ -24,6 +24,7 @@ A private mental-wellbeing platform for Algerian women. A woman can understand h
 14. [Roadmap](#roadmap)
 15. [Contributing](#contributing)
 16. [Glossary](#glossary)
+17. [License](#license)
 
 ---
 
@@ -32,7 +33,7 @@ A private mental-wellbeing platform for Algerian women. A woman can understand h
 These rules decide every design question. If a feature breaks one, the feature changes.
 
 - **Show, don't diagnose.** The app shows a woman her own numbers. It never labels her, never says she has a condition and never gives medical advice.
-- **No model training.** Planned insights use plain statistics. If AI summaries are added, they must use only those statistics and pass code checks before a woman sees them.
+- **No model training.** Analytics use plain statistics. Optional AI summaries receive only an allow-listed subset of those statistics, never journal text or other free-text user content.
 - **Anonymous by default.** A nickname is enough to sign up. Email and phone are optional.
 - **Her data, her consent.** A professional sees a woman's data only with an accepted session and an explicit, revocable consent for each category (mood, journal, cycle).
 - **Delete means delete.** One action removes everything she owns.
@@ -43,21 +44,28 @@ These rules decide every design question. If a feature breaks one, the feature c
 Rahati has two modes that share one account.
 
 **Preventing: understand yourself.**
-The backend accepts daily mood and energy check-ins, cycle start dates, and encrypted journal entries. It serves curated cards and to-dos. Topic tagging, analytics endpoints, and AI summaries are not implemented yet.
+The backend accepts daily mood and energy check-ins with an optional fixed set of translated topic tags, cycle start dates, and encrypted journal entries. It serves curated cards and to-dos, and provides check-in analytics with an optional AI-generated summary.
 
 **Healing: reach a professional.**
-Find a verified woman professional by mode, wilaya and time, book a free slot, and share selected data after granting consent. For accepted or completed in-person sessions, the API returns the professional's address. Online meeting-link generation is not implemented yet.
+Find a verified woman professional by mode (online/in person), wilaya and time, book a free slot, and share selected data after granting consent. When the professional accepts, an online session gets a private Jitsi room link and an in-person session reveals the professional's address to the two participants.
 
 Three personas use the platform:
 
 | Persona | Uses | Does |
 |---|---|---|
-| **Woman (user)** | API; client UI not implemented | Tracks, learns, books, controls her sharing |
-| **Professional** | API; dashboard not implemented | Manages availability, accepts sessions, sees consented data, assigns cards and to-dos |
+| **Woman (user)** | API; client UI  implemented | Tracks, learns, books, controls her sharing |
+| **Professional** | API; dashboard  implemented | Manages availability, accepts sessions, sees consented data, assigns cards and to-dos |
 | **Admin** | Django admin | Verifies professionals, reviews credentials, manages content |
 
 Audit events are recorded in the database, but there is no admin page for browsing them yet.
 
+## AI and analytics
+
+Analytics are calculated on request from the authenticated woman's own check-ins using plain statistics; no model is trained and no prediction is made. `GET /api/analytics?range=7|30|90` returns start and end dates, a daily mood and energy series, check-in count, averages, previous-period mood average and change, current streak, and lowest mood with its dates. The `topics` response field is currently empty; topic aggregation is not implemented.
+
+`POST /api/analytics` accepts the same ranges and returns the statistics plus a summary in the woman's selected language (Arabic, French, or English). With check-ins and `GEMINI_API_KEY` configured, the backend asks Gemini to write the summary using an explicit allow-list of numeric statistics: range, count, averages, mood change, and streak. Journal entries and other free-text user content are not sent. Without a key or check-ins, or when Gemini errors or its output fails the basic completeness or language-service availability checks, the backend returns a locally generated summary. These checks do not confirm that each generated claim matches the statistics, and the requested sentence count is not enforced; verify generated summaries against the returned `analytics` object. Both endpoints are private, authenticated user endpoints and return `Cache-Control: private, no-store`.
+
+Summaries are informational and are not a diagnosis or medical advice. The prompt instructs Gemini not to diagnose, give medical advice, or invent facts, but that instruction is not a factual-accuracy safeguard.
 
 
 ## Architecture
@@ -137,23 +145,37 @@ Rahati/
 erDiagram
   USER ||--o| PROFESSIONAL_PROFILE : "has, if professional"
   USER ||--o{ CHECK_IN : records
+  CHECK_IN ||--o{ CHECK_IN_TOPIC : tags
+  TOPIC ||--o{ CHECK_IN_TOPIC : "tagged in"
+  TOPIC ||--o{ TOPIC_TRANSLATION : "has translations"
   USER ||--o{ CYCLE_START : logs
   USER ||--o{ JOURNAL_ENTRY : writes
-  CHECK_IN ||--o{ JOURNAL_ENTRY : "may link"
+  CHECK_IN o|--o{ JOURNAL_ENTRY : "may link"
+  PATTERN_TYPE ||--o{ USER_PATTERN : detects
+  USER ||--o{ USER_PATTERN : has
+  WEEKLY_SUMMARY o|--o{ USER_PATTERN : summarizes
+  USER ||--o{ WEEKLY_SUMMARY : receives
+  PATTERN_TYPE o|--o{ CONTENT_CARD : "may group"
+  TOPIC o|--o{ CONTENT_CARD : "may group"
+  USER o|--o{ CONTENT_CARD : authors
+  USER o|--o{ CONTENT_CARD : reviews
+  CONTENT_CARD ||--o{ CONTENT_CARD_TRANSLATION : "may have translations"
+  USER ||--o{ CARD_READ : marks
+  CONTENT_CARD ||--o{ CARD_READ : "marked as read"
   USER ||--o{ TODO : owns
-  CONTENT_CARD ||--o{ TODO : "may source"
-  CONTENT_CARD ||--|{ CONTENT_CARD_TRANSLATION : "has ar/fr"
+  CONTENT_CARD o|--o{ TODO : "may source"
+  USER o|--o{ TODO : assigns
   USER ||--o{ AVAILABILITY_SLOT : offers
+  WEEKLY_AVAILABILITY o|--o{ AVAILABILITY_SLOT : generates
   USER ||--o{ WEEKLY_AVAILABILITY : defines
   USER ||--o{ TIME_OFF : blocks
-  WEEKLY_AVAILABILITY ||--o{ AVAILABILITY_SLOT : generates
   AVAILABILITY_SLOT ||--o{ SESSION : "booked as"
   USER ||--o{ SESSION : books
   SESSION ||--o| SESSION_NOTE : has
   USER ||--o{ SHARING_CONSENT : grants
-  USER ||--o{ SHARING_CONSENT : "receives (professional)"
+  USER ||--o{ SHARING_CONSENT : "is recipient professional"
   USER ||--o{ DEVICE_TOKEN : registers
-  USER ||--o{ AUDIT_LOG : "acts in"
+  USER o|--o{ AUDIT_LOG : acts
 
   USER {
     string username "the nickname"
@@ -170,6 +192,10 @@ erDiagram
     int mood "1 to 5"
     int energy "1 to 5"
   }
+  CONTENT_CARD {
+    string status "draft, published, archived, removed"
+    string starter_key "optional, unique"
+  }
   AVAILABILITY_SLOT {
     datetime starts_at
     datetime ends_at
@@ -179,13 +205,14 @@ erDiagram
   }
   WEEKLY_AVAILABILITY {
     int weekday "Monday=0 through Sunday=6"
-    time starts_at "Africa/Algiers local time"
-    time ends_at "Africa/Algiers local time"
+    time starts_at "local time"
+    time ends_at "local time"
     string mode "online, in_person"
+    boolean is_active
   }
   TIME_OFF {
-    datetime starts_at "UTC instant for local date boundary"
-    datetime ends_at "UTC instant for local date boundary"
+    datetime starts_at
+    datetime ends_at
   }
   SESSION {
     string status "requested, accepted, declined, cancelled, completed"
@@ -194,27 +221,30 @@ erDiagram
     string category "mood, journal, cycle"
     datetime revoked_at
   }
+  AUDIT_LOG {
+    string action
+    string target_type
+    int target_id "not a foreign key"
+  }
 ```
+
+`USER_PATTERN` stores rule-detected patterns; `WEEKLY_SUMMARY` stores a generated weekly text summary. Analytics are computed on request and are not stored in an analytics-summary table. Card translations are stored per language, but the database does not enforce that a card has any translations; publishing validation checks required translations.
 
 Design notes:
 
-- **Third normal form.** the database is normelized to the third normal form for coherance and integrity
+- **Normalization:** the model keeps topic names and card text in translation tables, and derives a session's professional through its availability slot.
 - **Encrypted columns:** journal text and session notes are encrypted before they reach the database.
-- **Deletion:** every table that belongs to a woman cascades from `USER`. The audit log keeps its rows but loses the link to her (`SET NULL`).
+- **Deletion:** user-owned records generally cascade when their user is deleted. Audit rows remain, with the actor link set to `NULL`; their target type and ID are not foreign keys.
 - **Translations** live in their own table, so adding a language adds rows, not columns.
 
 ### Planned additions
 
 ```mermaid
 erDiagram
-  TOPIC ||--|{ TOPIC_TRANSLATION : "has ar/fr"
-  CHECK_IN ||--o{ CHECK_IN_TOPIC : tags
-  TOPIC ||--o{ CHECK_IN_TOPIC : "tagged in"
-  TOPIC ||--o{ CONTENT_CARD : groups
-  USER ||--o{ CARD_READ : marks
-  CONTENT_CARD ||--o{ CARD_READ : "read as"
-  USER ||--o{ ANALYTICS_SUMMARY : "caches (per range and day)"
+  USER ||--o{ ANALYTICS_SUMMARY : "would cache (per range and day)"
 ```
+
+`ANALYTICS_SUMMARY` is a proposal only; no such model or cache is implemented.
 
 ## Key flows
 
@@ -255,7 +285,7 @@ sequenceDiagram
   Pro->>API: PATCH /api/sessions/{id} {status: accepted}
   API->>API: check the transition table
   API-->>Pro: 200
-  Note over Woman,Pro: Accepted or completed in-person sessions expose the professional's address.<br/>Online meeting links are not implemented.
+  Note over Woman,Pro: On acceptance, online sessions reveal a random Jitsi link and in-person sessions reveal the professional's address to both participants.
 ```
 
 **A free slot** is: at least 60 minutes in the future, belongs to a verified and active professional, is not closed, and has no requested or accepted session. Search, calendar and booking all use this one rule.
@@ -287,9 +317,9 @@ stateDiagram-v2
 
 Only pending profiles can be verified or rejected through the admin actions. An unverified professional cannot publish slots, accept sessions or read patient data, and her slots are not free for women. Rejected profiles have no reapplication or reconsideration flow yet.
 
-### The Preventing loop (planned)
+### Analytics and AI summary
 
-The flow below is a product proposal, not an implemented API sequence. The current check-in endpoint accepts mood and energy; analytics, topic tagging, and summaries are not available.
+The API supports analytics and summary requests. Topic aggregation and content-card suggestions based on recent check-in topics are not part of the analytics response.
 
 ```mermaid
 sequenceDiagram
@@ -297,22 +327,19 @@ sequenceDiagram
   participant API
   participant Stats as Analytics (plain code)
   participant LLM as Gemini (optional)
-  Woman->>API: POST /api/check-ins {mood, energy}
+  Woman->>API: POST /api/check-ins {mood, energy, topics?}
   Woman->>API: GET /api/analytics?range=7
   API->>Stats: compute from her own check-ins
-  Stats-->>Woman: averages, series, streak, topics
-  Woman->>API: POST /api/analytics/summary
-  API->>LLM: numbers only, never text she wrote
-  LLM-->>API: draft summary
-  API->>API: verify every number and forbidden word
-  alt passes
-    API-->>Woman: AI summary
-  else fails or LLM unavailable
-    API-->>Woman: plain template summary
+  Stats-->>API: averages, daily series, streak, lowest mood
+  API-->>Woman: analytics JSON
+  Woman->>API: POST /api/analytics {range: 7}
+  API->>Stats: compute the same statistics
+  opt Gemini API key configured and check-ins exist
+    API->>LLM: allow-listed numeric statistics only
+    LLM-->>API: draft summary
   end
-  Woman->>API: GET /api/content-cards
-  API-->>Woman: cards for topics she tagged
-  Woman->>API: POST /api/content-cards/{id}/add-todo
+  API->>API: use local template if Gemini is unavailable or output is incomplete
+  API-->>Woman: summary and analytics JSON
 ```
 
 ### Professional availability
@@ -353,46 +380,60 @@ All routes are under `/api/`. Responses are JSON. Authentication is a JWT in the
 |---|---|
 | Auth and account | `POST auth/register`, `POST auth/register-professional`, `POST auth/login`, `POST auth/refresh`, `POST auth/verify`, `POST auth/logout`, `POST auth/change-password`, `GET/DELETE me` |
 | Professional profile | `GET/PATCH pro/profile`, `GET/PUT pro/profile/credential` |
-| Tracking | `GET/POST check-ins`, `POST cycle-starts`, `GET/POST journal`, `GET patterns` (reads stored pattern and weekly-summary rows) |
+| Tracking | `GET/POST check-ins`, `GET topics`, `POST cycle-starts`, `GET/POST journal`, `GET patterns` (reads stored pattern and weekly-summary rows) |
+| Analytics and summaries | `GET analytics?range=7\|30\|90`, `POST analytics` (statistics and localized summary) |
 | To-dos | `GET/POST todos`, `PATCH/DELETE todos/{id}`, `POST todos/{id}/complete`, `POST todos/{id}/reopen` |
-| Content cards | `GET content-cards`, `GET content-cards/{id}`, `POST content-cards/{id}/add-todo` |
+| Content cards | `GET content-cards`, `GET content-cards/{id}`, `POST content-cards/{id}/read`, `GET content-cards/library?topic&limit&offset`, `POST content-cards/{id}/add-todo` |
 | Professional content | `GET/POST pro/content`, `GET/PATCH/DELETE pro/content/{id}`, `POST pro/patients/{id}/content` (assign a card) |
 | Directory | `GET wilayas`, `GET professionals?mode&wilaya&from&to&time_of_day`, `GET professionals/{id}/slots`, `GET professionals/{id}/calendar?month=YYYY-MM` |
-| Sessions | `GET/POST sessions`, `PATCH sessions/{id}` (status transitions) |
+| Sessions | `GET/POST sessions`, `GET/PATCH sessions/{id}` (participant-scoped details and status transitions) |
 | Consent | `GET/PUT consents` |
 | Professional availability | `GET/POST/PATCH/DELETE pro/slots`, `GET/POST/PATCH/DELETE pro/availability`, `GET/POST/DELETE pro/time-off`, `GET pro/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` |
 | Professional care | `GET pro/patients`, `GET pro/patients/{id}/check-ins`, `.../journal`, `.../cycle`, `GET/POST pro/patients/{id}/todos`, `PATCH/DELETE pro/patients/{id}/todos/{todo_id}`, `GET/PUT pro/sessions/{id}/note` |
 
-The Django admin supports professional verification and credential review, and content-card review and publishing. Audit events are stored but are not exposed in the admin UI. `GET patterns` only returns stored rows; this repository has no pattern-computation job or analytics API.
+The Django admin supports professional verification and credential review, and content-card review and publishing. Audit events are stored but are not exposed in the admin UI. `GET patterns` only returns stored rows; analytics are computed on request and are separate from stored pattern and weekly-summary rows. Professional patient analytics are not implemented.
+
+`GET /api/topics` returns `[{ "code": "stress", "name": "ضغط" }]` in the authenticated caller's language, ordered by code. A check-in response has exactly these keys:
+
+```json
+{
+  "id": 1,
+  "checkin_date": "2026-10-24",
+  "mood": 3,
+  "energy": 4,
+  "topics": ["stress"]
+}
+```
+
+`POST /api/check-ins` may omit `topics` to leave an existing day's tags unchanged, or provide a list of up to three distinct topic codes to replace them (an empty list clears them). Topics on professional check-in reads are included only when the existing mood-consent gate allows that read.
+
+Every woman-facing card item has exactly these keys: `id`, `topic`, `topic_name`,
+`title`, `body`, `action`, `support_note`, `pattern`, `source`, `author_name`,
+`read`, `has_open_todo`, `reviewed_by_name`, and `language`.
+`GET /api/content-cards/library` returns
+`{ "count": 0, "next": null, "previous": null, "results": [] }`; library item
+bodies are empty and are fetched from the detail endpoint. Suggestions use only the
+woman's topic tags from the latest 14 local days. Woman-facing card responses use
+`Cache-Control: private, no-store`.
+
+From `Backend/`, `uv run python manage.py seed_starter_cards` seeds the six existing
+pattern cards plus nine topic demo cards, all as drafts, and seeds the fixed topic
+vocabulary if needed. Demo placeholders can only be published in a `DEBUG=True`
+environment with `uv run python manage.py seed_starter_cards --publish-demo`;
+replace and review placeholder text before publishing content for real users.
 
 ### Specified (not yet built)
 
 | Area | Endpoints |
 |---|---|
-| Analytics and summaries | `GET analytics?range=7\|30\|90`, `POST analytics/summary`, `GET pro/patients/{id}/analytics` |
-| Topics and card library | `GET topics`, `GET content-cards/library`, `POST content-cards/{id}/read` |
-| Session details and online meetings | `GET sessions/{id}` with a detail response, and generated/revealed online meeting links |
+| Professional patient analytics | `GET pro/patients/{id}/analytics` |
 
 A machine-readable API schema (Swagger, via `drf-spectacular`) is not implemented yet. If added, it must not be public in production.
 
-### Availability behavior
-
-- Availability uses the fixed `Africa/Algiers` time zone. Weekly rules store local wall-clock times; generated slots are stored as timezone-aware datetimes.
-- A weekly rule generates consecutive 30-minute template slots for its weekday through the configured 28-day horizon. Rule times align to quarter-hour boundaries. Generation is synchronous when a rule is saved and can also be run from the command line:
-
-  ```bash
-  python manage.py generate_availability
-  python manage.py generate_availability --professional-id 42 --days 14
-  ```
-
-- Generation skips existing overlaps and time-off ranges, and caps a professional at 300 open future slots. Weekly rules are capped at 30 per professional. Calendar requests accept inclusive local dates spanning at most 62 days.
-- `GET pro/calendar` returns the professional's slots in the requested date range with `id`, `starts_at`, `ends_at`, `mode`, and a UI state: `requested`, `accepted`, `completed`, `free`, or `expired`.
-- `PATCH` and `DELETE pro/slots` identify the slot with an `id` in the request body (or query string for `DELETE`). Editing makes a slot manual and detaches it from its weekly rule. Deleting retires it by setting `closed_at`; slots with requested or accepted sessions cannot be retired.
-- `POST pro/time-off` accepts inclusive `from` and `to` local dates. It retires unbooked slots in those dates, and later generation skips the blocked interval. `DELETE pro/time-off` takes the entry `id` in the body or query string.
 
 ## Security and privacy
 
-The security model follows **OWASP Top 10:2025** and the **OWASP API Security Top 10:2023**. The **OWASP Top 10 for LLM Applications** will apply if the planned summary feature is built.
+The security model follows **OWASP Top 10:2025** and the **OWASP API Security Top 10:2023**. The **OWASP Top 10 for LLM Applications** also applies to the analytics-summary feature.
 
 ### What is in place
 
@@ -400,15 +441,17 @@ The security model follows **OWASP Top 10:2025** and the **OWASP API Security To
 - Journal text and session notes are encrypted at rest (A04).
 - Responses are explicit allow-lists, with no emails, phones or file paths leaking (API3).
 - Booking uses a row lock so a slot cannot be double-booked.
+- Online meeting links use a cryptographically random room name, are generated only when the professional accepts, and are revealed only to the session participants while it is accepted (API1, API3, A02).
 - Professional reads of a woman's data are written to the audit-log table (A09); there is no admin browser for these rows yet.
 - Administrators cannot open check-ins, journals or session notes.
 - Directory search has allow-listed parameters, result caps, throttles, and private no-store responses; requests are not logged (A05, API4, API6, A09).
 - Slots with booking history are closed, not deleted (A08).
 
-### Security requirements for planned features
+### AI summary privacy and limitations
 
-- If AI summaries are built, the model must receive **numbers and topic codes only**, never the woman's journal text. Every sentence needs validation and a plain-template fallback (LLM01, LLM02, LLM05, API10).
-- Summary caching, daily call caps, and throttles need to be part of that feature (LLM10, API4).
+- The summary service sends Gemini only an allow-listed subset of numeric statistics, never the woman's journal text or other free-text user content.
+- A local template is used when Gemini is not configured, has no check-ins to summarize, fails, or returns an empty or obviously incomplete response. The current response checks do not validate factual accuracy or screen for prohibited claims; improve these safeguards before relying on summaries in a production care setting (LLM01, LLM02, LLM05, API10).
+- Summary-specific caching and daily call caps are not currently implemented (LLM10, API4).
 - Online session links need an HMAC or equivalent server-side derivation and must be visible only to session participants during a limited time window (A04, A01).
 
 ### Before any real woman uses the app (demo-minimum)
@@ -427,9 +470,80 @@ The full baseline: CI for backend unit and security tests (the Playwright E2E wo
 
 - Mood and cycle data are not encrypted per column (they are needed for aggregation). The database disk and backups must be encrypted at the hosting level.
 - Integer ids are sequential; object-level checks are the protection.
-- Online sessions do not yet have a generated meeting link or provider integration.
 - Administrators have no two-factor login yet.
 - Wilaya, address and other professional details are only as trustworthy as the manual verification of her credential. A human must check a diploma against the official body.
+
+## Deploy the backend on Vercel
+
+The Django API can be deployed as its own Vercel project before the web frontend.
+Vercel's Python runtime detects this app from `Backend/manage.py` and loads
+`config.wsgi.application`. In the Vercel project, set **Root Directory** to
+`Backend`; do not use the repository root for this backend project.
+
+### 1. Provision production services
+
+- Create a managed PostgreSQL database with TLS enabled. Do not use the repository's
+  SQLite database for Vercel: function filesystems are not durable application storage.
+- Arrange durable, private object storage for professional credential uploads before
+  accepting those uploads. `PRIVATE_MEDIA_ROOT` currently points to a local directory;
+  uploaded files can be lost between function invocations or deployments. Do not use
+  `/media/` or a public bucket for credentials.
+- Keep encrypted backups of the database and `FIELD_ENCRYPTION_KEY`. Losing that key
+  makes encrypted journal entries and session notes unreadable.
+
+### 2. Create the Vercel backend project
+
+Import the Git repository into Vercel and set its Root Directory to `Backend`.
+Use the Python framework preset if asked. The project needs no custom build command;
+Vercel detects Django from `manage.py`. Add the environment variables below to the
+Production environment (and Preview only if you have a separate preview database).
+Use the Vercel-provided PostgreSQL connection URL as `DATABASE_URL`.
+
+```text
+DJANGO_DEBUG=false
+DJANGO_SECRET_KEY=<unique-long-random-secret>
+DJANGO_ALLOWED_HOSTS=<your-backend-domain>,<your-project>.vercel.app
+FIELD_ENCRYPTION_KEY=<unique-Fernet-key>
+DATABASE_URL=<managed-PostgreSQL-URL>
+```
+
+Generate keys locally with:
+
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(64))"
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Keep the actual values in Vercel's environment variable settings, never in Git or
+the README. `GEMINI_API_KEY` is optional. Set `CORS_ALLOWED_ORIGINS` to the exact
+frontend HTTPS origin when that frontend has been deployed. Until then the API can
+be checked directly; the default only permits localhost.
+
+### 3. Initialize the database
+
+After the first deployment succeeds, run migrations against the production database
+from a trusted local checkout with the Production environment variables loaded:
+
+```powershell
+cd Backend
+python manage.py migrate
+python manage.py createsuperuser
+```
+
+Use the host's documented secure environment pull workflow or set those variables
+in the local process; never paste them into a committed file. Verify `/admin/` over
+HTTPS and check a known API route. The Django admin is authenticated.
+
+### 4. Deploy the frontend later
+
+Create a separate Vercel project rooted at `frontend` when its UI is ready. Configure
+the frontend's API base URL to the backend deployment, then set the backend's
+`CORS_ALLOWED_ORIGINS` to the frontend's production HTTPS origin and redeploy the
+backend. The current frontend is still the Next.js starter screen.
+
+**Deployment status:** this is deployment setup guidance, not a claim that the app is
+ready for public users. Complete the security work listed in “Before any real woman
+uses the app” and add durable private credential storage before onboarding real users.
 
 ## Getting started
 
@@ -450,6 +564,8 @@ Create `Backend/.env`:
 
 ```
 FIELD_ENCRYPTION_KEY=<generate it, see below>
+# Optional: enables Gemini-generated analytics summaries
+GEMINI_API_KEY=<your Gemini API key>
 ```
 
 Generate the encryption key:
@@ -523,10 +639,9 @@ After creating the root `.venv` and installing `Backend/requirements.txt` above,
 
 Suggested build order (each item depends on the earlier ones):
 
-1. Online meeting-link generation and reveal.
-2. Analytics endpoints, topic tagging, AI summaries, and a translated card library/read-tracking flow.
-3. API schema for client developers and a visible "talk to someone now" support card.
-4. Before a real launch: the full OWASP baseline, a production database, hosting with TLS and encrypted storage, push notifications.
+1. Improve AI-summary validation, and add summary-specific caching and daily call caps.
+2. Add professional patient analytics, an API schema for client developers, and a visible "talk to someone now" support card.
+3. Before a real launch: the full OWASP baseline, a production database, hosting with TLS and encrypted storage, push notifications.
 
 **People work that code cannot replace:** professionals to review the card texts and the AI wording, native speakers for the Arabic, a human check of every professional's credential, and a pilot with consenting women.
 
@@ -545,7 +660,7 @@ Suggested build order (each item depends on the earlier ones):
 - **Session**: a booking of a slot by a woman, with a status.
 - **Consent**: a woman's permission for one professional to see one category of her data.
 - **Card**: a short lesson with one small action and a "when to reach out for support" line.
-- **Topic**: a planned theme (such as stress, sleep or family); topic tagging is not implemented.
+- **Topic**: a fixed translated theme (such as stress, sleep or family) that can be attached to a check-in.
 - **Wilaya**: an Algerian administrative province, used as the location filter.
 
 ## License

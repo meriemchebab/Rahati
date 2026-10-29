@@ -106,5 +106,167 @@
         "support_note": "[DRAFT - NOT REVIEWED] Si vous avez du mal à prendre soin de vous, parlez à quelqu'un de confiance."
       }
     }
+  },
+  {
+    "starter_key": "topic_sleep_1",
+    "topic": "sleep",
+    "translations": {
+      "ar": {
+        "title": "[DEMO] Sleep card 1",
+        "body": "[DEMO] Placeholder text about sleep. A professional must replace this with reviewed text.",
+        "action_text": "[DEMO] One small action about sleep.",
+        "support_note": "[DEMO] When to reach out for support."
+      },
+      "fr": {
+        "title": "[DEMO] Sleep card 1",
+        "body": "[DEMO] Placeholder text about sleep. A professional must replace this with reviewed text.",
+        "action_text": "[DEMO] One small action about sleep.",
+        "support_note": "[DEMO] When to reach out for support."
+      }
+    }
+  },
+  {
+    "starter_key": "topic_sleep_2",
+    "topic": "sleep",
+    "translations": {
+      "ar": {
+        "title": "[DEMO] Sleep card 2",
+        "body": "[DEMO] Placeholder text about sleep. A professional must replace this with reviewed text.",
+        "action_text": "[DEMO] One small action about sleep.",
+        "support_note": "[DEMO] When to reach out for support."
+      },
+      "fr": {
+        "title": "[DEMO] Sleep card 2",
+        "body": "[DEMO] Placeholder text about sleep. A professional must replace this with reviewed text.",
+        "action_text": "[DEMO] One small action about sleep.",
+        "support_note": "[DEMO] When to reach out for support."
+      }
+    }
+  },
+  {
+    "starter_key": "topic_stress_1",
+    "topic": "stress",
+    "translations": {
+      "ar": {
+        "title": "[DEMO] Stress card 1",
+        "body": "[DEMO] Placeholder text about stress. A professional must replace this with reviewed text.",
+        "action_text": "[DEMO] One small action about stress.",
+        "support_note": "[DEMO] When to reach out for support."
+      },
+      "fr": {
+        "title": "[DEMO] Stress card 1",
+        "body": "[DEMO] Placeholder text about stress. A professional must replace this with reviewed text.",
+        "action_text": "[DEMO] One small action about stress.",
+        "support_note": "[DEMO] When to reach out for support."
+      }
+    }
+  },
+  {
+    "starter_key": "topic_stress_2",
+    "topic": "stress",
+    "translations": {
+      "ar": {
+        "title": "[DEMO] Stress card 2",
+        "body": "[DEMO] Placeholder text about stress. A professional must replace this with reviewed text.",
+        "action_text": "[DEMO] One small action about stress.",
+        "support_note": "[DEMO] When to reach out for support."
+      },
+      "fr": {
+        "title": "[DEMO] Stress card 2",
+        "body": "[DEMO] Placeholder text about stress. A professional must replace this with reviewed text.",
+        "action_text": "[DEMO] One small action about stress.",
+        "support_note": "[DEMO] When to reach out for support."
+      }
+    }
+  },
+  {
+    "starter_key": "topic_family_1",
+    "topic": "family",
+    "translations": {
+      "ar": {
+        "title": "[DEMO] Family card 1",
+        "body": "[DEMO] Placeholder text about family. A professional must replace this with reviewed text.",
+        "action_text": "[DEMO] One small action about family.",
+        "support_note": "[DEMO] When to reach out for support."
+      },
+      "fr": {
+        "title": "[DEMO] Family card 1",
+        "body": "[DEMO] Placeholder text about family. A professional must replace this with reviewed text.",
+        "action_text": "[DEMO] One small action about family.",
+        "support_note": "[DEMO] When to reach out for support."
+      }
+    }
+  },
+  {
+    "starter_key": "topic_work_study_1",
+    "topic": "work_study",
+    "translations": {
+      "ar": {
+        "title": "[DEMO] Work study card 1",
+        "body": "[DEMO] Placeholder text about work study. A professional must replace this with reviewed text.",
+        "action_text": "[DEMO] One small action about work study.",
+        "support_note": "[DEMO] When to reach out for support."
+      },
+      "fr": {
+        "title": "[DEMO] Work study card 1",
+        "body": "[DEMO] Placeholder text about work study. A professional must replace this with reviewed text.",
+        "action_text": "[DEMO] One small action about work study.",
+        "support_note": "[DEMO] When to reach out for support."
+      }
+    }
+  },
+  {
+    "starter_key": "topic_self_esteem_1",
+    "topic": "self_esteem",
+    "translations": {
+      "ar": {
+        "title": "[DEMO] Self esteem card 1",
+        "body": "[DEMO] Placeholder text about self esteem. A professional must replace this with reviewed text.",
+        "action_text": "[DEMO] One small action about self esteem.",
+        "support_note": "[DEMO] When to reach out for support."
+      },
+      "fr": {
+        "title": "[DEMO] Self esteem card 1",
+        "body": "[DEMO] Placeholder text about self esteem. A professional must replace this with reviewed text.",
+        "action_text": "[DEMO] One small action about self esteem.",
+        "support_note": "[DEMO] When to reach out for support."
+      }
+    }
+  },
+  {
+    "starter_key": "topic_relationships_1",
+    "topic": "relationships",
+    "translations": {
+      "ar": {
+        "title": "[DEMO] Relationships card 1",
+        "body": "[DEMO] Placeholder text about relationships. A professional must replace this with reviewed text.",
+        "action_text": "[DEMO] One small action about relationships.",
+        "support_note": "[DEMO] When to reach out for support."
+      },
+      "fr": {
+        "title": "[DEMO] Relationships card 1",
+        "body": "[DEMO] Placeholder text about relationships. A professional must replace this with reviewed text.",
+        "action_text": "[DEMO] One small action about relationships.",
+        "support_note": "[DEMO] When to reach out for support."
+      }
+    }
+  },
+  {
+    "starter_key": "topic_body_cycle_1",
+    "topic": "body_cycle",
+    "translations": {
+      "ar": {
+        "title": "[DEMO] Body cycle card 1",
+        "body": "[DEMO] Placeholder text about body cycle. A professional must replace this with reviewed text.",
+        "action_text": "[DEMO] One small action about body cycle.",
+        "support_note": "[DEMO] When to reach out for support."
+      },
+      "fr": {
+        "title": "[DEMO] Body cycle card 1",
+        "body": "[DEMO] Placeholder text about body cycle. A professional must replace this with reviewed text.",
+        "action_text": "[DEMO] One small action about body cycle.",
+        "support_note": "[DEMO] When to reach out for support."
+      }
+    }
   }
 ]

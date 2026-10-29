@@ -9,19 +9,19 @@ Usage:
 """
 import json
 from pathlib import Path
+from io import StringIO
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from rahati.models import ContentCard, ContentCardTranslation, PatternType
+from rahati.models import ContentCard, ContentCardTranslation, PatternType, Topic
+from .seed_topics import TOPICS
 
 FIXTURE_PATH = Path(__file__).resolve().parent.parent.parent / "fixtures" / "starter_cards.json"
-DRAFT_MARKER = "[DRAFT - NOT REVIEWED]"
-
 
 class Command(BaseCommand):
-    help = "Seed the 6 starter platform content cards (idempotent)."
+    help = "Seed the starter platform content cards (idempotent)."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -45,6 +45,15 @@ class Command(BaseCommand):
 
         # Abort if any entry is missing required fields before touching the DB
         self._validate_fixture(entries)
+        known_topic_codes = {code for code, _, _ in TOPICS}
+        for entry in entries:
+            topic_code = entry.get("topic")
+            if topic_code is not None and (
+                not isinstance(topic_code, str) or topic_code not in known_topic_codes
+            ):
+                raise CommandError(
+                    f"Fixture entry '{entry['starter_key']}' has unknown topic '{topic_code}'."
+                )
 
         if publish_demo and not settings.DEBUG:
             raise CommandError(
@@ -55,22 +64,31 @@ class Command(BaseCommand):
         updated = 0
 
         with transaction.atomic():
+            # Keep the seed command self-sufficient while preserving all-or-nothing writes.
+            from django.core.management import call_command
+
+            call_command("seed_topics", stdout=StringIO())
             for entry in entries:
-                pattern_code = entry["pattern"]
+                pattern_code = entry.get("pattern")
                 starter_key = entry["starter_key"]
                 translations_data = entry["translations"]
+                topic_code = entry.get("topic")
 
                 # Ensure PatternType exists
-                pt, _ = PatternType.objects.get_or_create(
-                    code=pattern_code,
-                    defaults={"name": pattern_code.replace("_", " ").title()},
-                )
+                pt = None
+                if pattern_code:
+                    pt, _ = PatternType.objects.get_or_create(
+                        code=pattern_code,
+                        defaults={"name": pattern_code.replace("_", " ").title()},
+                    )
+                topic = Topic.objects.get(code=topic_code) if topic_code else None
 
                 # Get or create the card
                 card, was_created = ContentCard.objects.get_or_create(
                     starter_key=starter_key,
                     defaults={
                         "pattern_type": pt,
+                        "topic": topic,
                         "author": None,
                         "status": ContentCard.Status.DRAFT,
                     },
@@ -90,6 +108,9 @@ class Command(BaseCommand):
                         )
                 elif update and card.status == ContentCard.Status.DRAFT:
                     # Replace translations for draft cards only
+                    card.pattern_type = pt
+                    card.topic = topic
+                    card.save(update_fields=["pattern_type", "topic", "updated_at"])
                     card.translations.all().delete()
                     for lang, t_data in translations_data.items():
                         ContentCardTranslation.objects.create(
@@ -117,16 +138,22 @@ class Command(BaseCommand):
     def _validate_fixture(entries):
         """Abort with CommandError if any entry is invalid (writes nothing)."""
         required_langs = {"ar", "fr"}
+        if not isinstance(entries, list):
+            raise CommandError("Fixture must contain a list of cards.")
         for i, entry in enumerate(entries):
+            if not isinstance(entry, dict):
+                raise CommandError(f"Fixture entry[{i}] must be an object.")
             key = entry.get("starter_key", f"entry[{i}]")
             translations = entry.get("translations", {})
+            if not isinstance(translations, dict):
+                raise CommandError(f"Fixture entry '{key}' has invalid translations.")
             for lang in required_langs:
                 if lang not in translations:
                     raise CommandError(
                         f"Fixture entry '{key}' is missing language '{lang}'."
                     )
                 t = translations[lang]
-                if not t.get("support_note"):
+                if not isinstance(t, dict) or not t.get("support_note"):
                     raise CommandError(
                         f"Fixture entry '{key}' / language '{lang}' is missing support_note."
                     )

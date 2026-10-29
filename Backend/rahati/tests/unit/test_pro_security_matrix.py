@@ -114,16 +114,16 @@ class ProfessionalSecurityMatrixTests(TestCase):
                 response = self.client.get("/api/pro/content")
                 self.assertEqual(response.status_code, expected)
 
-    def test_session_address_released_only_for_in_person_accepted_or_completed(self):
+    def test_session_details_released_only_while_accepted_and_for_matching_mode(self):
         pro_profile = self.verified.professional_profile
         pro_profile.address = "42 Private Street"
         pro_profile.save(update_fields=["address"])
         self.client.force_authenticate(self.woman)
-        for mode, status, expected in (
-            ("in_person", "requested", None),
-            ("online", "accepted", None),
-            ("in_person", "accepted", "42 Private Street"),
-            ("in_person", "completed", "42 Private Street"),
+        for mode, status, should_include_address, should_include_link in (
+            ("in_person", "requested", False, False),
+            ("online", "accepted", False, False),
+            ("in_person", "accepted", True, False),
+            ("in_person", "completed", False, False),
         ):
             slot = AvailabilitySlot.objects.create(
                 professional=self.verified,
@@ -134,7 +134,8 @@ class ProfessionalSecurityMatrixTests(TestCase):
             session = Session.objects.create(user=self.woman, slot=slot, status=status)
             response = self.client.get("/api/sessions")
             result = next(row for row in response.data if row["id"] == session.id)
-            self.assertEqual(result["professional_address"], expected)
+            self.assertEqual("professional_address" in result, should_include_address)
+            self.assertEqual("meeting_link" in result, should_include_link)
 
 
 class TextInjectionMatrixTests(TestCase):
