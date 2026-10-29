@@ -1,7 +1,7 @@
 "use client";
 
+import Image from "next/image";
 import {
-  HeartHandshake,
   LayoutDashboard,
   CalendarDays,
   ClipboardList,
@@ -61,7 +61,13 @@ export default function Sidebar({
             aria-label="Go to Overview"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rahati-mauve text-white">
-              <HeartHandshake size={22} strokeWidth={1.8} />
+              <Image
+                src="/images/rahati-logo.svg"
+                alt="Rahati logo"
+                width={40}
+                height={40}
+                priority
+              />
             </span>
 
             <span className="flex flex-col">
