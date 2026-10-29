@@ -17,9 +17,7 @@ async function login(
 test("Rahati Professional dashboard loads", async ({ page }) => {
   await page.goto("/");
 
-  await expect(
-    page.getByText("Rahati Professional", { exact: true }).first(),
-  ).toBeVisible();
+  await expect(page.getByText("YOUR WORKSPACE", { exact: true })).toBeVisible();
 });
 
 test("woman finds, books, and can no longer see the slot; duplicate booking is rejected", async ({
