@@ -87,7 +87,7 @@ export default function Sidebar({
             className="flex items-center gap-3 text-left"
             aria-label="Go to Overview"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rahati-mauve text-white">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl  text-white">
               <Image
                 src="/images/rahati-logo.svg"
                 alt="Rahati logo"
