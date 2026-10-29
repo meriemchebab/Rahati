@@ -66,6 +66,51 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Calendar surfaces */
+  --color-calendar-surface: var(--calendar-surface);
+  --color-calendar-surface-soft: var(--calendar-surface-soft);
+  --color-calendar-surface-muted: var(--calendar-surface-muted);
+  --color-calendar-surface-hover: var(--calendar-surface-hover);
+
+  /* Calendar text */
+  --color-calendar-heading: var(--calendar-heading);
+  --color-calendar-text: var(--calendar-text);
+  --color-calendar-text-muted: var(--calendar-text-muted);
+  --color-calendar-text-subtle: var(--calendar-text-subtle);
+  --color-calendar-text-weekend: var(--calendar-text-weekend);
+
+  /* Calendar accents */
+  --color-calendar-accent: var(--calendar-accent);
+  --color-calendar-accent-hover: var(--calendar-accent-hover);
+  --color-calendar-accent-soft: var(--calendar-accent-soft);
+  --color-calendar-accent-text: var(--calendar-accent-text);
+
+  /* Appointment statuses */
+  --color-calendar-available-bg: var(--calendar-available-bg);
+  --color-calendar-available-text: var(--calendar-available-text);
+  --color-calendar-available-border: var(--calendar-available-border);
+
+  --color-calendar-pending-bg: var(--calendar-pending-bg);
+  --color-calendar-pending-text: var(--calendar-pending-text);
+  --color-calendar-pending-border: var(--calendar-pending-border);
+
+  --color-calendar-accepted-bg: var(--calendar-accepted-bg);
+  --color-calendar-accepted-text: var(--calendar-accepted-text);
+  --color-calendar-accepted-border: var(--calendar-accepted-border);
+
+  --color-calendar-completed-bg: var(--calendar-completed-bg);
+  --color-calendar-completed-text: var(--calendar-completed-text);
+  --color-calendar-completed-border: var(--calendar-completed-border);
+
+  /* Calendar borders and feedback */
+  --color-calendar-border: var(--calendar-border);
+  --color-calendar-border-soft: var(--calendar-border-soft);
+  --color-calendar-success-bg: var(--calendar-success-bg);
+  --color-calendar-success-text: var(--calendar-success-text);
+  --color-calendar-success-border: var(--calendar-success-border);
+  --color-calendar-error-bg: var(--calendar-error-bg);
+  --color-calendar-error-text: var(--calendar-error-text);
 }
 
 /* Light theme: Rahati's default appearance */
@@ -135,6 +180,51 @@
   --sidebar-accent-foreground: #59465a;
   --sidebar-border: #e5d6e3;
   --sidebar-ring: #a77b96;
+
+  /* Calendar surfaces */
+  --calendar-surface: #ffffff;
+  --calendar-surface-soft: #fbf9fd;
+  --calendar-surface-muted: #f5f1fa;
+  --calendar-surface-hover: #f1ecfc;
+
+  /* Calendar text */
+  --calendar-heading: #403651;
+  --calendar-text: #5f536f;
+  --calendar-text-muted: #81788f;
+  --calendar-text-subtle: #94899f;
+  --calendar-text-weekend: #a79ab6;
+
+  /* Calendar accents */
+  --calendar-accent: #8b78c6;
+  --calendar-accent-hover: #7864b5;
+  --calendar-accent-soft: #e8e5fc;
+  --calendar-accent-text: #6555a1;
+
+  /* Appointment status colors */
+  --calendar-available-bg: #e8f5ee;
+  --calendar-available-text: #327653;
+  --calendar-available-border: #b7dec8;
+
+  --calendar-pending-bg: #fff0d8;
+  --calendar-pending-text: #95621d;
+  --calendar-pending-border: #f0d3a1;
+
+  --calendar-accepted-bg: #c8b6fe;
+  --calendar-accepted-text: #51428c;
+  --calendar-accepted-border: #b4a0f1;
+
+  --calendar-completed-bg: #bdcfff;
+  --calendar-completed-text: #36558d;
+  --calendar-completed-border: #a4bcef;
+
+  /* Calendar borders and feedback */
+  --calendar-border: #eee7f6;
+  --calendar-border-soft: #f0eaf7;
+  --calendar-success-bg: #eff8f2;
+  --calendar-success-text: #327653;
+  --calendar-success-border: #b8dcc5;
+  --calendar-error-bg: #fff0f0;
+  --calendar-error-text: #a34555;
 }
 
 /* Dark theme — available for future use */

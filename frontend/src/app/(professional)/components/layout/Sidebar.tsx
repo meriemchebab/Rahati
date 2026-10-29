@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter, usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -35,6 +36,32 @@ export default function Sidebar({
   onNavigate,
   onClose,
 }: SidebarProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const routes: Record<string, string> = {
+    Overview: "/",
+    Calendar: "/calendar",
+    Requests: "/requests",
+    Patients: "/patients",
+    Settings: "/settings",
+  };
+
+  const currentPage =
+    Object.entries(routes).find(([, route]) => route === pathname)?.[0] ??
+    "Overview";
+
+  function navigateToPage(label: string) {
+    onNavigate(label);
+    onClose();
+
+    const route = routes[label];
+
+    if (route) {
+      router.push(route);
+    }
+  }
+
   return (
     <>
       {/* Mobile overlay */}
@@ -56,7 +83,7 @@ export default function Sidebar({
         <div className="flex h-[84px] shrink-0 items-center justify-between border-b border-rahati-mauve/10 px-6">
           <button
             type="button"
-            onClick={() => onNavigate("Overview")}
+            onClick={() => navigateToPage("Overview")}
             className="flex items-center gap-3 text-left"
             aria-label="Go to Overview"
           >
@@ -98,16 +125,13 @@ export default function Sidebar({
 
           <nav className="space-y-1.5" aria-label="Professional navigation">
             {navigationItems.map(({ label, icon: Icon }) => {
-              const isActive = selectedPage === label;
+              const isActive = currentPage === label;
 
               return (
                 <button
                   key={label}
                   type="button"
-                  onClick={() => {
-                    onNavigate(label);
-                    onClose();
-                  }}
+                  onClick={() => navigateToPage(label)}
                   className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[13px] font-medium transition-colors ${
                     isActive
                       ? "bg-rahati-blush text-rahati-plum"
