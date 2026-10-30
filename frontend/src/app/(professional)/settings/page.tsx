@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Clock,
   Globe,
-  Heart,
   LockKeyhole,
   Palette,
   Save,
@@ -20,6 +19,10 @@ import {
 } from "lucide-react";
 
 import DashboardLayout from "../components/layout/DashboardLayout";
+
+type Language = "English" | "Français" | "العربية";
+type Section = "profile" | "preferences" | "notifications" | "appearance";
+type Appearance = "Light" | "Soft" | "System";
 
 type Profile = {
   fullName: string;
@@ -40,7 +43,7 @@ const initialProfile: Profile = {
   email: "sarah.benali@example.com",
   specialty: "Psychologist",
   phone: "",
-  bio: "Dedicated to supporting women's mental health and emotional well-being.",
+  bio: "",
 };
 
 const initialNotifications: NotificationPreferences = {
@@ -49,732 +52,855 @@ const initialNotifications: NotificationPreferences = {
   patientUpdates: false,
 };
 
-const inputClassName =
-  "w-full rounded-2xl border border-[#E8E2F2] bg-white/80 px-4 py-3 text-sm text-[#51466B] outline-none transition placeholder:text-[#B2A9C4] focus:border-[#B8C0FF] focus:ring-4 focus:ring-[#B8C0FF]/20";
+const translations = {
+  English: {
+    title: "Settings",
+    subtitle: "Manage your profile and workspace preferences.",
+    profile: "Profile information",
+    profileDescription: "Your professional details",
+    preferences: "Preferences",
+    preferencesDescription: "Language and appointments",
+    notifications: "Notifications",
+    notificationsDescription: "Choose what you receive",
+    appearance: "Appearance",
+    appearanceDescription: "Your interface preferences",
+    personalDetails: "Personal information",
+    personalDescription: "Keep your professional information up to date.",
+    fullName: "Full name",
+    email: "Email address",
+    specialty: "Specialty",
+    phone: "Phone number",
+    bio: "Professional bio",
+    namePlaceholder: "Enter your full name",
+    emailPlaceholder: "Enter your email address",
+    specialtyPlaceholder: "Your specialty",
+    phonePlaceholder: "Enter your phone number",
+    bioPlaceholder: "Tell patients a little about yourself...",
+    save: "Save changes",
+    cancel: "Cancel",
+    saved: "Your changes have been saved.",
+    profileSaved: "Profile updated successfully.",
+    preferencesTitle: "Workspace preferences",
+    preferencesDescriptionFull:
+      "Customize your language and appointment reminders.",
+    language: "Display language",
+    languageDescription: "Choose the language used on this page.",
+    reminderTime: "Appointment reminder",
+    reminderDescription:
+      "Choose how long before an appointment you want a reminder.",
+    minutes15: "15 minutes before",
+    minutes30: "30 minutes before",
+    hour1: "1 hour before",
+    hours24: "24 hours before",
+    notificationTitle: "Notification preferences",
+    notificationDescription: "Choose which updates you would like to receive.",
+    requests: "Appointment requests",
+    requestsDescription: "Get notified when a woman requests an appointment.",
+    reminders: "Appointment reminders",
+    remindersDescription: "Receive reminders about upcoming sessions.",
+    patientUpdates: "Patient updates",
+    patientUpdatesDescription: "Receive updates about the women in your care.",
+    appearanceTitle: "Workspace appearance",
+    appearanceDescriptionFull:
+      "Choose your preferred appearance for the workspace.",
+    light: "Light",
+    lightDescription: "A bright, clean interface",
+    soft: "Soft",
+    softDescription: "Gentle colors and a calming feel",
+    system: "System",
+    systemDescription: "Follow your device preferences",
+    security: "Account security",
+    securityDescription:
+      "Authentication and password management will be available when login is connected.",
+    comingSoon: "Coming soon",
+    required: "Please enter your name and a valid email address.",
+    settingsMenu: "Settings sections",
+    languageChanged: "Language changed.",
+    professional: "Professional workspace",
+  },
 
-const labelClassName = "mb-2 block text-sm font-medium text-[#655A7C]";
+  Français: {
+    title: "Paramètres",
+    subtitle: "Gérez votre profil et les préférences de votre espace.",
+    profile: "Informations du profil",
+    profileDescription: "Vos informations professionnelles",
+    preferences: "Préférences",
+    preferencesDescription: "Langue et rendez-vous",
+    notifications: "Notifications",
+    notificationsDescription: "Choisissez les notifications à recevoir",
+    appearance: "Apparence",
+    appearanceDescription: "Préférences de votre interface",
+    personalDetails: "Informations personnelles",
+    personalDescription: "Gardez vos informations professionnelles à jour.",
+    fullName: "Nom complet",
+    email: "Adresse e-mail",
+    specialty: "Spécialité",
+    phone: "Numéro de téléphone",
+    bio: "Présentation professionnelle",
+    namePlaceholder: "Saisissez votre nom complet",
+    emailPlaceholder: "Saisissez votre adresse e-mail",
+    specialtyPlaceholder: "Votre spécialité",
+    phonePlaceholder: "Saisissez votre numéro de téléphone",
+    bioPlaceholder: "Présentez-vous brièvement aux patientes...",
+    save: "Enregistrer les modifications",
+    cancel: "Annuler",
+    saved: "Vos modifications ont été enregistrées.",
+    profileSaved: "Profil mis à jour avec succès.",
+    preferencesTitle: "Préférences de l’espace",
+    preferencesDescriptionFull:
+      "Personnalisez la langue et les rappels de rendez-vous.",
+    language: "Langue d’affichage",
+    languageDescription: "Choisissez la langue utilisée sur cette page.",
+    reminderTime: "Rappel de rendez-vous",
+    reminderDescription:
+      "Choisissez le délai avant le rendez-vous pour recevoir un rappel.",
+    minutes15: "15 minutes avant",
+    minutes30: "30 minutes avant",
+    hour1: "1 heure avant",
+    hours24: "24 heures avant",
+    notificationTitle: "Préférences de notification",
+    notificationDescription:
+      "Choisissez les notifications que vous souhaitez recevoir.",
+    requests: "Demandes de rendez-vous",
+    requestsDescription:
+      "Soyez informée lorsqu’une femme demande un rendez-vous.",
+    reminders: "Rappels de rendez-vous",
+    remindersDescription: "Recevez des rappels pour les prochaines séances.",
+    patientUpdates: "Actualités des patientes",
+    patientUpdatesDescription:
+      "Recevez des mises à jour concernant les femmes que vous accompagnez.",
+    appearanceTitle: "Apparence de l’espace",
+    appearanceDescriptionFull:
+      "Choisissez l’apparence de votre espace de travail.",
+    light: "Clair",
+    lightDescription: "Une interface lumineuse et épurée",
+    soft: "Doux",
+    softDescription: "Des couleurs douces et apaisantes",
+    system: "Système",
+    systemDescription: "Suivre les préférences de votre appareil",
+    security: "Sécurité du compte",
+    securityDescription:
+      "La gestion de l’authentification et du mot de passe sera disponible lorsque la connexion sera intégrée.",
+    comingSoon: "Bientôt disponible",
+    required: "Veuillez saisir votre nom et une adresse e-mail valide.",
+    settingsMenu: "Sections des paramètres",
+    languageChanged: "Langue modifiée.",
+    professional: "Espace professionnel",
+  },
+
+  العربية: {
+    title: "الإعدادات",
+    subtitle: "إدارة ملفك الشخصي وتفضيلات مساحة العمل.",
+    profile: "معلومات الملف الشخصي",
+    profileDescription: "معلوماتك المهنية",
+    preferences: "التفضيلات",
+    preferencesDescription: "اللغة والمواعيد",
+    notifications: "الإشعارات",
+    notificationsDescription: "اختاري الإشعارات التي تريدين تلقيها",
+    appearance: "المظهر",
+    appearanceDescription: "تفضيلات الواجهة",
+    personalDetails: "المعلومات الشخصية",
+    personalDescription: "حافظي على تحديث معلوماتك المهنية.",
+    fullName: "الاسم الكامل",
+    email: "البريد الإلكتروني",
+    specialty: "التخصص",
+    phone: "رقم الهاتف",
+    bio: "نبذة مهنية",
+    namePlaceholder: "أدخلي اسمك الكامل",
+    emailPlaceholder: "أدخلي بريدك الإلكتروني",
+    specialtyPlaceholder: "تخصصك",
+    phonePlaceholder: "أدخلي رقم هاتفك",
+    bioPlaceholder: "عرّفي المراجعات بنفسك باختصار...",
+    save: "حفظ التغييرات",
+    cancel: "إلغاء",
+    saved: "تم حفظ التغييرات.",
+    profileSaved: "تم تحديث الملف الشخصي بنجاح.",
+    preferencesTitle: "تفضيلات مساحة العمل",
+    preferencesDescriptionFull: "خصصي اللغة وتذكيرات المواعيد.",
+    language: "لغة العرض",
+    languageDescription: "اختاري اللغة المستخدمة في هذه الصفحة.",
+    reminderTime: "التذكير بالموعد",
+    reminderDescription: "اختاري المدة التي تسبق الموعد لإرسال التذكير.",
+    minutes15: "قبل 15 دقيقة",
+    minutes30: "قبل 30 دقيقة",
+    hour1: "قبل ساعة واحدة",
+    hours24: "قبل 24 ساعة",
+    notificationTitle: "تفضيلات الإشعارات",
+    notificationDescription: "اختاري الإشعارات التي ترغبين في تلقيها.",
+    requests: "طلبات المواعيد",
+    requestsDescription: "إشعار عند طلب إحدى المراجعات موعدًا.",
+    reminders: "تذكيرات المواعيد",
+    remindersDescription: "تلقي تذكيرات بالجلسات القادمة.",
+    patientUpdates: "تحديثات المراجعات",
+    patientUpdatesDescription: "تلقي تحديثات متعلقة بالنساء اللواتي تتابعينهن.",
+    appearanceTitle: "مظهر مساحة العمل",
+    appearanceDescriptionFull: "اختاري المظهر المناسب لمساحة عملك.",
+    light: "فاتح",
+    lightDescription: "واجهة مشرقة وبسيطة",
+    soft: "هادئ",
+    softDescription: "ألوان ناعمة ومريحة",
+    system: "النظام",
+    systemDescription: "اتباع إعدادات جهازك",
+    security: "أمان الحساب",
+    securityDescription:
+      "ستتوفر إعدادات تسجيل الدخول وكلمة المرور بعد ربط نظام المصادقة.",
+    comingSoon: "قريبًا",
+    required: "يرجى إدخال الاسم وبريد إلكتروني صالح.",
+    settingsMenu: "أقسام الإعدادات",
+    languageChanged: "تم تغيير اللغة.",
+    professional: "مساحة العمل المهنية",
+  },
+} as const;
 
 export default function SettingsPage() {
   const router = useRouter();
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [formattedDate, setFormattedDate] = useState("");
-
+  const [language, setLanguage] = useState<Language>("English");
   const [profile, setProfile] = useState<Profile>(initialProfile);
   const [savedProfile, setSavedProfile] = useState<Profile>(initialProfile);
-
-  const [isEditing, setIsEditing] = useState(false);
-  const [activeSection, setActiveSection] = useState("profile");
-  const [successMessage, setSuccessMessage] = useState("");
-
-  const [language, setLanguage] = useState("English");
-  const [reminderTime, setReminderTime] = useState("30 minutes");
-  const [appearance, setAppearance] = useState("Light");
-
-  const [notificationPreferences, setNotificationPreferences] =
+  const [notifications, setNotifications] =
     useState<NotificationPreferences>(initialNotifications);
+  const [reminderTime, setReminderTime] = useState("30");
+  const [appearance, setAppearance] = useState<Appearance>("Soft");
+  const [activeSection, setActiveSection] = useState<Section>("profile");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [currentDate, setCurrentDate] = useState("");
+
+  const t = translations[language];
+  const isArabic = language === "العربية";
 
   useEffect(() => {
-    setFormattedDate(
-      new Date().toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      }),
+    const now = new Date();
+
+    setCurrentDate(
+      now.toLocaleDateString(
+        language === "Français"
+          ? "fr-FR"
+          : language === "العربية"
+            ? "ar"
+            : "en-US",
+        {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        },
+      ),
     );
-  }, []);
+  }, [language]);
 
-  useEffect(() => {
-    if (!successMessage) return;
-
-    const timeout = window.setTimeout(() => {
-      setSuccessMessage("");
-    }, 3500);
-
-    return () => window.clearTimeout(timeout);
-  }, [successMessage]);
-
-  const updateProfile = (field: keyof Profile, value: string) => {
-    setProfile((current) => ({
-      ...current,
-      [field]: value,
-    }));
-  };
-
-  const handleSaveProfile = () => {
-    if (!profile.fullName.trim() || !profile.email.trim()) {
-      setSuccessMessage("Please enter your name and email address.");
-      return;
-    }
-
-    setSavedProfile({ ...profile });
-    setIsEditing(false);
-    setSuccessMessage("Your profile changes have been saved locally.");
-  };
-
-  const handleCancelEditing = () => {
-    setProfile({ ...savedProfile });
-    setIsEditing(false);
-  };
-
-  const toggleNotification = (key: keyof NotificationPreferences) => {
-    setNotificationPreferences((current) => ({
-      ...current,
-      [key]: !current[key],
-    }));
-  };
-
-  const navigationItems = [
+  const navigationItems: {
+    id: Section;
+    title: string;
+    description: string;
+    icon: typeof UserRound;
+  }[] = [
     {
       id: "profile",
-      label: "Profile information",
-      description: "Your professional details",
+      title: t.profile,
+      description: t.profileDescription,
       icon: UserRound,
     },
     {
       id: "preferences",
-      label: "Preferences",
-      description: "Language and appointments",
-      icon: Settings2,
+      title: t.preferences,
+      description: t.preferencesDescription,
+      icon: Globe,
     },
     {
       id: "notifications",
-      label: "Notifications",
-      description: "Choose what you receive",
+      title: t.notifications,
+      description: t.notificationsDescription,
       icon: Bell,
     },
     {
       id: "appearance",
-      label: "Appearance",
-      description: "Your interface preferences",
+      title: t.appearance,
+      description: t.appearanceDescription,
       icon: Palette,
     },
   ];
+
+  function showMessage(text: string) {
+    setMessage(text);
+    setError("");
+
+    window.setTimeout(() => setMessage(""), 3000);
+  }
+
+  function updateProfile(field: keyof Profile, value: string) {
+    setProfile((previous) => ({
+      ...previous,
+      [field]: value,
+    }));
+  }
+
+  function saveProfile() {
+    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email);
+
+    if (!profile.fullName.trim() || !validEmail) {
+      setError(t.required);
+      setMessage("");
+      return;
+    }
+
+    setSavedProfile({ ...profile });
+    showMessage(t.profileSaved);
+  }
+
+  function cancelProfileChanges() {
+    setProfile({ ...savedProfile });
+    setError("");
+    setMessage("");
+  }
+
+  function toggleNotification(key: keyof NotificationPreferences) {
+    setNotifications((previous) => ({
+      ...previous,
+      [key]: !previous[key],
+    }));
+  }
+
+  function navigateToSection(section: Section) {
+    setActiveSection(section);
+
+    document
+      .getElementById(section)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  const cardClass =
+    "rounded-3xl border border-[#F0E7F0] bg-white/90 p-6 shadow-[0_8px_30px_rgba(102,67,101,0.045)] sm:p-7";
+
+  const inputClass =
+    "mt-2 w-full rounded-xl border border-[#E9DFEA] bg-[#FFFCFE] px-4 py-3 text-sm text-[#49394D] outline-none transition placeholder:text-[#B4A6B8] focus:border-[#B59BCB] focus:ring-4 focus:ring-[#B59BCB]/10";
 
   return (
     <DashboardLayout
       sidebarOpen={sidebarOpen}
       selectedPage="Settings"
       pendingRequests={3}
-      formattedDate={formattedDate}
+      formattedDate={currentDate}
       notificationsOpen={notificationsOpen}
-      onNavigate={(path) => router.push(path)}
+      onNavigate={(path: string) => router.push(path)}
       onCloseSidebar={() => setSidebarOpen(false)}
       onOpenSidebar={() => setSidebarOpen(true)}
-      onToggleNotifications={() => setNotificationsOpen((current) => !current)}
+      onToggleNotifications={() =>
+        setNotificationsOpen((previous) => !previous)
+      }
     >
-      <div className="min-h-full bg-gradient-to-br from-[#FDFBFF] via-[#FAF7FF] to-[#F5F5FF] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <div className="mx-auto max-w-7xl space-y-8">
+      <main
+        dir={isArabic ? "rtl" : "ltr"}
+        className="min-h-screen bg-gradient-to-br from-[#FFF9FC] via-[#FCF8FF] to-[#F8F7FF] px-4 py-7 text-[#49394D] sm:px-7 lg:px-9 lg:py-9"
+      >
+        <div className="mx-auto max-w-7xl">
           {/* Page heading */}
-          <header className="relative overflow-hidden rounded-[2rem] border border-white/80 bg-gradient-to-r from-[#FDEBFA] via-[#F0E8FF] to-[#E8EDFF] p-6 shadow-[0_8px_35px_rgba(137,116,184,0.08)] sm:p-8">
-            <div className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full bg-white/40 blur-3xl" />
-
-            <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/60 px-3 py-1.5 text-xs font-semibold tracking-wide text-[#8271A7]">
-                  <Settings2 size={14} />
-                  YOUR WORKSPACE
-                </div>
-
-                <h1 className="text-2xl font-semibold tracking-tight text-[#514366] sm:text-3xl">
-                  Settings & profile
-                </h1>
-
-                <p className="mt-2 max-w-xl text-sm leading-6 text-[#81758F] sm:text-base">
-                  Manage your professional information and personalize your
-                  Rahati workspace.
-                </p>
+          <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/80 px-3.5 py-2 text-xs font-semibold tracking-wide text-[#9978A4] shadow-sm ring-1 ring-[#F0E7F0]">
+                <Settings2 size={15} />
+                {t.professional}
               </div>
 
-              <div className="flex items-center gap-3 self-start rounded-2xl border border-white/80 bg-white/60 px-4 py-3 sm:self-center">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#E7C5FF] to-[#B8C0FF] text-[#66558E]">
-                  <Heart size={21} />
-                </div>
+              <h1 className="text-3xl font-semibold tracking-tight text-[#49394D] sm:text-4xl">
+                {t.title}
+              </h1>
 
-                <div>
-                  <p className="text-sm font-semibold text-[#514366]">
-                    Your space, your way
-                  </p>
-                  <p className="mt-1 text-xs text-[#8C809D]">
-                    {formattedDate || "Professional workspace"}
-                  </p>
-                </div>
-              </div>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-[#95849A] sm:text-base">
+                {t.subtitle}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 self-start rounded-2xl border border-[#F0E7F0] bg-white/80 px-4 py-3 text-sm text-[#8F7D96] sm:self-auto">
+              <CalendarDays size={17} className="text-[#AD8AB8]" />
+              <span>{currentDate}</span>
             </div>
           </header>
 
-          {/* Feedback message */}
-          {successMessage && (
+          {/* Feedback messages */}
+          {message && (
             <div
               role="status"
-              className="flex items-start gap-3 rounded-2xl border border-[#D8ECDD] bg-[#F0FAF3] px-4 py-3 text-sm text-[#46785B]"
+              className="mb-5 flex items-center gap-3 rounded-2xl border border-[#D9EBDD] bg-[#F2FAF3] px-4 py-3 text-sm text-[#477A59]"
             >
-              <Check size={18} className="mt-0.5 shrink-0" />
-              <p>{successMessage}</p>
-
+              <Check size={18} />
+              <span>{message}</span>
               <button
                 type="button"
-                onClick={() => setSuccessMessage("")}
                 aria-label="Dismiss message"
-                className="ml-auto rounded-lg p-1 transition hover:bg-white/70"
+                onClick={() => setMessage("")}
+                className="ms-auto rounded-lg p-1 hover:bg-[#E5F4E8]"
               >
                 <X size={16} />
               </button>
             </div>
           )}
 
-          {/* Main content */}
-          <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+          {error && (
+            <div
+              role="alert"
+              className="mb-5 rounded-2xl border border-[#F0D6DD] bg-[#FFF5F7] px-4 py-3 text-sm text-[#A54E67]"
+            >
+              {error}
+            </div>
+          )}
+
+          <div className="grid items-start gap-6 lg:grid-cols-[265px_minmax(0,1fr)]">
             {/* Settings navigation */}
-            <aside className="rounded-[1.75rem] border border-white bg-white/75 p-4 shadow-[0_8px_35px_rgba(137,116,184,0.06)] backdrop-blur-sm">
-              <div className="px-3 pb-4 pt-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#A197B5]">
-                  Account settings
+            <aside className="lg:sticky lg:top-6">
+              <div className="rounded-3xl border border-[#F0E7F0] bg-white/85 p-3 shadow-[0_8px_30px_rgba(102,67,101,0.04)]">
+                <p className="px-3 pb-3 pt-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#B09DB6]">
+                  {t.settingsMenu}
                 </p>
-              </div>
 
-              <nav aria-label="Settings sections" className="space-y-2">
-                {navigationItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeSection === item.id;
+                <nav className="space-y-1.5">
+                  {navigationItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = activeSection === item.id;
 
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setActiveSection(item.id)}
-                      aria-current={isActive ? "page" : undefined}
-                      className={`group flex w-full items-center gap-3 rounded-2xl p-3 text-left transition duration-200 ${
-                        isActive
-                          ? "bg-gradient-to-r from-[#F4E6FF] to-[#EEF0FF] shadow-sm"
-                          : "hover:bg-[#FAF7FF]"
-                      }`}
-                    >
-                      <span
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition ${
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => navigateToSection(item.id)}
+                        aria-current={isActive ? "location" : undefined}
+                        className={`group flex w-full items-center gap-3 rounded-2xl p-3 text-start transition-all duration-200 ${
                           isActive
-                            ? "bg-white text-[#8270B8] shadow-sm"
-                            : "bg-[#F8F5FC] text-[#9A8EAF] group-hover:text-[#8270B8]"
+                            ? "bg-gradient-to-r from-[#F7EAF2] to-[#F0ECFC] text-[#795B83] shadow-sm"
+                            : "text-[#8F8095] hover:bg-[#FCF7FC] hover:text-[#795B83]"
                         }`}
                       >
-                        <Icon size={19} />
-                      </span>
-
-                      <span className="min-w-0 flex-1">
                         <span
-                          className={`block text-sm font-medium ${
-                            isActive ? "text-[#62517F]" : "text-[#756A88]"
+                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                            isActive
+                              ? "bg-white text-[#A27EAD] shadow-sm"
+                              : "bg-[#FAF5FA] text-[#B09CB7] group-hover:bg-white"
                           }`}
                         >
-                          {item.label}
+                          <Icon size={19} />
                         </span>
 
-                        <span className="mt-1 block text-xs text-[#A198B1]">
-                          {item.description}
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold">
+                            {item.title}
+                          </span>
+                          <span className="mt-1 block text-xs leading-5 text-[#A596AA]">
+                            {item.description}
+                          </span>
                         </span>
-                      </span>
 
-                      <ChevronRight
-                        size={16}
-                        className={
-                          isActive ? "text-[#9B88C8]" : "text-[#D0C8DD]"
-                        }
-                      />
-                    </button>
-                  );
-                })}
-              </nav>
+                        <ChevronRight
+                          size={16}
+                          className={`shrink-0 transition-transform ${
+                            isActive
+                              ? "translate-x-0 text-[#A27EAD]"
+                              : "text-[#C7B9CC] group-hover:translate-x-0.5"
+                          }`}
+                        />
+                      </button>
+                    );
+                  })}
+                </nav>
+              </div>
 
-              <div className="mt-5 rounded-2xl bg-gradient-to-br from-[#FDF0FA] to-[#F0EEFF] p-4">
-                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-white/80 text-[#957DB9]">
-                  <ShieldCheck size={19} />
+              {/* Security information */}
+              <div className="mt-4 rounded-3xl border border-[#EAE4F6] bg-gradient-to-br from-[#F4EFFB] to-[#FFF5F9] p-5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/90 text-[#9D83B6] shadow-sm">
+                  <ShieldCheck size={20} />
                 </div>
 
-                <p className="text-sm font-semibold text-[#66567D]">
-                  Your privacy matters
+                <h3 className="mt-4 text-sm font-semibold text-[#725A7D]">
+                  {t.security}
+                </h3>
+
+                <p className="mt-2 text-xs leading-5 text-[#95849D]">
+                  {t.securityDescription}
                 </p>
 
-                <p className="mt-2 text-xs leading-5 text-[#9386A4]">
-                  Rahati is designed to support a respectful and private
-                  professional workspace.
-                </p>
+                <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5 text-[11px] font-medium text-[#9C82A6]">
+                  <LockKeyhole size={13} />
+                  {t.comingSoon}
+                </div>
               </div>
             </aside>
 
-            {/* Selected settings section */}
+            {/* Settings sections */}
             <div className="min-w-0 space-y-6">
               {/* PROFILE */}
-              {activeSection === "profile" && (
-                <>
-                  <section className="overflow-hidden rounded-[1.75rem] border border-white bg-white/85 shadow-[0_8px_35px_rgba(137,116,184,0.06)]">
-                    <div className="border-b border-[#F0EBF7] bg-gradient-to-r from-[#FBF5FF] to-[#F5F3FF] px-6 py-5 sm:px-8">
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <h2 className="text-lg font-semibold text-[#514366]">
-                            Profile information
-                          </h2>
-                          <p className="mt-1 text-sm text-[#9488A5]">
-                            Keep your professional details up to date.
-                          </p>
-                        </div>
+              <section id="profile" className={cardClass}>
+                <div className="mb-6 flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F7EAF2] text-[#AC80A1]">
+                    <UserRound size={22} />
+                  </div>
 
-                        {!isEditing && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setProfile({ ...savedProfile });
-                              setIsEditing(true);
-                            }}
-                            className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-[#79669F] shadow-sm ring-1 ring-[#EDE5F7] transition hover:bg-[#F9F5FF]"
-                          >
-                            Edit profile
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-[#49394D]">
+                      {t.personalDetails}
+                    </h2>
+                    <p className="mt-1 text-sm leading-6 text-[#9A8A9F]">
+                      {t.personalDescription}
+                    </p>
+                  </div>
+                </div>
 
-                    <div className="p-6 sm:p-8">
-                      <div className="mb-8 flex flex-col gap-4 rounded-2xl bg-gradient-to-r from-[#FBF2FC] to-[#F1F1FF] p-5 sm:flex-row sm:items-center">
-                        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[1.35rem] bg-gradient-to-br from-[#E7C5FF] via-[#C8B6FE] to-[#B8C0FF] text-xl font-semibold text-white shadow-sm">
-                          {profile.fullName
-                            .trim()
-                            .split(/\s+/)
-                            .map((part) => part[0])
-                            .join("")
-                            .slice(0, 2)
-                            .toUpperCase() || "DR"}
-                        </div>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <label className="block text-sm font-medium text-[#6F5C75]">
+                    {t.fullName}
+                    <input
+                      type="text"
+                      autoComplete="name"
+                      value={profile.fullName}
+                      onChange={(event) =>
+                        updateProfile("fullName", event.target.value)
+                      }
+                      placeholder={t.namePlaceholder}
+                      className={inputClass}
+                    />
+                  </label>
 
-                        <div className="min-w-0">
-                          <h3 className="text-lg font-semibold text-[#514366]">
-                            {profile.fullName || "Your name"}
-                          </h3>
+                  <label className="block text-sm font-medium text-[#6F5C75]">
+                    {t.email}
+                    <input
+                      type="email"
+                      autoComplete="email"
+                      value={profile.email}
+                      onChange={(event) =>
+                        updateProfile("email", event.target.value)
+                      }
+                      placeholder={t.emailPlaceholder}
+                      className={inputClass}
+                    />
+                  </label>
 
-                          <p className="mt-1 text-sm text-[#8E81A1]">
-                            {profile.specialty || "Your specialty"}
-                          </p>
+                  <label className="block text-sm font-medium text-[#6F5C75]">
+                    {t.specialty}
+                    <input
+                      type="text"
+                      value={profile.specialty}
+                      onChange={(event) =>
+                        updateProfile("specialty", event.target.value)
+                      }
+                      placeholder={t.specialtyPlaceholder}
+                      className={inputClass}
+                    />
+                  </label>
 
-                          <p className="mt-2 break-all text-xs text-[#A197B1]">
-                            {profile.email}
-                          </p>
-                        </div>
+                  <label className="block text-sm font-medium text-[#6F5C75]">
+                    {t.phone}
+                    <input
+                      type="tel"
+                      autoComplete="tel"
+                      value={profile.phone}
+                      onChange={(event) =>
+                        updateProfile("phone", event.target.value)
+                      }
+                      placeholder={t.phonePlaceholder}
+                      className={inputClass}
+                    />
+                  </label>
 
-                        <div className="sm:ml-auto">
-                          <span className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-2 text-xs font-medium text-[#7C6B9E]">
-                            <span className="h-2 w-2 rounded-full bg-[#9BCBAA]" />
-                            Professional account
-                          </span>
-                        </div>
-                      </div>
+                  <label className="block text-sm font-medium text-[#6F5C75] sm:col-span-2">
+                    {t.bio}
+                    <textarea
+                      rows={4}
+                      value={profile.bio}
+                      onChange={(event) =>
+                        updateProfile("bio", event.target.value)
+                      }
+                      placeholder={t.bioPlaceholder}
+                      className={`${inputClass} resize-y`}
+                    />
+                  </label>
+                </div>
 
-                      <div className="grid gap-5 sm:grid-cols-2">
-                        <div>
-                          <label htmlFor="fullName" className={labelClassName}>
-                            Full name
-                          </label>
+                <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-[#F5EEF5] pt-5">
+                  <button
+                    type="button"
+                    onClick={cancelProfileChanges}
+                    className="inline-flex items-center gap-2 rounded-xl border border-[#EAE0EB] bg-white px-4 py-2.5 text-sm font-medium text-[#8D7A93] transition hover:bg-[#FCF7FC]"
+                  >
+                    <X size={16} />
+                    {t.cancel}
+                  </button>
 
-                          <input
-                            id="fullName"
-                            value={profile.fullName}
-                            disabled={!isEditing}
-                            onChange={(event) =>
-                              updateProfile("fullName", event.target.value)
-                            }
-                            className={`${inputClassName} disabled:cursor-default disabled:bg-[#FAF8FC] disabled:text-[#82768F]`}
-                          />
-                        </div>
-
-                        <div>
-                          <label htmlFor="email" className={labelClassName}>
-                            Email address
-                          </label>
-
-                          <input
-                            id="email"
-                            type="email"
-                            value={profile.email}
-                            disabled={!isEditing}
-                            onChange={(event) =>
-                              updateProfile("email", event.target.value)
-                            }
-                            className={`${inputClassName} disabled:cursor-default disabled:bg-[#FAF8FC] disabled:text-[#82768F]`}
-                          />
-                        </div>
-
-                        <div>
-                          <label htmlFor="specialty" className={labelClassName}>
-                            Professional specialty
-                          </label>
-
-                          <input
-                            id="specialty"
-                            value={profile.specialty}
-                            disabled={!isEditing}
-                            onChange={(event) =>
-                              updateProfile("specialty", event.target.value)
-                            }
-                            placeholder="e.g. Psychologist"
-                            className={`${inputClassName} disabled:cursor-default disabled:bg-[#FAF8FC] disabled:text-[#82768F]`}
-                          />
-                        </div>
-
-                        <div>
-                          <label htmlFor="phone" className={labelClassName}>
-                            Phone number
-                          </label>
-
-                          <input
-                            id="phone"
-                            type="tel"
-                            value={profile.phone}
-                            disabled={!isEditing}
-                            onChange={(event) =>
-                              updateProfile("phone", event.target.value)
-                            }
-                            placeholder="Add your phone number"
-                            className={`${inputClassName} disabled:cursor-default disabled:bg-[#FAF8FC] disabled:text-[#82768F]`}
-                          />
-                        </div>
-
-                        <div className="sm:col-span-2">
-                          <label htmlFor="bio" className={labelClassName}>
-                            Professional bio
-                          </label>
-
-                          <textarea
-                            id="bio"
-                            rows={4}
-                            value={profile.bio}
-                            disabled={!isEditing}
-                            onChange={(event) =>
-                              updateProfile("bio", event.target.value)
-                            }
-                            placeholder="Tell patients a little about your professional approach..."
-                            className={`${inputClassName} resize-y disabled:cursor-default disabled:bg-[#FAF8FC] disabled:text-[#82768F]`}
-                          />
-                        </div>
-                      </div>
-
-                      {isEditing && (
-                        <div className="mt-7 flex flex-wrap justify-end gap-3 border-t border-[#F0EBF7] pt-6">
-                          <button
-                            type="button"
-                            onClick={handleCancelEditing}
-                            className="rounded-xl px-5 py-3 text-sm font-medium text-[#857997] transition hover:bg-[#F8F5FC]"
-                          >
-                            Cancel
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={handleSaveProfile}
-                            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#A99AE8] to-[#9BA9F5] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105"
-                          >
-                            <Save size={16} />
-                            Save changes
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </section>
-
-                  <section className="rounded-[1.75rem] border border-white bg-white/85 p-6 shadow-[0_8px_35px_rgba(137,116,184,0.05)] sm:p-8">
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F1ECFF] text-[#8D7BB8]">
-                        <LockKeyhole size={21} />
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <h2 className="font-semibold text-[#514366]">
-                          Account security
-                        </h2>
-
-                        <p className="mt-2 text-sm leading-6 text-[#9387A4]">
-                          Password changes and authentication settings will be
-                          available when the login and backend authentication
-                          flow is integrated.
-                        </p>
-
-                        <span className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#F8F4FC] px-3 py-1.5 text-xs font-medium text-[#9382AC]">
-                          <Clock size={13} />
-                          Coming with authentication
-                        </span>
-                      </div>
-                    </div>
-                  </section>
-                </>
-              )}
+                  <button
+                    type="button"
+                    onClick={saveProfile}
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#B88FAE] to-[#A294CE] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-[0.97] hover:shadow-md"
+                  >
+                    <Save size={16} />
+                    {t.save}
+                  </button>
+                </div>
+              </section>
 
               {/* PREFERENCES */}
-              {activeSection === "preferences" && (
-                <section className="rounded-[1.75rem] border border-white bg-white/85 p-6 shadow-[0_8px_35px_rgba(137,116,184,0.06)] sm:p-8">
-                  <div className="mb-7">
-                    <h2 className="text-lg font-semibold text-[#514366]">
-                      Your preferences
+              <section id="preferences" className={cardClass}>
+                <div className="mb-6 flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EEEAFB] text-[#9485C5]">
+                    <Globe size={22} />
+                  </div>
+
+                  <div>
+                    <h2 className="text-lg font-semibold text-[#49394D]">
+                      {t.preferencesTitle}
                     </h2>
-
-                    <p className="mt-2 text-sm leading-6 text-[#9387A4]">
-                      Personalize how you use your professional workspace.
+                    <p className="mt-1 text-sm leading-6 text-[#9A8A9F]">
+                      {t.preferencesDescriptionFull}
                     </p>
                   </div>
+                </div>
 
-                  <div className="space-y-6">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#F1ECFF] text-[#8D7BB8]">
-                          <Globe size={19} />
-                        </div>
-
-                        <div>
-                          <h3 className="text-sm font-semibold text-[#5C5071]">
-                            Language
-                          </h3>
-                          <p className="mt-1 text-sm text-[#9B90AA]">
-                            Choose your preferred interface language.
-                          </p>
-                        </div>
+                <div className="space-y-5">
+                  <div className="flex flex-col gap-4 rounded-2xl bg-[#FCF9FD] p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#A58BB2] shadow-sm">
+                        <Globe size={17} />
                       </div>
 
-                      <select
-                        aria-label="Preferred language"
-                        value={language}
-                        onChange={(event) => setLanguage(event.target.value)}
-                        className={`${inputClassName} sm:max-w-52`}
-                      >
-                        <option>English</option>
-                        <option>Français</option>
-                        <option>العربية</option>
-                      </select>
+                      <div>
+                        <h3 className="text-sm font-semibold text-[#6F5C75]">
+                          {t.language}
+                        </h3>
+                        <p className="mt-1 text-xs leading-5 text-[#A092A5]">
+                          {t.languageDescription}
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="h-px bg-gradient-to-r from-transparent via-[#EEE7F6] to-transparent" />
+                    <select
+                      value={language}
+                      onChange={(event) => {
+                        setLanguage(event.target.value as Language);
+                        setMessage("");
+                        setError("");
+                      }}
+                      aria-label={t.language}
+                      className="w-full rounded-xl border border-[#E9DFEA] bg-white px-4 py-3 text-sm text-[#6F5C75] outline-none transition focus:border-[#B59BCB] focus:ring-4 focus:ring-[#B59BCB]/10 sm:w-48"
+                    >
+                      <option value="English">English</option>
+                      <option value="Français">Français</option>
+                      <option value="العربية">العربية</option>
+                    </select>
+                  </div>
 
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#FDF0FA] text-[#BA83B6]">
-                          <CalendarDays size={19} />
-                        </div>
-
-                        <div>
-                          <h3 className="text-sm font-semibold text-[#5C5071]">
-                            Appointment reminders
-                          </h3>
-                          <p className="mt-1 text-sm text-[#9B90AA]">
-                            Choose when you prefer to receive reminders.
-                          </p>
-                        </div>
+                  <div className="flex flex-col gap-4 rounded-2xl bg-[#FCF9FD] p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#A58BB2] shadow-sm">
+                        <Clock size={17} />
                       </div>
 
-                      <select
-                        aria-label="Appointment reminder time"
-                        value={reminderTime}
-                        onChange={(event) =>
-                          setReminderTime(event.target.value)
-                        }
-                        className={`${inputClassName} sm:max-w-52`}
-                      >
-                        <option>15 minutes</option>
-                        <option>30 minutes</option>
-                        <option>1 hour</option>
-                        <option>1 day</option>
-                      </select>
+                      <div>
+                        <h3 className="text-sm font-semibold text-[#6F5C75]">
+                          {t.reminderTime}
+                        </h3>
+                        <p className="mt-1 text-xs leading-5 text-[#A092A5]">
+                          {t.reminderDescription}
+                        </p>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="mt-8 rounded-2xl bg-gradient-to-r from-[#FBF3FC] to-[#F0F0FF] p-4">
-                    <p className="text-sm font-medium text-[#6D5C87]">
-                      Your preferences
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-[#998CAB]">
-                      These choices currently apply only to this page. They will
-                      be saved to your account after API integration.
-                    </p>
+                    <select
+                      value={reminderTime}
+                      onChange={(event) => setReminderTime(event.target.value)}
+                      aria-label={t.reminderTime}
+                      className="w-full rounded-xl border border-[#E9DFEA] bg-white px-4 py-3 text-sm text-[#6F5C75] outline-none transition focus:border-[#B59BCB] focus:ring-4 focus:ring-[#B59BCB]/10 sm:w-48"
+                    >
+                      <option value="15">{t.minutes15}</option>
+                      <option value="30">{t.minutes30}</option>
+                      <option value="60">{t.hour1}</option>
+                      <option value="1440">{t.hours24}</option>
+                    </select>
                   </div>
-                </section>
-              )}
+                </div>
+              </section>
 
               {/* NOTIFICATIONS */}
-              {activeSection === "notifications" && (
-                <section className="rounded-[1.75rem] border border-white bg-white/85 p-6 shadow-[0_8px_35px_rgba(137,116,184,0.06)] sm:p-8">
-                  <div className="mb-7">
-                    <h2 className="text-lg font-semibold text-[#514366]">
-                      Notification settings
-                    </h2>
-
-                    <p className="mt-2 text-sm leading-6 text-[#9387A4]">
-                      Choose which updates you want to receive.
-                    </p>
+              <section id="notifications" className={cardClass}>
+                <div className="mb-6 flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FBEAF0] text-[#C0809B]">
+                    <Bell size={22} />
                   </div>
 
-                  <div className="space-y-3">
-                    {[
+                  <div>
+                    <h2 className="text-lg font-semibold text-[#49394D]">
+                      {t.notificationTitle}
+                    </h2>
+                    <p className="mt-1 text-sm leading-6 text-[#9A8A9F]">
+                      {t.notificationDescription}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {(
+                    [
                       {
-                        key: "appointmentRequests" as const,
-                        title: "New appointment requests",
-                        description:
-                          "Get notified when a patient requests an appointment.",
-                        icon: CalendarDays,
+                        key: "appointmentRequests",
+                        title: t.requests,
+                        description: t.requestsDescription,
                       },
                       {
-                        key: "appointmentReminders" as const,
-                        title: "Appointment reminders",
-                        description:
-                          "Receive reminders about your upcoming sessions.",
-                        icon: Clock,
+                        key: "appointmentReminders",
+                        title: t.reminders,
+                        description: t.remindersDescription,
                       },
                       {
-                        key: "patientUpdates" as const,
-                        title: "Patient updates",
-                        description:
-                          "Receive updates related to your patients' activity.",
-                        icon: Heart,
+                        key: "patientUpdates",
+                        title: t.patientUpdates,
+                        description: t.patientUpdatesDescription,
                       },
-                    ].map((item) => {
-                      const Icon = item.icon;
-                      const enabled = notificationPreferences[item.key];
+                    ] as const
+                  ).map((item) => {
+                    const enabled = notifications[item.key];
 
-                      return (
-                        <div
-                          key={item.key}
-                          className="flex items-center gap-4 rounded-2xl bg-gradient-to-r from-[#FCFAFF] to-[#F9F8FF] p-4 transition hover:from-[#FAF5FF] hover:to-[#F4F3FF] sm:p-5"
-                        >
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-[#9B87C2] shadow-sm">
-                            <Icon size={19} />
-                          </div>
-
-                          <div className="min-w-0 flex-1">
-                            <h3 className="text-sm font-semibold text-[#5C5071]">
-                              {item.title}
-                            </h3>
-
-                            <p className="mt-1 text-xs leading-5 text-[#9B90AA] sm:text-sm">
-                              {item.description}
-                            </p>
-                          </div>
-
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={enabled}
-                            aria-label={item.title}
-                            onClick={() => toggleNotification(item.key)}
-                            className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 ${
-                              enabled ? "bg-[#A99AE8]" : "bg-[#DDD6E8]"
-                            }`}
-                          >
-                            <span
-                              className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow-sm transition-all duration-200 ${
-                                enabled ? "left-[26px]" : "left-[2px]"
-                              }`}
-                            />
-                          </button>
+                    return (
+                      <div
+                        key={item.key}
+                        className="flex items-center justify-between gap-4 rounded-2xl px-3 py-4 transition-colors hover:bg-[#FCF8FC] sm:px-4"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-sm font-semibold text-[#6F5C75]">
+                            {item.title}
+                          </h3>
+                          <p className="mt-1 text-xs leading-5 text-[#A092A5]">
+                            {item.description}
+                          </p>
                         </div>
-                      );
-                    })}
-                  </div>
 
-                  <p className="mt-5 text-xs leading-5 text-[#A197B1]">
-                    Notification preferences are temporary until the
-                    notification service is connected.
-                  </p>
-                </section>
-              )}
-
-              {/* APPEARANCE */}
-              {activeSection === "appearance" && (
-                <section className="rounded-[1.75rem] border border-white bg-white/85 p-6 shadow-[0_8px_35px_rgba(137,116,184,0.06)] sm:p-8">
-                  <div className="mb-7">
-                    <h2 className="text-lg font-semibold text-[#514366]">
-                      Appearance
-                    </h2>
-
-                    <p className="mt-2 text-sm leading-6 text-[#9387A4]">
-                      Choose how you prefer your workspace to look.
-                    </p>
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    {[
-                      {
-                        name: "Light",
-                        description: "Bright and soft",
-                        preview:
-                          "bg-gradient-to-br from-white via-[#FBF6FF] to-[#EEE9FF]",
-                      },
-                      {
-                        name: "Soft",
-                        description: "Pastel and calming",
-                        preview:
-                          "bg-gradient-to-br from-[#FDEBFA] via-[#E7C5FF] to-[#BDCFFF]",
-                      },
-                      {
-                        name: "System",
-                        description: "Follow device settings",
-                        preview:
-                          "bg-gradient-to-br from-[#DCD5EC] via-[#B8C0FF] to-[#C8B6FE]",
-                      },
-                    ].map((option) => {
-                      const selected = appearance === option.name;
-
-                      return (
                         <button
-                          key={option.name}
                           type="button"
-                          aria-pressed={selected}
-                          onClick={() => setAppearance(option.name)}
-                          className={`rounded-2xl p-3 text-left transition ${
-                            selected
-                              ? "bg-[#F5F0FF] ring-2 ring-[#B8A6E8]"
-                              : "bg-[#FAF8FC] ring-1 ring-[#EEE8F5] hover:bg-[#F6F1FC]"
+                          role="switch"
+                          aria-checked={enabled}
+                          aria-label={item.title}
+                          onClick={() => toggleNotification(item.key)}
+                          className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#B59BCB]/25 ${
+                            enabled ? "bg-[#A99AE8]" : "bg-[#DDD6E8]"
                           }`}
                         >
-                          <div
-                            className={`flex h-28 items-end justify-end rounded-xl p-3 ${option.preview}`}
-                          >
-                            {selected && (
-                              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#8975B9] shadow-sm">
-                                <Check size={15} />
-                              </span>
-                            )}
-                          </div>
-
-                          <p className="mt-3 text-sm font-semibold text-[#5C5071]">
-                            {option.name}
-                          </p>
-
-                          <p className="mt-1 text-xs text-[#9B90AA]">
-                            {option.description}
-                          </p>
+                          <span
+                            className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow-sm transition-[left] duration-200 ${
+                              enabled ? "left-[26px]" : "left-[2px]"
+                            }`}
+                          />
                         </button>
-                      );
-                    })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* APPEARANCE */}
+              <section id="appearance" className={cardClass}>
+                <div className="mb-6 flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EAEFFC] text-[#8194C8]">
+                    <Palette size={22} />
                   </div>
 
-                  <div className="mt-6 rounded-2xl bg-[#F9F6FD] p-4">
-                    <p className="text-sm font-medium text-[#6D5C87]">
-                      Selected: {appearance}
-                    </p>
-
-                    <p className="mt-1 text-xs leading-5 text-[#998CAB]">
-                      This selection is currently a frontend preference.
-                      Applying and saving themes across the application can be
-                      added separately.
+                  <div>
+                    <h2 className="text-lg font-semibold text-[#49394D]">
+                      {t.appearanceTitle}
+                    </h2>
+                    <p className="mt-1 text-sm leading-6 text-[#9A8A9F]">
+                      {t.appearanceDescriptionFull}
                     </p>
                   </div>
-                </section>
-              )}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {(
+                    [
+                      {
+                        value: "Light",
+                        title: t.light,
+                        description: t.lightDescription,
+                        preview: "bg-white",
+                        accent: "bg-[#F4EAF2]",
+                      },
+                      {
+                        value: "Soft",
+                        title: t.soft,
+                        description: t.softDescription,
+                        preview: "bg-[#FCF7FC]",
+                        accent: "bg-[#EDE4F7]",
+                      },
+                      {
+                        value: "System",
+                        title: t.system,
+                        description: t.systemDescription,
+                        preview: "bg-gradient-to-br from-white to-[#F0ECF9]",
+                        accent: "bg-[#DCD3F1]",
+                      },
+                    ] as const
+                  ).map((option) => {
+                    const selected = appearance === option.value;
+
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() =>
+                          setAppearance(option.value as Appearance)
+                        }
+                        className={`rounded-2xl border p-3 text-start transition-all duration-200 ${
+                          selected
+                            ? "border-[#B59BCB] bg-[#FAF5FC] ring-2 ring-[#B59BCB]/15"
+                            : "border-[#F0E7F0] bg-white hover:border-[#DCCBE2] hover:bg-[#FFFBFE]"
+                        }`}
+                      >
+                        <div
+                          className={`mb-3 h-20 overflow-hidden rounded-xl border border-[#F0E7F0] p-2 ${option.preview}`}
+                        >
+                          <div className="flex h-full gap-2">
+                            <div
+                              className={`w-1/4 rounded-md ${option.accent}`}
+                            />
+                            <div className="flex flex-1 flex-col gap-2 pt-1">
+                              <div className="h-2 w-3/4 rounded-full bg-[#DCCFE1]" />
+                              <div className="h-2 w-full rounded-full bg-[#EDE5EF]" />
+                              <div className="h-2 w-2/3 rounded-full bg-[#EDE5EF]" />
+                              <div className="mt-auto h-5 rounded-md bg-[#E9DCEB]" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-semibold text-[#6F5C75]">
+                            {option.title}
+                          </span>
+
+                          {selected && (
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#B59BCB] text-white">
+                              <Check size={12} />
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="mt-1 text-xs leading-5 text-[#A092A5]">
+                          {option.description}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p className="mt-4 text-xs leading-5 text-[#A092A5]">
+                  {t.appearanceDescriptionFull}
+                </p>
+              </section>
+
+              {/* Footer */}
+              <footer className="px-2 pb-5 pt-1 text-center text-xs text-[#B0A1B5]">
+                Rahati · {t.professional}
+              </footer>
             </div>
           </div>
-
-          {/* Footer */}
-          <footer className="flex flex-col items-center justify-between gap-2 pb-4 text-center text-xs text-[#A79BB6] sm:flex-row sm:text-left">
-            <p>Rahati · Your well-being matters.</p>
-            <p>Professional workspace</p>
-          </footer>
         </div>
-      </div>
+      </main>
     </DashboardLayout>
   );
 }
