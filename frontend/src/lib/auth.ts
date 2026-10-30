@@ -8,6 +8,27 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface ProfessionalRegistrationData {
+  nickname: string;
+  password: string;
+  language: "ar" | "fr" | "en";
+  email: string;
+  phone: string;
+  display_name: string;
+  bio: string;
+  city: string;
+  address: string;
+  credential_kind: "diploma" | "licence" | "certificate" | "other";
+  credential_file: File;
+  terms_accepted: boolean;
+}
+
+export interface RegistrationResponse {
+  id: number;
+  nickname: string;
+  status: string;
+}
+
 export interface AuthUser {
   id: number;
   nickname: string;
@@ -57,17 +78,36 @@ export function clearTokens() {
   sessionStorage.removeItem(REFRESH_KEY);
 }
 
+function getErrorMessage(data: any): string {
+  if (!data) {
+    return "Something went wrong. Please try again.";
+  }
+
+  if (typeof data.detail === "string") return data.detail;
+  if (typeof data.message === "string") return data.message;
+
+  if (Array.isArray(data.non_field_errors)) {
+    return data.non_field_errors.join(" ");
+  }
+
+  const messages = Object.entries(data).flatMap(([field, errors]) => {
+    const errorList = Array.isArray(errors) ? errors : [errors];
+
+    return errorList
+      .filter((error) => typeof error === "string")
+      .map((error) => `${field.replaceAll("_", " ")}: ${error}`);
+  });
+
+  return messages.length
+    ? messages.join("\n")
+    : "Something went wrong. Please try again.";
+}
+
 async function readResponse(response: Response) {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const message =
-      data?.detail ||
-      data?.message ||
-      data?.non_field_errors?.[0] ||
-      "Something went wrong. Please try again.";
-
-    throw new Error(message);
+    throw new Error(getErrorMessage(data));
   }
 
   return data;
@@ -93,6 +133,42 @@ export async function login(credentials: LoginCredentials) {
   saveTokens(data);
 
   return data;
+}
+
+/* Professional registration */
+
+export async function registerProfessional(
+  registration: ProfessionalRegistrationData,
+): Promise<RegistrationResponse> {
+  const formData = new FormData();
+
+  formData.append("nickname", registration.nickname.trim());
+  formData.append("password", registration.password);
+  formData.append("language", registration.language);
+  if (registration.email.trim()) {
+    formData.append("email", registration.email.trim());
+  }
+
+  if (registration.phone.trim()) {
+    formData.append("phone", registration.phone.trim());
+  }
+  formData.append("display_name", registration.display_name.trim());
+  formData.append("bio", registration.bio.trim());
+  formData.append("city", registration.city.trim());
+  formData.append("address", registration.address.trim());
+  formData.append("credential_kind", registration.credential_kind);
+  formData.append("credential_file", registration.credential_file);
+  formData.append("terms_accepted", String(registration.terms_accepted));
+
+  const response = await fetch(
+    `${getApiUrl()}/api/auth/register-professional`,
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
+
+  return (await readResponse(response)) as RegistrationResponse;
 }
 
 /* Refresh access token */
