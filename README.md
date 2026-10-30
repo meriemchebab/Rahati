@@ -643,6 +643,22 @@ python manage.py runserver
 
 ## Testing
 
+### Demo-video data
+
+Run `seed_demo` only against an isolated demo database. In PowerShell:
+
+```powershell
+cd Backend
+$env:DEMO_SEED_ALLOWED = "true"
+$env:DEMO_SHARED_PASSWORD = "<choose a password with at least 16 characters>"
+python manage.py seed_demo
+python manage.py seed_demo --refresh
+```
+
+`--refresh` moves demo check-ins, slots, and session times forward to the current
+date. Without a shared password, the command generates random passwords and does
+not print them.
+
 ```bash
 cd Backend
 python manage.py test rahati
