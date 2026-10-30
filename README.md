@@ -63,9 +63,18 @@ Audit events are recorded in the database, but there is no admin page for browsi
 
 Analytics are calculated on request from the authenticated woman's own check-ins using plain statistics; no model is trained and no prediction is made. `GET /api/analytics?range=7|30|90` returns start and end dates, a daily mood and energy series, check-in count, averages, previous-period mood average and change, current streak, and lowest mood with its dates. The `topics` response field is currently empty; topic aggregation is not implemented.
 
-`POST /api/analytics` accepts the same ranges and returns the statistics plus a summary in the woman's selected language (Arabic, French, or English). With check-ins and `GEMINI_API_KEY` configured, the backend asks Gemini to write the summary using an explicit allow-list of numeric statistics: range, count, averages, mood change, and streak. Journal entries and other free-text user content are not sent. Without a key or check-ins, or when Gemini errors or its output fails the basic completeness or language-service availability checks, the backend returns a locally generated summary. These checks do not confirm that each generated claim matches the statistics, and the requested sentence count is not enforced; verify generated summaries against the returned `analytics` object. Both endpoints are private, authenticated user endpoints and return `Cache-Control: private, no-store`.
+`POST /api/analytics` (and `POST /api/analytics/summary`) accepts the same ranges and returns the statistics plus an AI-generated summary in English or Arabic (`en`, `ar`; unsupported languages default to English). With check-ins and `GEMINI_API_KEY` configured, the backend prompts Gemini (`gemini-3.5-flash-lite`) using an explicit allow-list of numeric statistics: range, count, averages, mood change, and streak. Journal entries, notes, and other free-text user content are strictly never sent.
 
-Summaries are informational and are not a diagnosis or medical advice. The prompt instructs Gemini not to diagnose, give medical advice, or invent facts, but that instruction is not a factual-accuracy safeguard.
+Output validation and fallback:
+- **Completeness & structure:** Generated summaries are checked to ensure they are complete sentences and not empty, truncated, or prematurely cut off by token limits.
+- **Language quality:** Grammar and phrasing are validated via LanguageTool for English and Arabic.
+- **Deterministic fallback:** If Gemini fails, the API key is missing, or output validation fails, the service returns a supportive local template summary.
+
+Persistence and history:
+- Generated summaries are saved to the database in the `AnalyticsSummary` model with their range (7, 30, or 90 days), language, and timestamp.
+- Users can retrieve past summaries via `GET /api/analytics/history` (also at `/api/analytics/summaries`) and `GET /api/analytics/history/{id}`, with optional `?range=` period filtering and strict user ownership isolation.
+
+Summaries are informational and are not a diagnosis or medical advice. The prompt instructs Gemini not to diagnose, give medical advice, or invent facts, but that instruction is not a factual-accuracy safeguard. Both endpoints are private, authenticated user endpoints and return `Cache-Control: private, no-store`.
 
 
 ## Architecture
@@ -130,6 +139,8 @@ Rahati/
         ├── serializers.py    validation and response shapes
         ├── permissions.py    role gates
         ├── services.py       consent gate, relationship check, audit
+        ├── analytics_services.py  check-in statistics computation
+        ├── gemini_summary_service.py  Gemini integration, LanguageTool validation & fallback
         ├── views.py          one class per endpoint
         ├── urls.py           routes only
         ├── admin.py          the admin persona
@@ -176,6 +187,7 @@ erDiagram
   USER ||--o{ SHARING_CONSENT : "is recipient professional"
   USER ||--o{ DEVICE_TOKEN : registers
   USER o|--o{ AUDIT_LOG : acts
+  USER ||--o{ ANALYTICS_SUMMARY : persists
 
   USER {
     string username "the nickname"
@@ -226,9 +238,15 @@ erDiagram
     string target_type
     int target_id "not a foreign key"
   }
+  ANALYTICS_SUMMARY {
+    int range "7, 30, 90 days"
+    string language "en, ar"
+    text body "generated or fallback summary"
+    datetime created_at
+  }
 ```
 
-`USER_PATTERN` stores rule-detected patterns; `WEEKLY_SUMMARY` stores a generated weekly text summary. Analytics are computed on request and are not stored in an analytics-summary table. Card translations are stored per language, but the database does not enforce that a card has any translations; publishing validation checks required translations.
+`USER_PATTERN` stores rule-detected patterns; `WEEKLY_SUMMARY` stores a generated weekly text summary; `ANALYTICS_SUMMARY` persists generated analytics summaries per user and range. Card translations are stored per language, but the database does not enforce that a card has any translations; publishing validation checks required translations.
 
 Design notes:
 
@@ -237,14 +255,7 @@ Design notes:
 - **Deletion:** user-owned records generally cascade when their user is deleted. Audit rows remain, with the actor link set to `NULL`; their target type and ID are not foreign keys.
 - **Translations** live in their own table, so adding a language adds rows, not columns.
 
-### Planned additions
 
-```mermaid
-erDiagram
-  USER ||--o{ ANALYTICS_SUMMARY : "would cache (per range and day)"
-```
-
-`ANALYTICS_SUMMARY` is a proposal only; no such model or cache is implemented.
 
 ## Key flows
 
@@ -332,13 +343,15 @@ sequenceDiagram
   API->>Stats: compute from her own check-ins
   Stats-->>API: averages, daily series, streak, lowest mood
   API-->>Woman: analytics JSON
-  Woman->>API: POST /api/analytics {range: 7}
+  Woman->>API: POST /api/analytics/summary {range: 7, language: 'en'}
   API->>Stats: compute the same statistics
   opt Gemini API key configured and check-ins exist
     API->>LLM: allow-listed numeric statistics only
     LLM-->>API: draft summary
+    API->>API: validate completeness & LanguageTool quality
   end
-  API->>API: use local template if Gemini is unavailable or output is incomplete
+  API->>API: use local template if Gemini is unavailable or validation fails
+  API->>DB: persist summary in AnalyticsSummary
   API-->>Woman: summary and analytics JSON
 ```
 
@@ -381,7 +394,7 @@ All routes are under `/api/`. Responses are JSON. Authentication is a JWT in the
 | Auth and account | `POST auth/register`, `POST auth/register-professional`, `POST auth/login`, `POST auth/refresh`, `POST auth/verify`, `POST auth/logout`, `POST auth/change-password`, `GET/DELETE me` |
 | Professional profile | `GET/PATCH pro/profile`, `GET/PUT pro/profile/credential` |
 | Tracking | `GET/POST check-ins`, `GET topics`, `POST cycle-starts`, `GET/POST journal`, `GET patterns` (reads stored pattern and weekly-summary rows) |
-| Analytics and summaries | `GET analytics?range=7\|30\|90`, `POST analytics` (statistics and localized summary) |
+| Analytics and summaries | `GET analytics?range=7\|30\|90`, `POST analytics` / `POST analytics/summary`, `GET analytics/history` (with `?range=` filter), `GET analytics/history/{id}` |
 | To-dos | `GET/POST todos`, `PATCH/DELETE todos/{id}`, `POST todos/{id}/complete`, `POST todos/{id}/reopen` |
 | Content cards | `GET content-cards`, `GET content-cards/{id}`, `POST content-cards/{id}/read`, `GET content-cards/library?topic&limit&offset`, `POST content-cards/{id}/add-todo` |
 | Professional content | `GET/POST pro/content`, `GET/PATCH/DELETE pro/content/{id}`, `POST pro/patients/{id}/content` (assign a card) |
@@ -448,9 +461,10 @@ The security model follows **OWASP Top 10:2025** and the **OWASP API Security To
 
 ### AI summary privacy and limitations
 
-- The summary service sends Gemini only an allow-listed subset of numeric statistics, never the woman's journal text or other free-text user content.
-- A local template is used when Gemini is not configured, has no check-ins to summarize, fails, or returns an empty or obviously incomplete response. The current response checks do not validate factual accuracy or screen for prohibited claims; improve these safeguards before relying on summaries in a production care setting (LLM01, LLM02, LLM05, API10).
-- Summary-specific caching and daily call caps are not currently implemented (LLM10, API4).
+- The summary service sends Gemini only an allow-listed subset of numeric statistics, never the woman's journal text, notes, or other free-text user content (OWASP LLM01, LLM02).
+- Output completeness and language checks (via LanguageTool for English and Arabic) are enforced before a summary is accepted, with automatic fallback to a deterministic local template (LLM05, API10).
+- Summaries are persisted in `AnalyticsSummary` with user ownership isolation and period filtering.
+- Daily call caps and throttles remain planned additions to limit cost and abuse (LLM10, API4).
 - Online session links need an HMAC or equivalent server-side derivation and must be visible only to session participants during a limited time window (A04, A01).
 
 ### Before any real woman uses the app (demo-minimum)
@@ -671,7 +685,7 @@ coverage run manage.py test rahati
 coverage report --include="rahati/*"
 ```
 
-The backend tests protect consent, encryption at rest, deletion, booking correctness and role and ownership rules. They use local test data and do not call external services.
+The backend tests protect consent, encryption at rest, deletion, booking correctness and role and ownership rules. Unit tests also cover the Gemini summary service (language normalization, completeness validation, LanguageTool checks, and fallback behavior) and summary persistence, history retrieval, period filtering, and user isolation (all 354 backend tests pass). They use local test data and do not call external services.
 
 ### End-to-end smoke tests
 
@@ -696,7 +710,7 @@ After creating the root `.venv` and installing `Backend/requirements.txt` above,
 
 Suggested build order (each item depends on the earlier ones):
 
-1. Improve AI-summary validation, and add summary-specific caching and daily call caps.
+1. Add summary-specific daily call caps and throttles (AI summary validation and summary persistence with history retrieval are completed).
 2. Add professional patient analytics, an API schema for client developers, and a visible "talk to someone now" support card.
 3. Before a real launch: the full OWASP baseline, a production database, hosting with TLS and encrypted storage, push notifications.
 
