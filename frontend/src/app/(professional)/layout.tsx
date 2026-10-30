@@ -1,8 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-
-import { AuthProvider } from "@/components/auth/AuthContext";
 import AuthGuard from "@/components/auth/AuthGuard";
 
 export default function ProfessionalLayout({
@@ -10,9 +8,5 @@ export default function ProfessionalLayout({
 }: {
   children: ReactNode;
 }) {
-  return (
-    <AuthProvider>
-      <AuthGuard>{children}</AuthGuard>
-    </AuthProvider>
-  );
+  return <AuthGuard>{children}</AuthGuard>;
 }

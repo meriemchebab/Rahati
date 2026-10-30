@@ -46,13 +46,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUser(currentUser);
       setProfile(professionalProfile);
-    } catch {
+    } catch (error) {
       clearTokens();
       setUser(null);
       setProfile(null);
+      throw error;
     }
   }
-
   function signOut() {
     clearTokens();
     setUser(null);

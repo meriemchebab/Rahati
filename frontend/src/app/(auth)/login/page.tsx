@@ -4,12 +4,13 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, User, Lock, LoaderCircle } from "lucide-react";
-
+import { useAuth } from "@/components/auth/AuthContext";
 import AuthLayout from "@/components/auth/AuthLayout";
 import { login } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { reloadProfile } = useAuth();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -28,13 +29,15 @@ export default function LoginPage() {
 
     try {
       setLoading(true);
-
       await login({
         username: username.trim(),
         password,
       });
 
+      await reloadProfile();
+
       router.replace("/");
+      router.refresh();
     } catch (err) {
       setError(
         err instanceof Error
