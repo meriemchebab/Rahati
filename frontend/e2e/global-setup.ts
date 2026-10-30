@@ -4,27 +4,36 @@ import path from "node:path";
 const frontendDir = process.cwd();
 const repoDir = path.resolve(frontendDir, "..");
 const backendDir = path.join(repoDir, "Backend");
-const python = process.env.E2E_PYTHON ?? path.join(
-  repoDir,
-  ".venv",
-  process.platform === "win32" ? "Scripts/python.exe" : "bin/python",
-);
+const python =
+  process.env.E2E_PYTHON ??
+  path.join(
+    repoDir,
+    ".venv",
+    process.platform === "win32" ? "Scripts/python.exe" : "bin/python",
+  );
 
 function stopProcessTree(child: ChildProcess): Promise<void> {
-  if (child.exitCode !== null || child.pid === undefined) return Promise.resolve();
+  if (child.exitCode !== null || child.pid === undefined) {
+    return Promise.resolve();
+  }
+
+  const pid = child.pid;
 
   return new Promise((resolve) => {
     const timer = setTimeout(resolve, 5_000);
+
     child.once("exit", () => {
       clearTimeout(timer);
       resolve();
     });
 
     if (process.platform === "win32") {
-      spawnSync("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+      spawnSync("taskkill.exe", ["/PID", String(pid), "/T", "/F"], {
+        stdio: "ignore",
+      });
     } else {
       try {
-        process.kill(-child.pid, "SIGTERM");
+        process.kill(-pid, "SIGTERM");
       } catch {
         child.kill("SIGTERM");
       }
@@ -32,7 +41,11 @@ function stopProcessTree(child: ChildProcess): Promise<void> {
   });
 }
 
-async function waitFor(url: string, label: string, child: ChildProcess): Promise<void> {
+async function waitFor(
+  url: string,
+  label: string,
+  child: ChildProcess,
+): Promise<void> {
   const deadline = Date.now() + 120_000;
   let lastError = "not responding yet";
   let spawnError: Error | undefined;
@@ -41,8 +54,10 @@ async function waitFor(url: string, label: string, child: ChildProcess): Promise
   });
 
   while (Date.now() < deadline) {
-    if (spawnError) throw new Error(`Could not start ${label}: ${spawnError.message}`);
-    if (child.exitCode !== null) throw new Error(`${label} exited with code ${child.exitCode}`);
+    if (spawnError)
+      throw new Error(`Could not start ${label}: ${spawnError.message}`);
+    if (child.exitCode !== null)
+      throw new Error(`${label} exited with code ${child.exitCode}`);
     try {
       const response = await fetch(url);
       if (response.ok) return;
@@ -65,8 +80,20 @@ export default async function globalSetup() {
   });
   const frontend = spawn(
     process.execPath,
-    [path.join(frontendDir, "node_modules/next/dist/bin/next"), "dev", "--hostname", "127.0.0.1", "--port", "3001"],
-    { cwd: frontendDir, env: process.env, stdio: "inherit", detached: process.platform !== "win32" },
+    [
+      path.join(frontendDir, "node_modules/next/dist/bin/next"),
+      "dev",
+      "--hostname",
+      "127.0.0.1",
+      "--port",
+      "3001",
+    ],
+    {
+      cwd: frontendDir,
+      env: process.env,
+      stdio: "inherit",
+      detached: process.platform !== "win32",
+    },
   );
 
   try {
