@@ -17,11 +17,11 @@ export default function AuthLayout({
     <main className="min-h-screen bg-[#f7f0f5] flex items-center justify-center p-4 sm:p-8">
       <div className="w-full max-w-6xl min-h-[650px] grid md:grid-cols-2 overflow-hidden rounded-[28px] bg-white shadow-[0_20px_70px_rgba(103,55,85,0.09)]">
         {/* Branding section */}
-        <section className="relative hidden md:flex flex-col justify-between overflow-hidden bg-gradient-to-br from-[#BDCFFF] via-[#C8B6FE] to-[#E7C5FF] p-12">
+        <section className="relative hidden md:flex flex-col justify-start overflow-hidden bg-gradient-to-br from-[#BDCFFF] via-[#C8B6FE] to-[#E7C5FF] p-12">
           <div className="absolute -right-20 -top-20 h-80 w-80 rounded-full bg-white/20 blur-3xl" />
           <div className="absolute -bottom-24 -left-20 h-80 w-80 rounded-full bg-[#FED5FF]/60 blur-3xl" />
 
-          <Link href="/login" className="relative z-10">
+          <Link href="/login" className="relative z-10 w-fit">
             <Image
               src="/images/rahati-logo.svg"
               alt="Rahati"
@@ -32,7 +32,7 @@ export default function AuthLayout({
             />
           </Link>
 
-          <div className="relative z-10 max-w-md">
+          <div className="relative z-10 mt-20 max-w-md">
             <span className="text-sm font-semibold uppercase tracking-[0.2em] text-[#68475e]">
               Rahati for professionals
             </span>
@@ -47,7 +47,7 @@ export default function AuthLayout({
             </p>
           </div>
 
-          <p className="relative z-10 text-xs text-[#68475e]/75">
+          <p className="relative z-10 mt-20 text-xs text-[#68475e]/75">
             © 2026 Rahati. All rights reserved.
           </p>
         </section>
