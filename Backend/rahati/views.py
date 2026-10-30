@@ -33,6 +33,7 @@ from .availability_services import retire_slot
 from .analytics_services import get_user_analytics
 from .gemini_summary_service import generate_analytics_summary
 from .models import (
+    AnalyticsSummary,
     AvailabilitySlot,
     CardRead,
     CheckIn,
@@ -55,6 +56,7 @@ from .models import (
 )
 from .permissions import IsSessionActor, IsUserRole, IsVerifiedProfessional, IsProfessionalRole
 from .serializers import (
+    AnalyticsSummarySerializer,
     CardAssignSerializer,
     CardLibraryQuerySerializer,
     CheckInSerializer,
@@ -489,10 +491,26 @@ class AnalyticsView(APIView):
         if days not in (7, 30, 90):
             raise ValidationError({"range": "Choose 7, 30, or 90."})
 
+        user_lang = getattr(request.user, "language", None)
+        raw_lang = request.data.get("language") or user_lang
+        if raw_lang in (AnalyticsSummary.Language.ARABIC, "ar"):
+            lang = AnalyticsSummary.Language.ARABIC
+        elif raw_lang in (AnalyticsSummary.Language.ENGLISH, "en"):
+            lang = AnalyticsSummary.Language.ENGLISH
+        else:
+            lang = AnalyticsSummary.Language.ENGLISH
+
         stats = get_user_analytics(request.user, days)
         summary = generate_analytics_summary(
             stats,
-            language=getattr(request.user, "language", "en"),
+            language=lang,
+        )
+
+        AnalyticsSummary.objects.create(
+            user=request.user,
+            range=days,
+            language=lang,
+            body=summary,
         )
 
         response = Response({
@@ -500,6 +518,44 @@ class AnalyticsView(APIView):
             "summary": summary,
             "analytics": stats,
         })
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
+
+
+class AnalyticsHistoryView(APIView):
+    permission_classes = [IsUserRole]
+
+    def get(self, request):
+        raw_range = request.query_params.get("range")
+        queryset = AnalyticsSummary.objects.filter(user=request.user)
+
+        if raw_range is not None and raw_range != "":
+            try:
+                days = int(raw_range)
+            except (TypeError, ValueError):
+                raise ValidationError({"range": "Choose 7, 30, or 90."})
+
+            if days not in (7, 30, 90):
+                raise ValidationError({"range": "Choose 7, 30, or 90."})
+
+            queryset = queryset.filter(range=days)
+
+        summaries = queryset.order_by("-created_at")
+        serializer = AnalyticsSummarySerializer(summaries, many=True)
+        response = Response(serializer.data)
+        response["Cache-Control"] = _PRIVATE_NO_STORE
+        return response
+
+
+class AnalyticsHistoryDetailView(APIView):
+    permission_classes = [IsUserRole]
+
+    def get(self, request, pk):
+        summary = get_object_or_404(
+            AnalyticsSummary.objects.filter(user=request.user), pk=pk
+        )
+        serializer = AnalyticsSummarySerializer(summary)
+        response = Response(serializer.data)
         response["Cache-Control"] = _PRIVATE_NO_STORE
         return response
 

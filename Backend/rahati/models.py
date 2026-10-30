@@ -246,6 +246,35 @@ class WeeklySummary(models.Model):
         ]
 
 
+class AnalyticsSummary(models.Model):
+    class Language(models.TextChoices):
+        ENGLISH = "en", "English"
+        ARABIC = "ar", "Arabic"
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="analytics_summaries")
+    range = models.PositiveSmallIntegerField(
+        choices=[(7, "7 days"), (30, "30 days"), (90, "90 days")],
+        help_text="Selected range in days (7, 30, or 90).",
+    )
+    language = models.CharField(
+        max_length=2,
+        choices=Language.choices,
+        default=Language.ENGLISH,
+    )
+    body = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "-created_at"]),
+            models.Index(fields=["user", "range", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"AnalyticsSummary(user={self.user_id}, range={self.range}, created_at={self.created_at})"
+
+
 class UserPattern(models.Model):
     """A pattern the rules engine detected for a user in a date window."""
 
