@@ -165,6 +165,21 @@ class SessionMeetingTests(TestCase):
         self.assertEqual(session.status, Session.Status.REQUESTED)
         self.assertIsNone(session.meeting_link)
 
+    def test_patient_can_cancel_own_requested_session(self):
+        booked = self.book()
+        cancelled = self.client_for(self.patient).patch(
+            f"/api/sessions/{booked.data['id']}",
+            {"status": "cancelled"},
+            format="json",
+        )
+
+        self.assertEqual(cancelled.status_code, 200, cancelled.data)
+        self.assertEqual(cancelled.data["status"], Session.Status.CANCELLED)
+        self.assertEqual(
+            Session.objects.get(pk=booked.data["id"]).status,
+            Session.Status.CANCELLED,
+        )
+
     def test_cancelling_accepted_session_hides_previously_generated_link(self):
         booked = self.book()
         accepted = self.accept(booked.data["id"])
