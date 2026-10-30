@@ -1495,7 +1495,9 @@ class SessionUpdateView(APIView):
     @transaction.atomic
     def patch(self, request, pk):
         session = get_object_or_404(
-            Session.objects.select_for_update().select_related("slot__professional__professional_profile"),
+            Session.objects.select_for_update(of=("self",)).select_related(
+                "slot__professional__professional_profile"
+            ),
             pk=pk,
         )
         u = request.user
