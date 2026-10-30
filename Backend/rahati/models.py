@@ -48,8 +48,9 @@ class User(AbstractUser):
         ADMIN = "admin"
 
     class Language(models.TextChoices):
-        ARABIC = "ar"
-        FRENCH = "fr"
+        ENGLISH = "en", "English"
+        FRENCH = "fr", "French"
+        ARABIC = "ar", "Arabic"
 
     first_name = None  # no real names needed: anonymity first
     last_name = None
