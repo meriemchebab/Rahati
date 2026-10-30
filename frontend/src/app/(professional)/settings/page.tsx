@@ -660,13 +660,13 @@ export default function SettingsPage() {
                             aria-checked={enabled}
                             aria-label={item.title}
                             onClick={() => toggleNotification(item.key)}
-                            className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
+                            className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 ${
                               enabled ? "bg-[#A99AE8]" : "bg-[#DDD6E8]"
                             }`}
                           >
                             <span
-                              className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
-                                enabled ? "translate-x-6" : "translate-x-1"
+                              className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow-sm transition-all duration-200 ${
+                                enabled ? "left-[26px]" : "left-[2px]"
                               }`}
                             />
                           </button>
