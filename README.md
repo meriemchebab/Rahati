@@ -417,10 +417,9 @@ woman's topic tags from the latest 14 local days. Woman-facing card responses us
 `Cache-Control: private, no-store`.
 
 From `Backend/`, `uv run python manage.py seed_starter_cards` seeds the six existing
-pattern cards plus nine topic demo cards, all as drafts, and seeds the fixed topic
-vocabulary if needed. Demo placeholders can only be published in a `DEBUG=True`
-environment with `uv run python manage.py seed_starter_cards --publish-demo`;
-replace and review placeholder text before publishing content for real users.
+pattern cards plus nine topic demo cards, publishes them for the woman-facing API,
+and seeds the fixed topic vocabulary if needed. The fixture contains demo placeholder
+content; review and replace it before serving real users.
 
 ### Specified (not yet built)
 

@@ -7,7 +7,7 @@ from django.contrib import admin
 from django.contrib.admin.sites import AdminSite
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import RequestFactory, TestCase
 
 from rahati.admin import ContentCardAdmin, TopicAdmin, TopicTranslationInline, publish_cards
 from rahati.management.commands.seed_starter_cards import FIXTURE_PATH
@@ -31,7 +31,7 @@ def fixture_entries():
 
 
 class SeedStarterCardsTests(TestCase):
-    def test_seed_creates_nine_demo_cards_and_leaves_six_pattern_cards_untouched(self):
+    def test_seed_creates_and_publishes_nine_demo_cards_and_six_pattern_cards(self):
         entries = fixture_entries()
         pattern_entries = [entry for entry in entries if "pattern" in entry]
         topic_entries = [entry for entry in entries if "topic" in entry]
@@ -44,13 +44,14 @@ class SeedStarterCardsTests(TestCase):
         call_command("seed_starter_cards")
 
         self.assertEqual(ContentCard.objects.count(), 15)
-        self.assertEqual(ContentCard.objects.filter(status="draft").count(), 15)
+        self.assertEqual(ContentCard.objects.filter(status="published").count(), 15)
+        self.assertFalse(ContentCard.objects.filter(status="draft").exists())
         self.assertEqual(ContentCard.objects.filter(topic__isnull=False).count(), 9)
         self.assertEqual(Topic.objects.count(), 7)
         for key, translations in expected_existing_texts.items():
             card = ContentCard.objects.get(starter_key=key)
             self.assertIsNone(card.topic_id)
-            self.assertEqual(card.status, ContentCard.Status.DRAFT)
+            self.assertEqual(card.status, ContentCard.Status.PUBLISHED)
             self.assertEqual(
                 {
                     translation.language: {
@@ -68,7 +69,7 @@ class SeedStarterCardsTests(TestCase):
         for entry in topic_entries:
             card = ContentCard.objects.get(starter_key=entry["starter_key"])
             self.assertEqual(card.topic.code, entry["topic"])
-            self.assertEqual(card.status, ContentCard.Status.DRAFT)
+            self.assertEqual(card.status, ContentCard.Status.PUBLISHED)
             self.assertEqual(
                 set(card.translations.values_list("language", flat=True)),
                 {"ar", "fr"},
@@ -113,6 +114,21 @@ class SeedStarterCardsTests(TestCase):
             initial,
         )
 
+    def test_default_seed_publishes_cards_to_the_woman_facing_api(self):
+        call_command("seed_starter_cards")
+        woman = User.objects.create_user(
+            username="seeded_cards_woman", role="user", language="fr"
+        )
+
+        suggestions = api(woman).get("/api/content-cards")
+        self.assertEqual(suggestions.status_code, 200)
+        self.assertGreater(len(suggestions.data), 0)
+        self.assertTrue(all(card["source"] == "platform" for card in suggestions.data))
+
+        library = api(woman).get("/api/content-cards/library")
+        self.assertEqual(library.status_code, 200)
+        self.assertEqual(library.data["count"], 15)
+
     def test_unknown_topic_code_errors_before_writing_anything(self):
         entries = fixture_entries()
         entries.append(
@@ -141,6 +157,8 @@ class SeedStarterCardsTests(TestCase):
         entries = fixture_entries()
         topic_entry = next(entry for entry in entries if entry.get("topic") == "sleep")
         draft = ContentCard.objects.get(starter_key=topic_entry["starter_key"])
+        draft.status = ContentCard.Status.DRAFT
+        draft.save(update_fields=["status"])
         published_entry = next(entry for entry in entries if entry.get("pattern"))
         published = ContentCard.objects.get(starter_key=published_entry["starter_key"])
         published.status = ContentCard.Status.PUBLISHED
@@ -162,44 +180,21 @@ class SeedStarterCardsTests(TestCase):
             draft.translations.get(language="ar").title,
             "[DEMO] Updated sleep card",
         )
+        self.assertEqual(draft.status, ContentCard.Status.PUBLISHED)
         self.assertNotEqual(published.translations.get(language="ar").title, "Must not update published")
 
-    @override_settings(DEBUG=False)
-    def test_demo_publish_requires_debug_and_writes_nothing_when_refused(self):
-        with self.assertRaises(CommandError):
-            call_command("seed_starter_cards", "--publish-demo")
-        self.assertEqual(ContentCard.objects.count(), 0)
-        self.assertEqual(Topic.objects.count(), 0)
-
-    @override_settings(DEBUG=True)
-    def test_demo_publish_is_explicit_and_bypasses_demo_markers_only(self):
+    def test_seed_promotes_existing_drafts_but_preserves_removed_cards(self):
         call_command("seed_starter_cards")
-        self.assertFalse(ContentCard.objects.exclude(status="draft").exists())
-        self.assertTrue(
-            all("[DEMO]" in card.translations.first().title
-                for card in ContentCard.objects.filter(topic__isnull=False))
-        )
+        cards = list(ContentCard.objects.order_by("id"))
+        cards[0].status = ContentCard.Status.DRAFT
+        cards[0].save(update_fields=["status"])
+        cards[1].status = ContentCard.Status.REMOVED
+        cards[1].save(update_fields=["status"])
 
-        request = RequestFactory().post("/admin/")
-        request.user = User(username="staff", is_staff=True)
-        model_admin = ContentCardAdmin(ContentCard, AdminSite())
-        model_admin.message_user = Mock()
-        publish_cards(
-            model_admin,
-            request,
-            ContentCard.objects.filter(topic__isnull=False),
-        )
-        self.assertTrue(
-            all(
-                "draft marker" in call.args[1]
-                for call in model_admin.message_user.call_args_list
-            )
-        )
-        self.assertFalse(ContentCard.objects.exclude(status="draft").exists())
+        call_command("seed_starter_cards")
 
-        call_command("seed_starter_cards", "--publish-demo")
-
-        self.assertEqual(ContentCard.objects.filter(status="published").count(), 15)
+        self.assertEqual(ContentCard.objects.filter(status="published").count(), 14)
+        self.assertEqual(ContentCard.objects.get(pk=cards[1].pk).status, ContentCard.Status.REMOVED)
 
 
 class TopicAndCardAdminTests(TestCase):
@@ -296,9 +291,8 @@ class TopicAndCardAdminTests(TestCase):
         self.assertContains(response, "topic_sleep_1")
         self.assertNotContains(response, "topic_family_1")
 
-    @override_settings(DEBUG=True)
     def test_all_topics_have_a_card_and_full_flow_after_demo_seed(self):
-        call_command("seed_starter_cards", "--publish-demo")
+        call_command("seed_starter_cards")
         woman = User.objects.create_user(
             username="topic_smoke_woman", role="user", language="ar"
         )

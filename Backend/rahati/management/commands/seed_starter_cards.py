@@ -1,17 +1,15 @@
 """Management command: seed_starter_cards.
 
-Creates the 6 platform starter cards from the fixture file. Idempotent.
+Seeds and publishes the platform starter cards from the fixture file. Idempotent.
 
 Usage:
     python manage.py seed_starter_cards
-    python manage.py seed_starter_cards --update       # update translations of draft cards
-    python manage.py seed_starter_cards --publish-demo # publish (DEBUG=True only)
+    python manage.py seed_starter_cards --update  # update translations of draft cards
 """
 import json
 from pathlib import Path
 from io import StringIO
 
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
@@ -29,15 +27,8 @@ class Command(BaseCommand):
             action="store_true",
             help="Overwrite translations of cards that are still in draft.",
         )
-        parser.add_argument(
-            "--publish-demo",
-            action="store_true",
-            help="Publish the seeded cards (only works when DEBUG=True).",
-        )
-
     def handle(self, *args, **options):
         update = options["update"]
-        publish_demo = options["publish_demo"]
 
         # Load and validate fixture
         with open(FIXTURE_PATH, encoding="utf-8") as f:
@@ -55,13 +46,9 @@ class Command(BaseCommand):
                     f"Fixture entry '{entry['starter_key']}' has unknown topic '{topic_code}'."
                 )
 
-        if publish_demo and not settings.DEBUG:
-            raise CommandError(
-                "--publish-demo is only available when settings.DEBUG is True."
-            )
-
         created = 0
         updated = 0
+        published = 0
 
         with transaction.atomic():
             # Keep the seed command self-sufficient while preserving all-or-nothing writes.
@@ -90,7 +77,7 @@ class Command(BaseCommand):
                         "pattern_type": pt,
                         "topic": topic,
                         "author": None,
-                        "status": ContentCard.Status.DRAFT,
+                        "status": ContentCard.Status.PUBLISHED,
                     },
                 )
 
@@ -123,14 +110,16 @@ class Command(BaseCommand):
                         )
                     updated += 1
 
-                if publish_demo and card.status == ContentCard.Status.DRAFT:
-                    # Only allowed in DEBUG mode; bypasses draft-marker guard
+                # Seeded fixture cards are intended for the woman-facing demo API.
+                # Promote legacy seeded drafts, but preserve editorial archive/removal.
+                if card.status == ContentCard.Status.DRAFT:
                     card.status = ContentCard.Status.PUBLISHED
                     card.save(update_fields=["status", "updated_at"])
+                    published += 1
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Done. Created: {created}, updated: {updated}."
+                f"Done. Created: {created}, updated: {updated}, published: {published}."
             )
         )
 
