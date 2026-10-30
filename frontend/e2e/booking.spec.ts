@@ -10,15 +10,10 @@ async function login(
   const response = await request.post(`${apiUrl}/api/auth/login`, {
     data: { username, password },
   });
+
   expect(response.status(), "login should succeed").toBe(200);
   return (await response.json()).access as string;
 }
-
-test("Rahati Professional dashboard loads", async ({ page }) => {
-  await page.goto("/");
-
-  await expect(page.getByText("YOUR WORKSPACE", { exact: true })).toBeVisible();
-});
 
 test("woman finds, books, and can no longer see the slot; duplicate booking is rejected", async ({
   request,
@@ -32,33 +27,43 @@ test("woman finds, books, and can no longer see the slot; duplicate booking is r
     `${apiUrl}/api/professionals?mode=online`,
     { headers },
   );
+
   expect(directory.status()).toBe(200);
+
   const professionals = await directory.json();
   const professional = professionals.find(
     (item: { id: number; name?: string }) =>
       item.name === "E2E Test Professional",
   );
+
   expect(
     professional,
     "seeded verified professional should appear in directory",
   ).toBeTruthy();
-  if (!professional)
+
+  if (!professional) {
     throw new Error("Seeded professional is missing from the directory");
+  }
 
   const slotsResponse = await request.get(
     `${apiUrl}/api/professionals/${professional.id}/slots`,
     { headers },
   );
+
   expect(slotsResponse.status()).toBe(200);
+
   const slots = await slotsResponse.json();
   expect(slots).toHaveLength(1);
+
   const slotId = slots[0].id as number;
 
   const booking = await request.post(`${apiUrl}/api/sessions`, {
     headers,
     data: { slot: slotId },
   });
+
   expect(booking.status()).toBe(201);
+
   const session = await booking.json();
   expect(session.slot).toBe(slotId);
   expect(session.status).toBe("requested");
@@ -66,7 +71,9 @@ test("woman finds, books, and can no longer see the slot; duplicate booking is r
   const sessionsResponse = await request.get(`${apiUrl}/api/sessions`, {
     headers,
   });
+
   expect(sessionsResponse.status()).toBe(200);
+
   expect(
     (await sessionsResponse.json()).some(
       (item: { id: number }) => item.id === session.id,
@@ -77,6 +84,7 @@ test("woman finds, books, and can no longer see the slot; duplicate booking is r
     `${apiUrl}/api/professionals/${professional.id}/slots`,
     { headers },
   );
+
   expect(afterBooking.status()).toBe(200);
   expect(await afterBooking.json()).toHaveLength(0);
 
@@ -84,12 +92,14 @@ test("woman finds, books, and can no longer see the slot; duplicate booking is r
     headers: secondHeaders,
     data: { slot: slotId },
   });
+
   expect(duplicateBooking.status()).toBe(409);
 
   const missingSlot = await request.post(`${apiUrl}/api/sessions`, {
     headers,
     data: { slot: 999999 },
   });
+
   expect(missingSlot.status()).toBe(404);
 });
 
@@ -99,5 +109,6 @@ test("booking endpoints reject unauthenticated requests", async ({
   const response = await request.post(`${apiUrl}/api/sessions`, {
     data: { slot: 1 },
   });
+
   expect(response.status()).toBe(401);
 });

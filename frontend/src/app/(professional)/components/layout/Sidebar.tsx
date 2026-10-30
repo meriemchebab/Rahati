@@ -11,7 +11,10 @@ import {
   Bell,
   X,
   ChevronRight,
+  LogOut,
 } from "lucide-react";
+
+import { useAuth } from "@/components/auth/AuthContext";
 
 interface SidebarProps {
   open: boolean;
@@ -38,6 +41,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { user, profile, signOut } = useAuth();
 
   const routes: Record<string, string> = {
     Overview: "/",
@@ -49,7 +53,19 @@ export default function Sidebar({
 
   const currentPage =
     Object.entries(routes).find(([, route]) => route === pathname)?.[0] ??
+    selectedPage ??
     "Overview";
+
+  const professionalName =
+    profile?.display_name || user?.nickname || "Professional";
+
+  const initials = professionalName
+    .replace(/^(Dr\.?|Doctor)\s+/i, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join("");
 
   function navigateToPage(label: string) {
     onNavigate(label);
@@ -62,9 +78,14 @@ export default function Sidebar({
     }
   }
 
+  function handleLogout() {
+    signOut();
+    onClose();
+    router.replace("/login");
+  }
+
   return (
     <>
-      {/* Mobile overlay */}
       {open && (
         <button
           type="button"
@@ -87,7 +108,7 @@ export default function Sidebar({
             className="flex items-center gap-3 text-left"
             aria-label="Go to Overview"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl  text-white">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl text-white">
               <Image
                 src="/images/rahati-logo.svg"
                 alt="Rahati logo"
@@ -184,24 +205,31 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Professional profile */}
+        {/* Professional profile and logout */}
         <div className="shrink-0 border-t border-rahati-mauve/10 p-4">
           <div className="flex items-center gap-3 rounded-xl px-2 py-2">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rahati-lavender text-[12px] font-semibold text-rahati-plum">
-              SS
+              {initials || "P"}
             </div>
 
             <div className="min-w-0 flex-1">
               <p className="truncate text-[12px] font-semibold text-rahati-plum">
-                Dr. Sarah
+                {professionalName}
               </p>
               <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
                 Mental health professional
               </p>
             </div>
-
-            <Settings size={16} className="shrink-0 text-muted-foreground" />
           </div>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-3 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-700"
+          >
+            <LogOut size={17} />
+            <span>Log out</span>
+          </button>
         </div>
       </aside>
     </>
