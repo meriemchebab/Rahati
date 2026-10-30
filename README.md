@@ -10,21 +10,23 @@ A private mental-wellbeing platform for Algerian women. A woman can understand h
 
 1. [Principles](#principles)
 2. [What the product does](#what-the-product-does)
-3. [AI and analytics](#ai-and-analytics)
-4. [Architecture](#architecture)
-5. [Backend structure](#backend-structure)
-6. [Data model](#data-model)
-7. [Key flows](#key-flows)
-8. [Roles and permissions](#roles-and-permissions)
-9. [API overview](#api-overview)
-10. [Security and privacy](#security-and-privacy)
-11. [Getting started](#getting-started)
-12. [Testing](#testing)
-13. [Key decisions](#key-decisions)
-14. [Roadmap](#roadmap)
-15. [Contributing](#contributing)
-16. [Glossary](#glossary)
-17. [License](#license)
+3. [Research Background & Data Collection](#research-background--data-collection)
+4. [AI and analytics](#ai-and-analytics)
+5. [Architecture](#architecture)
+6. [Backend structure](#backend-structure)
+7. [Data model](#data-model)
+8. [Key flows](#key-flows)
+9. [Roles and permissions](#roles-and-permissions)
+10. [API overview](#api-overview)
+11. [Security and privacy](#security-and-privacy)
+12. [Getting started](#getting-started)
+13. [Testing](#testing)
+14. [Key decisions](#key-decisions)
+15. [Roadmap](#roadmap)
+16. [Contributing](#contributing)
+17. [Glossary](#glossary)
+18. [License](#license)
+19. [References](#references)
 
 ---
 
@@ -58,6 +60,81 @@ Three personas use the platform:
 | **Admin** | Django admin | Verifies professionals, reviews credentials, manages content |
 
 Audit events are recorded in the database, but there is no admin page for browsing them yet.
+
+## Research Background & Data Collection
+
+### 1. Research Gap and Data Limitations
+
+Women's mental health remains an underexplored research area. During our literature review, we identified a limited number of studies and datasets specifically addressing this topic.
+
+One of the datasets identified was **mcPHASES (Lin et al., 2025)**, which explores the relationship between menstrual cycle phases and related symptoms, including mood swings.
+
+However, its available mental health indicators do not capture every dimension of women's mental well-being. This highlights the need for more comprehensive data to better understand women's mental health challenges and experiences.
+
+
+### 2. User Needs Assessment and Data Collection
+
+To complement our literature review and better understand women's real-life experiences, we conducted an online survey.
+
+The questionnaire was designed and distributed by the Rahati project team across several online platforms
+
+**Data collection overview:**
+
+| Parameter | Description |
+|---|---|
+| Method | Online questionnaire |
+| Participants | 40 women |
+| Distribution | Multiple online platforms |
+| Target population | Women |
+| Objective | Identify mental well-being challenges, barriers to support, and user expectations |
+
+### 3. Key Findings
+
+The survey provided initial insights into women's main challenges and expectations.
+
+#### 3.1. Main Challenges
+
+| Challenge | Percentage |
+|---|---:|
+| Difficulty finding a trusted mental health professional | 40% |
+| Difficulty understanding emotions | 37.5% |
+| Cost of consultations | 27.5% |
+| Lack of time | 27.5% |
+| Lack of reliable mental health information | 25% |
+
+#### 3.2. User Expectations
+
+| Expectation | Percentage |
+|---|---:|
+| Privacy and confidentiality | 72.5% |
+| Free or affordable services | 67.5% |
+| Option to remain anonymous | 50% |
+| Access to a verified woman psychologist or therapist | 47.5% |
+| Practical exercises and personal goals | 45% |
+
+### 4. Implications for Rahati
+
+These findings helped identify user needs that informed the design priorities of Rahati:
+
+| Identified User Need | Related Rahati Feature |
+|---|---|
+| Better understanding of emotions | Daily mood and energy tracking |
+| Personalized support | Self-care exercises and educational content |
+| Understanding mood changes | Optional menstrual cycle and mood tracking |
+| Access to reliable professional support | Access to trusted women's mental health professionals |
+| Privacy and confidentiality | Privacy-focused user experience |
+
+### 5. Limitations and Future Perspectives
+
+This survey is exploratory and has several limitations:
+
+- The sample size is limited to 40 respondents.
+- The survey is exploratory and does not represent the entire female population.
+- The collected responses reflect participants' self-reported experiences and expectations.
+
+Future work could focus on collecting more diverse data, expanding the number of participants, and exploring additional indicators related to women's mental well-being.
+
+**Overall, the literature review and exploratory survey helped identify a research gap and provided initial user-driven insights to guide the development of Rahati.**
 
 ## AI and analytics
 
@@ -737,3 +814,5 @@ Suggested build order (each item depends on the earlier ones):
 ## License
 
 See [LICENSE](LICENSE).
+## References 
+- Lin, B., Li, J. Y., Kalani, K., Truong, K., & Mariakakis, A. (2025). *mcPHASES: A Dataset of Physiological, Hormonal, and Self-reported Events and Symptoms for Menstrual Health Tracking with Wearables*. PhysioNet, Version 1.0.0. [https://doi.org/10.13026/zx6a-2c81](https://doi.org/10.13026/zx6a-2c81)
