@@ -113,12 +113,12 @@ export default function AvailabilityDialog({
             onClick={onSave}
             className="w-full rounded-xl bg-rahati-mauve px-4 py-3 text-sm font-medium text-white transition hover:bg-rahati-mauve-dark"
           >
-            Save demo availability
+            Save availability
           </button>
 
           <p className="text-xs leading-5 text-muted-foreground">
-            Demo only. This does not publish a real appointment slot or send
-            information to a server.
+            Your availability will be saved to your professional calendar. Each
+            slot lasts one hour.
           </p>
         </div>
       </section>

@@ -5,25 +5,26 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
-  UsersRound,
   X,
 } from "lucide-react";
 
-import type { PatientRequest, RequestStatus } from "@/types/dashboard";
+import type { ProfessionalSession } from "@/lib/professional-api";
 
 interface IncomingRequestsProps {
-  requests: PatientRequest[];
-  onUpdateRequest: (id: number, status: RequestStatus) => void;
+  requests: ProfessionalSession[];
+  updatingSessionId: number | null;
+  onUpdateRequest: (id: number, status: "accepted" | "declined") => void;
   onViewAll: () => void;
 }
 
 export default function IncomingRequests({
   requests,
+  updatingSessionId,
   onUpdateRequest,
   onViewAll,
 }: IncomingRequestsProps) {
   const pendingRequests = requests.filter(
-    (request) => request.status === "Pending",
+    (request) => request.status === "requested",
   );
 
   return (
@@ -34,7 +35,7 @@ export default function IncomingRequests({
             Incoming requests
           </h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Review appointment requests from women.
+            Review appointment requests.
           </p>
         </div>
 
@@ -59,80 +60,75 @@ export default function IncomingRequests({
             </p>
           </div>
         ) : (
-          pendingRequests.map((request) => (
-            <div
-              key={request.id}
-              className="rounded-2xl bg-[#faf5f9] p-4 transition-colors hover:bg-[#f7eef5] sm:p-5"
-            >
-              {/* Patient information */}
-              <div className="flex items-start gap-3">
-                <div
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${request.color}`}
-                >
-                  {request.initials}
-                </div>
+          pendingRequests.map((request) => {
+            const isUpdating = updatingSessionId === request.id;
 
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
+            return (
+              <div
+                key={request.id}
+                className="rounded-2xl bg-[#faf5f9] p-4 transition-colors hover:bg-[#f7eef5] sm:p-5"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
                     <h4 className="text-sm font-semibold text-rahati-plum">
-                      {request.name}
+                      Appointment request
                     </h4>
 
-                    <span className="rounded-full bg-[#fbf2df] px-2.5 py-1 text-[10px] font-medium text-[#99783e]">
-                      Pending
-                    </span>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Session #{request.id}
+                    </p>
                   </div>
 
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {request.age} years old · Requested {request.date}
+                  <span className="rounded-full bg-[#fbf2df] px-2.5 py-1 text-[10px] font-medium text-[#99783e]">
+                    Pending
+                  </span>
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  <p className="inline-flex items-center gap-2 text-xs text-rahati-plum">
+                    <CalendarDays size={14} className="text-rahati-mauve" />
+                    {new Date(request.starts_at).toLocaleDateString(undefined, {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </p>
+
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(request.starts_at).toLocaleTimeString(undefined, {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                    {" · "}
+                    {request.mode === "online" ? "Online" : "In person"}
                   </p>
                 </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={isUpdating}
+                    onClick={() => onUpdateRequest(request.id, "accepted")}
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-rahati-mauve px-3 py-2.5 text-xs font-semibold text-white transition hover:bg-rahati-mauve-dark disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Check size={15} />
+                    {isUpdating ? "Updating..." : "Accept"}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isUpdating}
+                    onClick={() => onUpdateRequest(request.id, "declined")}
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-white px-3 py-2.5 text-xs font-semibold text-[#a35e68] transition hover:bg-[#fcf1f1] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <X size={15} />
+                    Decline
+                  </button>
+                </div>
               </div>
-
-              {/* Appointment details */}
-              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-                <span className="inline-flex items-center gap-1.5 text-xs text-rahati-plum">
-                  <CalendarDays size={14} className="text-rahati-mauve" />
-                  Requested time: {request.time}
-                </span>
-
-                <span
-                  className={`inline-flex items-center gap-1.5 text-xs ${
-                    request.returningPatient
-                      ? "text-[#806b9a]"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  <UsersRound size={14} />
-
-                  {request.returningPatient
-                    ? "Returning patient"
-                    : "First session"}
-                </span>
-              </div>
-
-              {/* Request actions */}
-              <div className="mt-5 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => onUpdateRequest(request.id, "Accepted")}
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-rahati-mauve px-3 py-2.5 text-xs font-semibold text-white transition hover:bg-rahati-mauve-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rahati-mauve focus-visible:ring-offset-2"
-                >
-                  <Check size={15} />
-                  Accept
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => onUpdateRequest(request.id, "Declined")}
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-white px-3 py-2.5 text-xs font-semibold text-[#a35e68] transition hover:bg-[#fcf1f1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d8a8ad] focus-visible:ring-offset-2"
-                >
-                  <X size={15} />
-                  Decline
-                </button>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -142,7 +138,8 @@ export default function IncomingRequests({
           onClick={onViewAll}
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-rahati-mauve-dark hover:underline"
         >
-          View all requests <ChevronRight size={15} />
+          View all requests
+          <ChevronRight size={15} />
         </button>
       </div>
     </article>
