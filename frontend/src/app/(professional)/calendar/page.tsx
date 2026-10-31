@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
@@ -11,39 +18,60 @@ import {
   Plus,
   X,
   CheckCircle2,
-  UserRound,
   CalendarCheck,
   CalendarPlus,
   Trash2,
   Check,
   LayoutGrid,
+  RefreshCw,
 } from "lucide-react";
 
 import DashboardLayout from "../components/layout/DashboardLayout";
+import {
+  getCalendar,
+  getSessions,
+  createSlot,
+  deleteSlot,
+  updateSession,
+  type CalendarItem,
+  type ProfessionalSession,
+  type SessionStatus,
+  type SessionMode,
+} from "@/lib/professional-api";
 
 // --------------------------------------------------
 // Types
 // --------------------------------------------------
 
-type AppointmentStatus = "Free" | "Pending" | "Accepted" | "Completed";
+type EventStatus =
+  | "Free"
+  | "Pending"
+  | "Accepted"
+  | "Completed"
+  | "Declined"
+  | "Cancelled";
+
 type CalendarView = "Week" | "Month";
 
 interface CalendarEvent {
   id: number;
+  key: string;
   date: string;
   start: string;
   end: string;
   title: string;
   subtitle: string;
-  status: AppointmentStatus;
+  status: EventStatus;
+  kind: "slot" | "session";
+  mode: SessionMode;
 }
 
 // --------------------------------------------------
-// Global CSS color tokens
+// Constants
 // --------------------------------------------------
 
 const STATUS_STYLES: Record<
-  AppointmentStatus,
+  EventStatus,
   { background: string; text: string; border: string }
 > = {
   Free: {
@@ -66,10 +94,19 @@ const STATUS_STYLES: Record<
     text: "var(--calendar-completed-text)",
     border: "var(--calendar-completed-border)",
   },
+  Declined: {
+    background: "var(--calendar-completed-bg)",
+    text: "var(--calendar-completed-text)",
+    border: "var(--calendar-completed-border)",
+  },
+  Cancelled: {
+    background: "var(--calendar-surface-muted)",
+    text: "var(--calendar-text-muted)",
+    border: "var(--calendar-border)",
+  },
 };
 
 const HOURS = Array.from({ length: 8 }, (_, index) => index + 9);
-
 const SHORT_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 // --------------------------------------------------
@@ -86,16 +123,13 @@ function dateKey(date: Date): string {
 
 function parseDate(value: string): Date {
   const [year, month, day] = value.split("-").map(Number);
-
   return new Date(year, month - 1, day);
 }
 
 function startOfWeek(date: Date): Date {
   const result = new Date(date);
-
   result.setHours(0, 0, 0, 0);
   result.setDate(result.getDate() - result.getDay());
-
   return result;
 }
 
@@ -120,13 +154,8 @@ function formatRange(days: Date[]): string {
   const first = days[0];
   const last = days[6];
 
-  const firstMonth = first.toLocaleDateString("en", {
-    month: "short",
-  });
-
-  const lastMonth = last.toLocaleDateString("en", {
-    month: "short",
-  });
+  const firstMonth = first.toLocaleDateString("en", { month: "short" });
+  const lastMonth = last.toLocaleDateString("en", { month: "short" });
 
   if (first.getFullYear() !== last.getFullYear()) {
     return `${firstMonth} ${first.getDate()}, ${first.getFullYear()} – ${lastMonth} ${last.getDate()}, ${last.getFullYear()}`;
@@ -150,9 +179,7 @@ function formatDateLong(date: Date): string {
 
 function formatHour(hour: number): string {
   const suffix = hour >= 12 ? "PM" : "AM";
-  const twelveHour = hour % 12 || 12;
-
-  return `${twelveHour}:00 ${suffix}`;
+  return `${hour % 12 || 12}:00 ${suffix}`;
 }
 
 function isWeekend(date: Date): boolean {
@@ -169,88 +196,100 @@ function getNextWorkingDay(date: Date): Date {
   return result;
 }
 
+function toLocalDateTime(date: string, time: string): string {
+  const [year, month, day] = date.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+
+  return new Date(year, month - 1, day, hour, minute).toISOString();
+}
+
+function getTimeFromISO(value: string): string {
+  const date = new Date(value);
+
+  return `${String(date.getHours()).padStart(2, "0")}:${String(
+    date.getMinutes(),
+  ).padStart(2, "0")}`;
+}
+
+function getDateFromISO(value: string): string {
+  return dateKey(new Date(value));
+}
+
+function getEndTime(start: string, end?: string): string {
+  if (end) return getTimeFromISO(end);
+
+  const date = new Date(start);
+  date.setHours(date.getHours() + 1);
+
+  return `${String(date.getHours()).padStart(2, "0")}:${String(
+    date.getMinutes(),
+  ).padStart(2, "0")}`;
+}
+
+function mapSessionStatus(status: SessionStatus): EventStatus {
+  switch (status) {
+    case "requested":
+      return "Pending";
+    case "accepted":
+      return "Accepted";
+    case "completed":
+      return "Completed";
+    case "declined":
+      return "Declined";
+    case "cancelled":
+      return "Cancelled";
+    default:
+      return "Pending";
+  }
+}
+
+function mapCalendarState(state: string): EventStatus {
+  const normalized = state.toLowerCase();
+
+  if (normalized === "requested" || normalized === "pending") return "Pending";
+  if (normalized === "accepted" || normalized === "booked") return "Accepted";
+  if (normalized === "completed") return "Completed";
+  if (normalized === "declined") return "Declined";
+  if (normalized === "cancelled" || normalized === "canceled") {
+    return "Cancelled";
+  }
+
+  return "Pending";
+}
+
 // --------------------------------------------------
-// Prototype appointments
+// API data conversion
 // --------------------------------------------------
 
-function makeInitialEvents(referenceDate: Date): CalendarEvent[] {
-  const week = getWeekDays(referenceDate);
-  const makeDate = (dayIndex: number) => dateKey(week[dayIndex]);
+function calendarItemToEvent(item: CalendarItem): CalendarEvent {
+  return {
+    id: item.id,
+    key: `slot-${item.id}`,
+    date: getDateFromISO(item.starts_at),
+    start: getTimeFromISO(item.starts_at),
+    end: getTimeFromISO(item.ends_at),
+    title: item.free ? "Available slot" : "Booked slot",
+    subtitle: item.free ? "Open for booking" : item.state,
+    status: item.free ? "Free" : mapCalendarState(item.state),
+    kind: "slot",
+    mode: item.mode,
+  };
+}
 
-  return [
-    {
-      id: 1,
-      date: makeDate(0),
-      start: "09:00",
-      end: "10:00",
-      title: "Available slot",
-      subtitle: "Open for booking",
-      status: "Free",
-    },
-    {
-      id: 2,
-      date: makeDate(0),
-      start: "11:00",
-      end: "12:00",
-      title: "Sarah M.",
-      subtitle: "Initial consultation",
-      status: "Accepted",
-    },
-    {
-      id: 3,
-      date: makeDate(1),
-      start: "10:00",
-      end: "11:00",
-      title: "Available slot",
-      subtitle: "Open for booking",
-      status: "Free",
-    },
-    {
-      id: 4,
-      date: makeDate(1),
-      start: "14:00",
-      end: "15:00",
-      title: "Lina B.",
-      subtitle: "Follow-up session",
-      status: "Pending",
-    },
-    {
-      id: 5,
-      date: makeDate(2),
-      start: "09:00",
-      end: "10:00",
-      title: "Amel K.",
-      subtitle: "Individual session",
-      status: "Accepted",
-    },
-    {
-      id: 6,
-      date: makeDate(2),
-      start: "13:00",
-      end: "14:00",
-      title: "Available slot",
-      subtitle: "Open for booking",
-      status: "Free",
-    },
-    {
-      id: 7,
-      date: makeDate(3),
-      start: "11:00",
-      end: "12:00",
-      title: "Nour A.",
-      subtitle: "Follow-up session",
-      status: "Completed",
-    },
-    {
-      id: 8,
-      date: makeDate(4),
-      start: "10:00",
-      end: "11:00",
-      title: "Available slot",
-      subtitle: "Open for booking",
-      status: "Free",
-    },
-  ];
+function sessionToEvent(session: ProfessionalSession): CalendarEvent {
+  return {
+    id: session.id,
+    key: `session-${session.id}`,
+    date: getDateFromISO(session.starts_at),
+    start: getTimeFromISO(session.starts_at),
+    end: getEndTime(session.starts_at, session.ends_at),
+    title: "Patient session",
+    subtitle:
+      session.mode === "online" ? "Online session" : "In-person session",
+    status: mapSessionStatus(session.status),
+    kind: "session",
+    mode: session.mode,
+  };
 }
 
 // --------------------------------------------------
@@ -271,6 +310,9 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [todayKey, setTodayKey] = useState("");
 
+  const [loadingEvents, setLoadingEvents] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
   const [availabilityOpen, setAvailabilityOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
     null,
@@ -279,15 +321,16 @@ export default function CalendarPage() {
   const [formDate, setFormDate] = useState("");
   const [formStart, setFormStart] = useState("09:00");
   const [formEnd, setFormEnd] = useState("10:00");
+  const [formMode, setFormMode] = useState<SessionMode>("in_person");
   const [formError, setFormError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const today = new Date();
 
     setTodayKey(dateKey(today));
     setCalendarDate(today);
-    setEvents(makeInitialEvents(today));
     setFormDate(dateKey(getNextWorkingDay(today)));
 
     setFormattedDate(
@@ -299,26 +342,87 @@ export default function CalendarPage() {
       }).format(today),
     );
   }, []);
+
+  const weekDays = useMemo(
+    () => (calendarDate ? getWeekDays(calendarDate) : []),
+    [calendarDate],
+  );
+
+  const visibleStart = useMemo(() => {
+    if (!calendarDate) return null;
+
+    return calendarView === "Week"
+      ? weekDays[0]
+      : new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1);
+  }, [calendarDate, calendarView, weekDays]);
+
+  const visibleEnd = useMemo(() => {
+    if (!calendarDate) return null;
+
+    return calendarView === "Week"
+      ? weekDays[6]
+      : new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0);
+  }, [calendarDate, calendarView, weekDays]);
+
+  // Load real calendar slots and sessions from the backend.
+  const loadEvents = useCallback(async () => {
+    if (!visibleStart || !visibleEnd) return;
+
+    setLoadingEvents(true);
+    setLoadError("");
+
+    try {
+      const from = dateKey(visibleStart);
+      const to = dateKey(visibleEnd);
+
+      const [calendarResult, sessionsResult] = await Promise.all([
+        getCalendar(from, to),
+        getSessions(),
+      ]);
+
+      const slotEvents = calendarResult
+        .filter((item) => item.free)
+        .map(calendarItemToEvent);
+
+      const sessionEvents = sessionsResult
+        .filter((session) => {
+          const sessionDate = getDateFromISO(session.starts_at);
+          return sessionDate >= from && sessionDate <= to;
+        })
+        .map(sessionToEvent);
+
+      // Avoid displaying a session twice if the calendar endpoint also
+      // returns its occupied slot.
+      const sessionStartTimes = new Set(
+        sessionEvents.map((event) => `${event.date}-${event.start}`),
+      );
+
+      const filteredSlots = slotEvents.filter(
+        (event) => !sessionStartTimes.has(`${event.date}-${event.start}`),
+      );
+
+      setEvents([...filteredSlots, ...sessionEvents]);
+    } catch (error) {
+      console.error("Unable to load calendar:", error);
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load your calendar. Please try again.",
+      );
+    } finally {
+      setLoadingEvents(false);
+    }
+  }, [visibleStart, visibleEnd]);
+
+  useEffect(() => {
+    void loadEvents();
+  }, [loadEvents]);
+
   if (!calendarDate) {
     return null;
   }
 
-  const weekDays = getWeekDays(calendarDate);
-
-  const visibleStart =
-    calendarView === "Week"
-      ? weekDays[0]
-      : new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1);
-
-  const visibleEnd =
-    calendarView === "Week"
-      ? weekDays[6]
-      : new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0);
-
-  const visibleEvents = events.filter((event) => {
-    const eventDate = parseDate(event.date);
-    return eventDate >= visibleStart && eventDate <= visibleEnd;
-  });
+  const visibleEvents = events;
 
   const pendingRequests = visibleEvents.filter(
     (event) => event.status === "Pending",
@@ -330,17 +434,20 @@ export default function CalendarPage() {
 
   const upcomingSessions = visibleEvents.filter(
     (event) =>
+      event.kind === "session" &&
       event.status === "Accepted" &&
       (event.date > todayKey ||
         (event.date === todayKey &&
           event.end > new Date().toTimeString().slice(0, 5))),
   ).length;
 
-  const allPendingRequests = events.filter(
-    (event) => event.status === "Pending",
-  ).length;
+  const calendarLabel =
+    calendarView === "Week" ? formatRange(weekDays) : formatMonth(calendarDate);
 
+  // --------------------------------------------------
   // Navigation
+  // --------------------------------------------------
+
   function handleNavigate(label: string) {
     const routes: Record<string, string> = {
       Overview: "/",
@@ -358,7 +465,10 @@ export default function CalendarPage() {
     }
   }
 
+  // --------------------------------------------------
   // Calendar controls
+  // --------------------------------------------------
+
   function moveCalendar(direction: -1 | 1) {
     setCalendarDate((current) => {
       const next = new Date(current ?? new Date());
@@ -378,31 +488,27 @@ export default function CalendarPage() {
     setCalendarDate(new Date());
   }
 
+  // --------------------------------------------------
   // Availability
+  // --------------------------------------------------
+
   function openAvailability(date?: Date, hour?: number) {
     const proposedDate = date ?? calendarDate ?? new Date();
     const workingDate = getNextWorkingDay(proposedDate);
 
     setFormDate(dateKey(workingDate));
 
-    setFormStart(
-      hour !== undefined && !isWeekend(proposedDate)
-        ? `${String(hour).padStart(2, "0")}:00`
-        : "09:00",
-    );
+    const startHour = hour !== undefined && !isWeekend(proposedDate) ? hour : 9;
 
-    setFormEnd(
-      hour !== undefined && !isWeekend(proposedDate)
-        ? `${String(hour + 1).padStart(2, "0")}:00`
-        : "10:00",
-    );
+    setFormStart(`${String(startHour).padStart(2, "0")}:00`);
+    setFormEnd(`${String(startHour + 1).padStart(2, "0")}:00`);
 
+    setFormMode("in_person");
     setFormError("");
     setSuccessMessage("");
     setAvailabilityOpen(true);
   }
-
-  function saveAvailability(event: FormEvent<HTMLFormElement>) {
+  async function saveAvailability(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setFormError("");
@@ -454,58 +560,74 @@ export default function CalendarPage() {
       return;
     }
 
-    const newEvent: CalendarEvent = {
-      id: Date.now(),
-      date: formDate,
-      start: formStart,
-      end: formEnd,
-      title: "Available slot",
-      subtitle: "Open for booking",
-      status: "Free",
-    };
+    try {
+      setSaving(true);
 
-    setEvents((current) => [...current, newEvent]);
-    setCalendarDate(chosenDate);
-    setCalendarView("Week");
-    setAvailabilityOpen(false);
-    setSuccessMessage("Your availability has been added.");
+      await createSlot({
+        starts_at: toLocalDateTime(formDate, formStart),
+        ends_at: toLocalDateTime(formDate, formEnd),
+        mode: formMode,
+      });
+
+      setAvailabilityOpen(false);
+      setCalendarDate(chosenDate);
+      setCalendarView("Week");
+      setSuccessMessage("Your availability has been saved.");
+
+      await loadEvents();
+    } catch (error) {
+      setFormError(
+        error instanceof Error ? error.message : "Unable to save availability.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
+  // --------------------------------------------------
   // Appointment actions
-  function updateEventStatus(eventId: number, status: AppointmentStatus) {
-    setEvents((current) =>
-      current.map((event) => {
-        if (event.id !== eventId) return event;
+  // --------------------------------------------------
 
-        if (status === "Free") {
-          return {
-            ...event,
-            title: "Available slot",
-            subtitle: "Open for booking",
-            status,
-          };
-        }
+  async function updateEventStatus(
+    event: CalendarEvent,
+    status: SessionStatus,
+  ) {
+    if (event.kind !== "session") return;
 
-        return { ...event, status };
-      }),
-    );
+    try {
+      await updateSession(event.id, status);
 
-    setSelectedEvent(null);
+      setSelectedEvent(null);
+      setSuccessMessage("The session status has been updated.");
 
-    setSuccessMessage(
-      status === "Accepted"
-        ? "The appointment request has been accepted."
-        : status === "Completed"
-          ? "The session has been marked as completed."
-          : "The appointment status has been updated.",
-    );
+      await loadEvents();
+    } catch (error) {
+      setSuccessMessage("");
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : "Unable to update the session.",
+      );
+    }
   }
 
-  function removeAvailability(eventId: number) {
-    setEvents((current) => current.filter((event) => event.id !== eventId));
+  async function removeAvailability(event: CalendarEvent) {
+    if (event.kind !== "slot") return;
 
-    setSelectedEvent(null);
-    setSuccessMessage("The availability slot has been removed.");
+    try {
+      await deleteSlot(event.id);
+
+      setSelectedEvent(null);
+      setSuccessMessage("The availability slot has been removed.");
+
+      await loadEvents();
+    } catch (error) {
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : "Unable to remove the availability slot.",
+      );
+    }
   }
 
   function changeMonthViewDate(date: Date) {
@@ -513,14 +635,15 @@ export default function CalendarPage() {
     setCalendarView("Week");
   }
 
-  const calendarLabel =
-    calendarView === "Week" ? formatRange(weekDays) : formatMonth(calendarDate);
+  // --------------------------------------------------
+  // Render
+  // --------------------------------------------------
 
   return (
     <DashboardLayout
       sidebarOpen={sidebarOpen}
       selectedPage={selectedPage}
-      pendingRequests={allPendingRequests}
+      pendingRequests={pendingRequests}
       formattedDate={formattedDate}
       notificationsOpen={notificationsOpen}
       onNavigate={handleNavigate}
@@ -574,6 +697,25 @@ export default function CalendarPage() {
               className="rounded-lg p-1 transition hover:bg-white/70"
             >
               <X size={16} />
+            </button>
+          </div>
+        )}
+
+        {/* API error */}
+        {loadError && (
+          <div
+            role="alert"
+            className="flex flex-col gap-3 rounded-2xl border border-calendar-error-border bg-calendar-error-bg px-4 py-3 text-sm text-calendar-error-text sm:flex-row sm:items-center sm:justify-between"
+          >
+            <span>{loadError}</span>
+
+            <button
+              type="button"
+              onClick={() => void loadEvents()}
+              className="inline-flex items-center gap-2 self-start font-semibold hover:underline sm:self-auto"
+            >
+              <RefreshCw size={15} />
+              Try again
             </button>
           </div>
         )}
@@ -697,147 +839,158 @@ export default function CalendarPage() {
             </span>
           </div>
 
-          {/* Week view */}
-          {calendarView === "Week" ? (
-            <div className="overflow-x-auto">
-              <div className="min-w-[900px]">
-                <div className="grid grid-cols-[68px_repeat(7,minmax(0,1fr))] border-y border-calendar-border-soft">
-                  <div className="bg-calendar-surface-soft" />
+          {loadingEvents && (
+            <div className="flex items-center justify-center gap-2 py-8 text-sm text-calendar-text-muted">
+              <RefreshCw size={17} className="animate-spin" />
+              Loading your calendar...
+            </div>
+          )}
 
-                  {weekDays.map((day) => {
-                    const weekend = isWeekend(day);
-                    const isToday = dateKey(day) === todayKey;
+          {!loadingEvents && (
+            <>
+              {/* Week view */}
+              {calendarView === "Week" ? (
+                <div className="overflow-x-auto">
+                  <div className="min-w-[900px]">
+                    <div className="grid grid-cols-[68px_repeat(7,minmax(0,1fr))] border-y border-calendar-border-soft">
+                      <div className="bg-calendar-surface-soft" />
 
-                    return (
-                      <div
-                        key={dateKey(day)}
-                        className={`px-2 py-3 text-center ${
-                          weekend
-                            ? "bg-calendar-surface-soft"
-                            : "bg-calendar-surface"
-                        }`}
-                      >
-                        <p
-                          className={`text-xs font-medium ${
-                            weekend
-                              ? "text-calendar-text-weekend"
-                              : "text-calendar-text-muted"
-                          }`}
-                        >
-                          {SHORT_DAYS[day.getDay()]}
-                        </p>
+                      {weekDays.map((day) => {
+                        const weekend = isWeekend(day);
+                        const isToday = dateKey(day) === todayKey;
 
-                        <div
-                          className={`mx-auto mt-2 flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold ${
-                            isToday
-                              ? "bg-calendar-accent text-white"
-                              : weekend
-                                ? "text-calendar-text-weekend"
-                                : "text-rahati-plum"
-                          }`}
-                        >
-                          {day.getDate()}
-                        </div>
+                        return (
+                          <div
+                            key={dateKey(day)}
+                            className={`px-2 py-3 text-center ${
+                              weekend
+                                ? "bg-calendar-surface-soft"
+                                : "bg-calendar-surface"
+                            }`}
+                          >
+                            <p
+                              className={`text-xs font-medium ${
+                                weekend
+                                  ? "text-calendar-text-weekend"
+                                  : "text-calendar-text-muted"
+                              }`}
+                            >
+                              {SHORT_DAYS[day.getDay()]}
+                            </p>
 
-                        {weekend && (
-                          <p className="mt-1 text-[10px] text-calendar-text-weekend">
-                            Weekend
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                            <div
+                              className={`mx-auto mt-2 flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold ${
+                                isToday
+                                  ? "bg-calendar-accent text-white"
+                                  : weekend
+                                    ? "text-calendar-text-weekend"
+                                    : "text-rahati-plum"
+                              }`}
+                            >
+                              {day.getDate()}
+                            </div>
 
-                {HOURS.map((hour) => (
-                  <div
-                    key={hour}
-                    className="grid grid-cols-[68px_repeat(7,minmax(0,1fr))]"
-                  >
-                    <div className="flex min-h-[88px] justify-center bg-calendar-surface-soft px-1 pt-3 text-[11px] text-calendar-text-subtle">
-                      {formatHour(hour)}
+                            {weekend && (
+                              <p className="mt-1 text-[10px] text-calendar-text-weekend">
+                                Weekend
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
 
-                    {weekDays.map((day) => {
-                      const weekend = isWeekend(day);
-
-                      const slotEvents = events.filter(
-                        (event) =>
-                          event.date === dateKey(day) &&
-                          Number(event.start.split(":")[0]) === hour,
-                      );
-
-                      return (
-                        <div
-                          key={`${dateKey(day)}-${hour}`}
-                          className={`min-h-[88px] border-l border-t border-calendar-border-soft p-1 ${
-                            weekend
-                              ? "bg-calendar-surface-soft"
-                              : "bg-calendar-surface transition-colors hover:bg-calendar-surface-hover/50"
-                          }`}
-                        >
-                          {weekend ? (
-                            <div className="flex h-full items-center justify-center text-[10px] text-calendar-text-weekend">
-                              Weekend
-                            </div>
-                          ) : slotEvents.length > 0 ? (
-                            <div className="space-y-1">
-                              {slotEvents.map((event) => {
-                                const style = STATUS_STYLES[event.status];
-
-                                return (
-                                  <button
-                                    key={event.id}
-                                    type="button"
-                                    onClick={() => setSelectedEvent(event)}
-                                    aria-label={`${event.title}, ${event.status}, ${event.start} to ${event.end}`}
-                                    className="w-full rounded-lg border p-1.5 text-left transition hover:-translate-y-0.5 hover:shadow-sm sm:p-2"
-                                    style={{
-                                      backgroundColor: style.background,
-                                      borderColor: style.border,
-                                      color: style.text,
-                                    }}
-                                  >
-                                    <span className="block truncate text-[11px] font-semibold">
-                                      {event.title}
-                                    </span>
-
-                                    <span className="mt-1 block truncate text-[10px] opacity-80">
-                                      {event.start} – {event.end}
-                                    </span>
-
-                                    <span className="mt-1 block truncate text-[10px] opacity-80">
-                                      {event.status}
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => openAvailability(day, hour)}
-                              aria-label={`Add availability on ${formatDateLong(day)} at ${formatHour(hour)}`}
-                              className="flex h-full min-h-[78px] w-full items-center justify-center rounded-lg text-calendar-text-weekend transition hover:bg-calendar-surface-hover hover:text-calendar-accent focus:bg-calendar-surface-hover focus:text-calendar-accent"
-                            >
-                              <Plus size={17} />
-                            </button>
-                          )}
+                    {HOURS.map((hour) => (
+                      <div
+                        key={hour}
+                        className="grid grid-cols-[68px_repeat(7,minmax(0,1fr))]"
+                      >
+                        <div className="flex min-h-[88px] justify-center bg-calendar-surface-soft px-1 pt-3 text-[11px] text-calendar-text-subtle">
+                          {formatHour(hour)}
                         </div>
-                      );
-                    })}
+
+                        {weekDays.map((day) => {
+                          const weekend = isWeekend(day);
+
+                          const slotEvents = events.filter(
+                            (event) =>
+                              event.date === dateKey(day) &&
+                              Number(event.start.split(":")[0]) === hour,
+                          );
+
+                          return (
+                            <div
+                              key={`${dateKey(day)}-${hour}`}
+                              className={`min-h-[88px] border-l border-t border-calendar-border-soft p-1 ${
+                                weekend
+                                  ? "bg-calendar-surface-soft"
+                                  : "bg-calendar-surface transition-colors hover:bg-calendar-surface-hover/50"
+                              }`}
+                            >
+                              {weekend ? (
+                                <div className="flex h-full items-center justify-center text-[10px] text-calendar-text-weekend">
+                                  Weekend
+                                </div>
+                              ) : slotEvents.length > 0 ? (
+                                <div className="space-y-1">
+                                  {slotEvents.map((event) => {
+                                    const style = STATUS_STYLES[event.status];
+
+                                    return (
+                                      <button
+                                        key={event.key}
+                                        type="button"
+                                        onClick={() => setSelectedEvent(event)}
+                                        aria-label={`${event.title}, ${event.status}, ${event.start} to ${event.end}`}
+                                        className="w-full rounded-lg border p-1.5 text-left transition hover:-translate-y-0.5 hover:shadow-sm sm:p-2"
+                                        style={{
+                                          backgroundColor: style.background,
+                                          borderColor: style.border,
+                                          color: style.text,
+                                        }}
+                                      >
+                                        <span className="block truncate text-[11px] font-semibold">
+                                          {event.title}
+                                        </span>
+
+                                        <span className="mt-1 block truncate text-[10px] opacity-80">
+                                          {event.start} – {event.end}
+                                        </span>
+
+                                        <span className="mt-1 block truncate text-[10px] opacity-80">
+                                          {event.status}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => openAvailability(day, hour)}
+                                  aria-label={`Add availability on ${formatDateLong(day)} at ${formatHour(hour)}`}
+                                  className="flex h-full min-h-[78px] w-full items-center justify-center rounded-lg text-calendar-text-weekend transition hover:bg-calendar-surface-hover hover:text-calendar-accent focus:bg-calendar-surface-hover focus:text-calendar-accent"
+                                >
+                                  <Plus size={17} />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <MonthCalendar
-              date={calendarDate}
-              events={events}
-              todayKey={todayKey}
-              onSelectDay={changeMonthViewDate}
-              onSelectEvent={setSelectedEvent}
-            />
+                </div>
+              ) : (
+                <MonthCalendar
+                  date={calendarDate}
+                  events={events}
+                  todayKey={todayKey}
+                  onSelectDay={changeMonthViewDate}
+                  onSelectEvent={setSelectedEvent}
+                />
+              )}
+            </>
           )}
 
           <div className="flex flex-col gap-2 border-t border-calendar-border-soft bg-calendar-surface-soft px-5 py-3.5 text-xs text-calendar-text-subtle sm:flex-row sm:items-center sm:justify-between">
@@ -962,6 +1115,27 @@ export default function CalendarPage() {
               </div>
             </div>
 
+            <div>
+              <label
+                htmlFor="availability-mode"
+                className="mb-2 block text-sm font-medium text-calendar-text"
+              >
+                Session mode
+              </label>
+
+              <select
+                id="availability-mode"
+                value={formMode}
+                onChange={(event) =>
+                  setFormMode(event.target.value as SessionMode)
+                }
+                className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-card-foreground outline-none focus:border-rahati-mauve focus:ring-2 focus:ring-rahati-lavender"
+              >
+                <option value="in_person">In person</option>
+                <option value="online">Online</option>
+              </select>
+            </div>
+
             {formError && (
               <p
                 role="alert"
@@ -975,6 +1149,7 @@ export default function CalendarPage() {
               <button
                 type="button"
                 onClick={() => setAvailabilityOpen(false)}
+                disabled={saving}
                 className="rounded-xl px-4 py-3 text-sm font-medium text-calendar-text-muted transition hover:bg-calendar-surface-muted"
               >
                 Cancel
@@ -982,10 +1157,20 @@ export default function CalendarPage() {
 
               <button
                 type="submit"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-calendar-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-calendar-accent-hover"
+                disabled={saving}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-calendar-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-calendar-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <Plus size={17} />
-                Save availability
+                {saving ? (
+                  <>
+                    <RefreshCw size={17} className="animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Plus size={17} />
+                    Save availability
+                  </>
+                )}
               </button>
             </div>
           </form>
@@ -1038,47 +1223,52 @@ export default function CalendarPage() {
               {selectedEvent.start} – {selectedEvent.end}
             </div>
 
-            {selectedEvent.status !== "Free" && (
-              <div className="flex items-center gap-3 text-sm text-calendar-text">
-                <UserRound size={18} className="text-calendar-accent" />
-                Professional appointment
-              </div>
-            )}
+            <div className="flex items-center gap-3 text-sm text-calendar-text">
+              <CalendarCheck size={18} className="text-calendar-accent" />
+              {selectedEvent.mode === "online" ? "Online" : "In person"}
+            </div>
           </div>
 
           <div className="mt-5 flex flex-col gap-3">
-            {selectedEvent.status === "Pending" && (
-              <button
-                type="button"
-                onClick={() => updateEventStatus(selectedEvent.id, "Accepted")}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-calendar-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-calendar-accent-hover"
-              >
-                <Check size={17} />
-                Accept request
-              </button>
-            )}
+            {selectedEvent.kind === "session" &&
+              selectedEvent.status === "Pending" && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void updateEventStatus(selectedEvent, "accepted")
+                  }
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-calendar-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-calendar-accent-hover"
+                >
+                  <Check size={17} />
+                  Accept request
+                </button>
+              )}
 
-            {selectedEvent.status === "Accepted" && (
-              <button
-                type="button"
-                onClick={() => updateEventStatus(selectedEvent.id, "Completed")}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-calendar-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-calendar-accent-hover"
-              >
-                <CheckCircle2 size={17} />
-                Mark as completed
-              </button>
-            )}
+            {selectedEvent.kind === "session" &&
+              selectedEvent.status === "Accepted" && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void updateEventStatus(selectedEvent, "completed")
+                  }
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-calendar-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-calendar-accent-hover"
+                >
+                  <CheckCircle2 size={17} />
+                  Mark as completed
+                </button>
+              )}
 
-            {selectedEvent.status === "Free" && (
-              <button
-                type="button"
-                onClick={() => removeAvailability(selectedEvent.id)}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-rahati-pink px-4 py-3 text-sm font-medium text-rahati-rose transition hover:bg-rahati-blush"
-              >
-                <Trash2 size={17} />
-                Remove availability
-              </button>
-            )}
+            {selectedEvent.kind === "slot" &&
+              selectedEvent.status === "Free" && (
+                <button
+                  type="button"
+                  onClick={() => void removeAvailability(selectedEvent)}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-rahati-pink px-4 py-3 text-sm font-medium text-rahati-rose transition hover:bg-rahati-blush"
+                >
+                  <Trash2 size={17} />
+                  Remove availability
+                </button>
+              )}
 
             <button
               type="button"
@@ -1237,7 +1427,7 @@ function MonthCalendar({
 
                     return (
                       <button
-                        key={event.id}
+                        key={event.key}
                         type="button"
                         onClick={() => onSelectEvent(event)}
                         className="w-full truncate rounded-lg px-2 py-1.5 text-left text-[10px] font-medium transition hover:brightness-[0.97]"
