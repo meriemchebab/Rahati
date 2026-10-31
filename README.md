@@ -293,9 +293,7 @@ Allowed hosts and CORS origins are open to everyone for the demo (`config/settin
 
 ## Architecture
 
-![Rahati architecture overview](Assets/Rahati-Architecture.png)
-
-_The picture shows the target design. Background jobs (Celery/Redis) are not built yet; the diagram below shows what runs today._
+the diagram below shows what runs today.
 
 ```mermaid
 flowchart LR
@@ -875,7 +873,8 @@ Suggested build order (each item depends on the earlier ones):
 | Name | Role | Responsibilities | GitHub |
 |---|---|---|---|
 | _Name_ | Project lead | _e.g. planning, coordination_ | [@username](https://github.com/username) |
-| _Name_ | Backend developer | _e.g. Django API, database_ | [@username](https://github.com/username) |
+| _Amirat Katia_ | AI & Analytics Engineer | Built the backend AI analytics summary service (Gemini API integration, validation, history), and created questionnaires for psychologists and women to guide product needs. | [@Katia-Am](https://github.com/Katia-Am) |
+| _Name_ | mobile app developer | _e.g. app ,djd_ | [@username](https://github.com/username) |
 | _Katia Ghezali_ | Frontend developer | <ul><li> Developed responsive interfaces and interactive dashboards using Next.js, React, and Tailwind CSS.</li> <li> Connected frontend components to backend APIs to retrieve and display data, and deployed the web application frontend.</li></ul> | [@KatiaGhezali](https://github.com/KatiaGhezali) |
 | _Name_ | UI/UX designer | _e.g. user flows, mockups_ | [@username](https://github.com/username) |
 | _Name_ | Research & data | _e.g. survey, literature review_ | [@username](https://github.com/username) |
