@@ -502,9 +502,6 @@ The GitHub Actions workflow [`deploy-frontend.yml`](.github/workflows/deploy-fro
 1. Add the repository secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID`.
 2. In the Vercel project, set `NEXT_PUBLIC_API_URL` to the backend URL, for example `https://<service>.onrender.com`.
 
-### Mobile app
-
-Not deployed yet; the app is still planned.
 
 ## Data model
 
