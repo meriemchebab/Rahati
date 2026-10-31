@@ -31,11 +31,11 @@ def fixture_entries():
 
 
 class SeedStarterCardsTests(TestCase):
-    def test_seed_creates_and_publishes_nine_demo_cards_and_six_pattern_cards(self):
+    def test_seed_creates_and_publishes_fifteen_topic_cards_and_six_pattern_cards(self):
         entries = fixture_entries()
         pattern_entries = [entry for entry in entries if "pattern" in entry]
         topic_entries = [entry for entry in entries if "topic" in entry]
-        self.assertEqual((len(pattern_entries), len(topic_entries)), (6, 9))
+        self.assertEqual((len(pattern_entries), len(topic_entries)), (6, 15))
         expected_existing_texts = {
             entry["starter_key"]: entry["translations"]
             for entry in pattern_entries
@@ -43,10 +43,10 @@ class SeedStarterCardsTests(TestCase):
 
         call_command("seed_starter_cards")
 
-        self.assertEqual(ContentCard.objects.count(), 15)
-        self.assertEqual(ContentCard.objects.filter(status="published").count(), 15)
+        self.assertEqual(ContentCard.objects.count(), 21)
+        self.assertEqual(ContentCard.objects.filter(status="published").count(), 21)
         self.assertFalse(ContentCard.objects.filter(status="draft").exists())
-        self.assertEqual(ContentCard.objects.filter(topic__isnull=False).count(), 9)
+        self.assertEqual(ContentCard.objects.filter(topic__isnull=False).count(), 15)
         self.assertEqual(Topic.objects.count(), 7)
         for key, translations in expected_existing_texts.items():
             card = ContentCard.objects.get(starter_key=key)
@@ -72,29 +72,20 @@ class SeedStarterCardsTests(TestCase):
             self.assertEqual(card.status, ContentCard.Status.PUBLISHED)
             self.assertEqual(
                 set(card.translations.values_list("language", flat=True)),
-                {"ar", "fr"},
+                {"ar", "fr", "en"},
             )
-            ar = card.translations.get(language="ar")
-            fr = card.translations.get(language="fr")
-            self.assertEqual(
-                (ar.title, ar.body, ar.action_text, ar.support_note),
-                (fr.title, fr.body, fr.action_text, fr.support_note),
-            )
-            for translation in card.translations.all():
-                self.assertTrue(translation.support_note)
-                for field in ("title", "body", "action_text", "support_note"):
-                    self.assertTrue(getattr(translation, field).startswith("[DEMO]"))
+            self.assertEqual(card.validate_publishable(), [])
             by_topic[entry["topic"]] = by_topic.get(entry["topic"], 0) + 1
         self.assertEqual(
             by_topic,
             {
                 "sleep": 2,
                 "stress": 2,
-                "family": 1,
-                "work_study": 1,
-                "self_esteem": 1,
-                "relationships": 1,
-                "body_cycle": 1,
+                "family": 2,
+                "work_study": 2,
+                "self_esteem": 2,
+                "relationships": 2,
+                "body_cycle": 3,
             },
         )
 
@@ -104,7 +95,7 @@ class SeedStarterCardsTests(TestCase):
             )
         )
         call_command("seed_starter_cards")
-        self.assertEqual(ContentCard.objects.count(), 15)
+        self.assertEqual(ContentCard.objects.count(), 21)
         self.assertEqual(
             list(
                 ContentCardTranslation.objects.order_by("card_id", "language").values_list(
@@ -127,7 +118,7 @@ class SeedStarterCardsTests(TestCase):
 
         library = api(woman).get("/api/content-cards/library")
         self.assertEqual(library.status_code, 200)
-        self.assertEqual(library.data["count"], 15)
+        self.assertEqual(library.data["count"], 21)
 
     def test_unknown_topic_code_errors_before_writing_anything(self):
         entries = fixture_entries()
@@ -193,8 +184,37 @@ class SeedStarterCardsTests(TestCase):
 
         call_command("seed_starter_cards")
 
-        self.assertEqual(ContentCard.objects.filter(status="published").count(), 14)
+        self.assertEqual(ContentCard.objects.filter(status="published").count(), 20)
         self.assertEqual(ContentCard.objects.get(pk=cards[1].pk).status, ContentCard.Status.REMOVED)
+
+    def test_seed_replaces_placeholder_text_but_not_edited_or_removed_cards(self):
+        call_command("seed_starter_cards")
+        placeholder = ContentCard.objects.get(starter_key="topic_sleep_1")
+        edited = ContentCard.objects.get(starter_key="topic_stress_1")
+        removed = ContentCard.objects.get(starter_key="topic_family_1")
+        for card in (placeholder, removed):
+            card.translations.update(title="[DEMO] Old placeholder")
+        edited.translations.filter(language="ar").update(title="Edited by a professional")
+        removed.status = ContentCard.Status.REMOVED
+        removed.save(update_fields=["status"])
+
+        call_command("seed_starter_cards")
+
+        fixture = {entry["starter_key"]: entry for entry in fixture_entries()}
+        self.assertEqual(
+            placeholder.translations.get(language="ar").title,
+            fixture["topic_sleep_1"]["translations"]["ar"]["title"],
+        )
+        self.assertEqual(placeholder.translations.count(), 3)
+        self.assertEqual(
+            edited.translations.get(language="ar").title, "Edited by a professional"
+        )
+        self.assertEqual(
+            removed.translations.get(language="ar").title, "[DEMO] Old placeholder"
+        )
+        # Pattern cards still hold draft text in the fixture, so they are not rewritten.
+        pattern = ContentCard.objects.get(starter_key="mood_dip_intro")
+        self.assertIn("[DRAFT - NOT REVIEWED]", pattern.translations.get(language="ar").title)
 
 
 class TopicAndCardAdminTests(TestCase):
@@ -311,15 +331,18 @@ class TopicAndCardAdminTests(TestCase):
         suggestions = api(woman).get("/api/content-cards")
         self.assertEqual([item["topic"] for item in suggestions.data], ["sleep", "sleep"])
         first = suggestions.data[0]
-        self.assertEqual(first["title"], "[DEMO] Sleep card 1")
+        expected_title = next(
+            entry for entry in fixture_entries() if entry["starter_key"] == "topic_sleep_1"
+        )["translations"]["ar"]["title"]
+        self.assertEqual(first["title"], expected_title)
         self.assertEqual(
             api(woman).post(f"/api/content-cards/{first['id']}/read").status_code,
             201,
         )
         after_read = api(woman).get("/api/content-cards")
         self.assertEqual(after_read.data[1]["id"], first["id"])
-        library = api(woman).get("/api/content-cards/library")
-        self.assertEqual(library.data["count"], 15)
+        library = api(woman).get("/api/content-cards/library?limit=50")
+        self.assertEqual(library.data["count"], 21)
         self.assertEqual(sum(item["topic"] is None for item in library.data["results"]), 6)
         self.assertEqual(
             api(woman).post(

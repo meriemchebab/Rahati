@@ -5,6 +5,10 @@ Seeds and publishes the platform starter cards from the fixture file. Idempotent
 Usage:
     python manage.py seed_starter_cards
     python manage.py seed_starter_cards --update  # update translations of draft cards
+
+Cards whose stored text is still a placeholder ("[DEMO]" or "[DRAFT - NOT REVIEWED]")
+are replaced with the fixture text when the fixture has real, reviewed text. Text
+edited by a person is never overwritten, and archived or removed cards are left alone.
 """
 import json
 from pathlib import Path
@@ -17,6 +21,37 @@ from rahati.models import ContentCard, ContentCardTranslation, PatternType, Topi
 from .seed_topics import TOPICS
 
 FIXTURE_PATH = Path(__file__).resolve().parent.parent.parent / "fixtures" / "starter_cards.json"
+PLACEHOLDER_MARKERS = ("[DEMO]", "[DRAFT - NOT REVIEWED]")
+TEXT_FIELDS = ("title", "body", "action_text", "support_note")
+
+
+def _has_placeholder(values):
+    return any(marker in (value or "") for value in values for marker in PLACEHOLDER_MARKERS)
+
+
+def _fixture_is_final(translations_data):
+    return not _has_placeholder(
+        t_data.get(field) for t_data in translations_data.values() for field in TEXT_FIELDS
+    )
+
+
+def _stored_is_placeholder(card):
+    return _has_placeholder(
+        getattr(t, field) for t in card.translations.all() for field in TEXT_FIELDS
+    )
+
+
+def _write_translations(card, translations_data):
+    card.translations.all().delete()
+    for lang, t_data in translations_data.items():
+        ContentCardTranslation.objects.create(
+            card=card,
+            language=lang,
+            title=t_data["title"],
+            body=t_data["body"],
+            action_text=t_data["action_text"],
+            support_note=t_data["support_note"],
+        )
 
 class Command(BaseCommand):
     help = "Seed the starter platform content cards (idempotent)."
@@ -83,31 +118,18 @@ class Command(BaseCommand):
 
                 if was_created:
                     created += 1
-                    # Create translations
-                    for lang, t_data in translations_data.items():
-                        ContentCardTranslation.objects.create(
-                            card=card,
-                            language=lang,
-                            title=t_data["title"],
-                            body=t_data["body"],
-                            action_text=t_data["action_text"],
-                            support_note=t_data["support_note"],
-                        )
-                elif update and card.status == ContentCard.Status.DRAFT:
-                    # Replace translations for draft cards only
+                    _write_translations(card, translations_data)
+                elif (update and card.status == ContentCard.Status.DRAFT) or (
+                    card.status in (ContentCard.Status.DRAFT, ContentCard.Status.PUBLISHED)
+                    and _fixture_is_final(translations_data)
+                    and _stored_is_placeholder(card)
+                ):
+                    # Replace draft cards on --update, and placeholder text whenever
+                    # the fixture now has final text. Edited text is never touched.
                     card.pattern_type = pt
                     card.topic = topic
                     card.save(update_fields=["pattern_type", "topic", "updated_at"])
-                    card.translations.all().delete()
-                    for lang, t_data in translations_data.items():
-                        ContentCardTranslation.objects.create(
-                            card=card,
-                            language=lang,
-                            title=t_data["title"],
-                            body=t_data["body"],
-                            action_text=t_data["action_text"],
-                            support_note=t_data["support_note"],
-                        )
+                    _write_translations(card, translations_data)
                     updated += 1
 
                 # Seeded fixture cards are intended for the woman-facing demo API.
