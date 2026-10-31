@@ -14,6 +14,7 @@ A private mental-wellbeing platform for Algerian women. A woman can understand h
   - [Research Background & Data Collection](#research-background--data-collection)
 - **Build and run**
   - [Getting started](#getting-started)
+  - [Frontend](#frontend)
   - [Mobile app](#mobile-app)
   - [Testing](#testing)
   - [Deployment](#deployment)
@@ -207,7 +208,6 @@ has edited. The six pattern cards are still placeholders, and every card should 
 by a mental-health professional and native speakers before real users see it.
 
 **Do not commit** `.env`, `db.sqlite3`, `private_media/` or `media/`. If `db.sqlite3` was committed by mistake, run `git rm --cached Backend/db.sqlite3`.
-
 ## Mobile app
 
 The woman's app lives in [`mobile-app/`](mobile-app/): Home (check-in, cycle, to-dos, weekly summary), Statistics, Therapy (find a professional, book, choose what to share, my sessions), Library, Journal and Profile, in English, French and Arabic (right-to-left).
@@ -223,6 +223,35 @@ npx expo start      # press w for the web, or scan the QR code with Expo Go
 It uses the deployed backend on Render by default. To use a local backend, copy `mobile-app/.env.example` to `mobile-app/.env` and set `EXPO_PUBLIC_API_URL=http://localhost:8000`.
 
 **Live web demo:** [fulldready.tech/Rahati](https://fulldready.tech/Rahati/) (the app inside a phone frame).
+
+
+## Frontend
+
+The Rahati frontend provides the user interface for mental-health professionals to manage their practice and access the platform's features.
+
+The frontend was developed using **Next.js, React, and Tailwind CSS**, with reusable components to maintain a consistent design and user experience across the application.
+
+Key contributions and features include:
+
+- **User authentication interfaces:** Login and registration pages designed to support the platform's authentication workflows.
+- **Professional dashboard:** Interfaces for viewing practice statistics, appointment requests, patients, and calendar availability.
+- **Responsive interface:** Layouts designed to adapt to different screen sizes.
+- **API communication:** Frontend functionality designed to communicate with the backend API and display application data.
+- **Deployment:** Configured and deployed the frontend application using Vercel.
+
+#### Frontend and API communication
+
+The frontend is built with Next.js and React. It uses API requests to communicate with the backend services, enabling the interface to retrieve and display application data.
+
+This supports workflows such as authentication and accessing professional dashboard information. Backend development and API implementation are handled separately from the frontend work.
+
+#### Frontend deployment
+
+The Rahati frontend is deployed on **Vercel**.
+
+**Live application:** [View Rahati](https://rahati-frontend.vercel.app)
+
+The frontend deployment uses environment variables to configure the backend API endpoint. Deployment configuration and private credentials are maintained separately from the source code. Secrets and sensitive information must never be committed to the repository.
 
 ## Testing
 
