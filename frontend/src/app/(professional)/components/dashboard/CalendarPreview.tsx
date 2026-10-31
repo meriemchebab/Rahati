@@ -1,224 +1,122 @@
 "use client";
 
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
-
-import type { CalendarEvent } from "@/types/dashboard";
-
-type CalendarView = "Week" | "Day";
+import { CalendarDays, ChevronRight } from "lucide-react";
+import type { CalendarItem } from "@/lib/professional-api";
 
 interface CalendarPreviewProps {
-  calendarDate: Date;
-  calendarView: CalendarView;
-  weekDates: Date[];
-  visibleEvents: CalendarEvent[];
-  today: Date | null;
-  weekdays: string[];
-  hours: number[];
-  eventStyles: Record<CalendarEvent["status"], string>;
-  formatShortDate: (date: Date) => string;
-  onChangeView: (view: CalendarView) => void;
-  onChangeWeek: (direction: number) => void;
-  onOpenCalendar: () => void;
+  events: CalendarItem[];
+  loading: boolean;
+  onViewCalendar: () => void;
 }
 
+const statusStyles: Record<string, string> = {
+  free: "bg-[#edf4ed] text-[#66876d]",
+  requested: "bg-[#faf3df] text-[#a88743]",
+  accepted: "bg-[#f0eaf6] text-[#806b9a]",
+  completed: "bg-[#eaf2f7] text-[#63879e]",
+  expired: "bg-gray-100 text-gray-500",
+};
+
+const statusLabels: Record<string, string> = {
+  free: "Free",
+  requested: "Pending",
+  accepted: "Accepted",
+  completed: "Completed",
+  expired: "Expired",
+};
+
 export default function CalendarPreview({
-  calendarDate,
-  calendarView,
-  weekDates,
-  visibleEvents,
-  today,
-  weekdays,
-  hours,
-  eventStyles,
-  formatShortDate,
-  onChangeView,
-  onChangeWeek,
-  onOpenCalendar,
+  events,
+  loading,
+  onViewCalendar,
 }: CalendarPreviewProps) {
-  const displayedDates = calendarView === "Day" ? [calendarDate] : weekDates;
+  const upcomingEvents = [...events]
+    .filter((event) => event.state !== "expired")
+    .sort(
+      (a, b) =>
+        new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime(),
+    )
+    .slice(0, 5);
 
   return (
-    <article className="min-w-0 overflow-hidden rounded-2xl bg-white/90 shadow-[0_4px_24px_rgba(64,53,65,0.04)]">
-      <div className="px-5 py-5 sm:px-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-base font-semibold text-rahati-plum">
-              Your calendar
-            </h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Manage your appointments and availability.
-            </p>
-          </div>
+    <article className="overflow-hidden rounded-2xl bg-white/90 shadow-[0_4px_24px_rgba(64,53,65,0.04)]">
+      <div className="flex items-center justify-between gap-3 px-5 py-5 sm:px-6">
+        <div>
+          <h3 className="text-base font-semibold text-rahati-plum">
+            Your calendar
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Your upcoming appointments and availability.
+          </p>
+        </div>
 
-          <div className="flex items-center rounded-lg border border-border p-1">
-            {(["Week", "Day"] as const).map((view) => (
-              <button
-                key={view}
-                type="button"
-                onClick={() => onChangeView(view)}
-                className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
-                  calendarView === view
-                    ? "bg-rahati-pink text-rahati-mauve-dark"
-                    : "text-muted-foreground hover:text-rahati-plum"
-                }`}
+        <CalendarDays className="text-rahati-mauve" size={22} />
+      </div>
+
+      <div className="space-y-3 px-5 pb-5 sm:px-6">
+        {loading ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Loading calendar...
+          </p>
+        ) : upcomingEvents.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            No calendar events available.
+          </p>
+        ) : (
+          upcomingEvents.map((event) => {
+            const start = new Date(event.starts_at);
+            const end = new Date(event.ends_at);
+
+            return (
+              <div
+                key={event.id}
+                className="flex items-center justify-between gap-3 rounded-xl bg-rahati-blush/50 p-3"
               >
-                {view}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-5 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-semibold text-rahati-plum">
-              {formatShortDate(weekDates[0])}
-              {" – "}
-              {formatShortDate(weekDates[4])}
-            </p>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Appointment overview
-            </p>
-          </div>
-
-          <div className="flex gap-1">
-            <button
-              type="button"
-              aria-label="Previous week"
-              onClick={() => onChangeWeek(-1)}
-              className="rounded-lg border border-border p-2 text-rahati-plum hover:bg-rahati-blush"
-            >
-              <ChevronLeft size={16} />
-            </button>
-
-            <button
-              type="button"
-              aria-label="Next week"
-              onClick={() => onChangeWeek(1)}
-              className="rounded-lg border border-border p-2 text-rahati-plum hover:bg-rahati-blush"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Calendar legend */}
-      <div className="flex flex-wrap gap-x-4 gap-y-2 border-b border-border px-5 py-3 sm:px-6">
-        {(
-          [
-            ["Free", "bg-[#91aa96]"],
-            ["Pending", "bg-[#d6b76f]"],
-            ["Accepted", "bg-[#a99bc4]"],
-            ["Completed", "bg-[#91b3c8]"],
-          ] as const
-        ).map(([label, color]) => (
-          <span
-            key={label}
-            className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground"
-          >
-            <span className={`h-2 w-2 rounded-full ${color}`} />
-            {label}
-          </span>
-        ))}
-      </div>
-
-      {/* Calendar grid */}
-      <div className="overflow-x-auto p-4 sm:p-5">
-        <div className="min-w-[520px]">
-          <div
-            className="grid"
-            style={{
-              gridTemplateColumns: `48px repeat(${
-                displayedDates.length
-              }, minmax(0, 1fr))`,
-            }}
-          >
-            <div className="border-b border-border pb-3" />
-
-            {displayedDates.map((date) => {
-              const isToday =
-                today !== null && date.toDateString() === today.toDateString();
-
-              const weekdayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1;
-
-              return (
-                <div
-                  key={date.toISOString()}
-                  className="border-b border-border pb-3 text-center"
-                >
-                  <p className="text-[10px] text-muted-foreground">
-                    {weekdays[weekdayIndex]}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-rahati-plum">
+                    {start.toLocaleDateString("en-US", {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                    })}
                   </p>
 
-                  <span
-                    className={`mx-auto mt-1 flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
-                      isToday
-                        ? "bg-rahati-mauve text-white"
-                        : "text-rahati-plum"
-                    }`}
-                  >
-                    {date.getDate()}
-                  </span>
-                </div>
-              );
-            })}
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {start.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                    {" – "}
+                    {end.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
 
-            {hours.map((hour) => (
-              <div key={hour} className="contents">
-                <div className="relative border-r border-border pr-2 pt-2 text-[10px] text-muted-foreground">
-                  {`${String(hour).padStart(2, "0")}:00`}
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {event.mode}
+                  </p>
                 </div>
 
-                {displayedDates.map((date) => {
-                  const actualDay = date.getDay() === 0 ? 6 : date.getDay() - 1;
-
-                  const dateString = [
-                    date.getFullYear(),
-                    String(date.getMonth() + 1).padStart(2, "0"),
-                    String(date.getDate()).padStart(2, "0"),
-                  ].join("-");
-
-                  const event = visibleEvents.find(
-                    (item) =>
-                      item.day === actualDay &&
-                      item.start === hour &&
-                      (!item.date || item.date === dateString),
-                  );
-
-                  return (
-                    <div
-                      key={`${date.toISOString()}-${hour}`}
-                      className="min-h-[49px] border-b border-r border-border/70 p-1"
-                    >
-                      {event && (
-                        <div
-                          title={`${event.title} — ${event.subtitle}`}
-                          className={`flex h-full min-h-[39px] flex-col justify-center overflow-hidden rounded-md border-l-[3px] px-1.5 py-1 ${eventStyles[event.status]}`}
-                        >
-                          <p className="truncate text-[9px] font-semibold leading-4">
-                            {event.title}
-                          </p>
-                          <p className="truncate text-[9px] opacity-80">
-                            {event.subtitle}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                <span
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] font-medium ${
+                    statusStyles[event.state] || "bg-gray-100 text-gray-600"
+                  }`}
+                >
+                  {statusLabels[event.state] || event.state}
+                </span>
               </div>
-            ))}
-          </div>
-        </div>
+            );
+          })
+        )}
       </div>
 
       <div className="border-t border-border px-5 py-3.5 sm:px-6">
         <button
           type="button"
-          onClick={onOpenCalendar}
+          onClick={onViewCalendar}
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-rahati-mauve-dark hover:underline"
         >
-          <CalendarDays size={14} />
           Open full calendar
           <ChevronRight size={15} />
         </button>
