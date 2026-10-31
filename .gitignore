@@ -5,3 +5,6 @@
 # Python generated files
 __pycache__/
 *.py[cod]
+
+# Keep the env template
+!.env.example

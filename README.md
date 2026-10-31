@@ -8,27 +8,31 @@ A private mental-wellbeing platform for Algerian women. A woman can understand h
 
 ## Table of contents
 
-1. [Principles](#principles)
-2. [What the product does](#what-the-product-does)
-3. [Research Background & Data Collection](#research-background--data-collection)
-4. [AI and analytics](#ai-and-analytics)
-5. [Architecture](#architecture)
-6. [Backend structure](#backend-structure)
-7. [Data model](#data-model)
-8. [Key flows](#key-flows)
-9. [Roles and permissions](#roles-and-permissions)
-10. [API overview](#api-overview)
-11. [Security and privacy](#security-and-privacy)
-12. [Deployment](#deployment)
-13. [Getting started](#getting-started)
-14. [Testing](#testing)
-15. [Key decisions](#key-decisions)
-16. [Roadmap](#roadmap)
-17. [Team](#team)
-18. [Contributing](#contributing)
-19. [Glossary](#glossary)
-20. [License](#license)
-21. [References](#references)
+- **Overview**
+  - [Principles](#principles)
+  - [What the product does](#what-the-product-does)
+  - [Research Background & Data Collection](#research-background--data-collection)
+- **Build and run**
+  - [Getting started](#getting-started)
+  - [Testing](#testing)
+  - [Deployment](#deployment)
+- **How it works**
+  - [Architecture](#architecture)
+  - [Backend structure](#backend-structure)
+  - [Data model](#data-model)
+  - [Key flows](#key-flows)
+  - [Roles and permissions](#roles-and-permissions)
+  - [API overview](#api-overview)
+  - [AI and analytics](#ai-and-analytics)
+  - [Security and privacy](#security-and-privacy)
+- **Project**
+  - [Key decisions](#key-decisions)
+  - [Roadmap](#roadmap)
+  - [Team](#team)
+  - [Contributing](#contributing)
+  - [Glossary](#glossary)
+  - [References](#references)
+  - [License](#license)
 
 ---
 
@@ -41,7 +45,7 @@ These rules decide every design question. If a feature breaks one, the feature c
 - **Anonymous by default.** A nickname is enough to sign up. Email and phone are optional.
 - **Her data, her consent.** A professional sees a woman's data only with an accepted session and an explicit, revocable consent for each category (mood, journal, cycle).
 - **Delete means delete.** One action removes everything she owns.
-- **A woman does not face barriers to help.** Finding a professional is facilitated 
+- **No barriers to help.** Finding a verified woman professional takes a few steps: choose online or in person, a wilaya and a time, then book a free slot.
 
 ## What the product does
 
@@ -57,8 +61,8 @@ Three personas use the platform:
 
 | Persona | Uses | Does |
 |---|---|---|
-| **Woman (user)** | API; client UI  implemented | Tracks, learns, books, controls her sharing |
-| **Professional** | API; dashboard  implemented | Manages availability, accepts sessions, sees consented data, assigns cards and to-dos |
+| **Woman (user)** | API; web client in progress | Tracks, learns, books, controls her sharing |
+| **Professional** | API; web dashboard (requests, patients, calendar, settings) | Manages availability, accepts sessions, sees consented data, assigns cards and to-dos |
 | **Admin** | Django admin | Verifies professionals, reviews credentials, manages content |
 
 Audit events are recorded in the database, but there is no admin page for browsing them yet.
@@ -72,7 +76,6 @@ Women's mental health remains an underexplored research area. During our literat
 One of the datasets identified was **mcPHASES (Lin et al., 2025)**, which explores the relationship between menstrual cycle phases and related symptoms, including mood swings.
 
 However, its available mental health indicators do not capture every dimension of women's mental well-being. This highlights the need for more comprehensive data to better understand women's mental health challenges and experiences.
-
 
 ### 2. User Needs Assessment and Data Collection
 
@@ -140,26 +143,142 @@ Future work could focus on collecting more diverse data, expanding the number of
 
 **Overall, the literature review and exploratory survey helped identify a research gap and provided initial user-driven insights to guide the development of Rahati.**
 
-## AI and analytics
+## Getting started
 
-Analytics are calculated on request from the authenticated woman's own check-ins using plain statistics; no model is trained and no prediction is made. `GET /api/analytics?range=7|30|90` returns start and end dates, a daily mood and energy series, check-in count, averages, previous-period mood average and change, current streak, and lowest mood with its dates. The `topics` response field is currently empty; topic aggregation is not implemented.
+Requirements: Python 3.13 or newer and [uv](https://docs.astral.sh/uv/). Node.js 22 and npm are needed for the frontend and E2E tests.
 
-`POST /api/analytics` (and `POST /api/analytics/summary`) accepts the same ranges and returns the statistics plus an AI-generated summary in English or Arabic (`en`, `ar`; unsupported languages default to English). With check-ins and `GEMINI_API_KEY` configured, the backend prompts Gemini (`gemini-3.5-flash-lite`) using an explicit allow-list of numeric statistics: range, count, averages, mood change, and streak. Journal entries, notes, and other free-text user content are strictly never sent.
+```bash
+# from the repository root
+uv sync
+cd Backend
+```
 
-Output validation and fallback:
-- **Completeness & structure:** Generated summaries are checked to ensure they are complete sentences and not empty, truncated, or prematurely cut off by token limits.
-- **Language quality:** Grammar and phrasing are validated via LanguageTool for English and Arabic.
-- **Deterministic fallback:** If Gemini fails, the API key is missing, or output validation fails, the service returns a supportive local template summary.
+<details>
+<summary>Without uv (pip)</summary>
 
-Persistence and history:
-- Generated summaries are saved to the database in the `AnalyticsSummary` model with their range (7, 30, or 90 days), language, and timestamp.
-- Users can retrieve past summaries via `GET /api/analytics/history` (also at `/api/analytics/summaries`) and `GET /api/analytics/history/{id}`, with optional `?range=` period filtering and strict user ownership isolation.
+```bash
+python -m venv .venv
+# Windows PowerShell: .\.venv\Scripts\Activate.ps1
+# macOS/Linux: source .venv/bin/activate
+python -m pip install -r Backend/requirements.txt
+cd Backend
+```
 
-Summaries are informational and are not a diagnosis or medical advice. The prompt instructs Gemini not to diagnose, give medical advice, or invent facts, but that instruction is not a factual-accuracy safeguard. Both endpoints are private, authenticated user endpoints and return `Cache-Control: private, no-store`.
+Then drop the `uv run` prefix from the commands below.
+</details>
 
+Copy [`Backend/.env.example`](Backend/.env.example) to `Backend/.env` and fill it in. For local development it needs at least:
+
+```text
+DJANGO_DEBUG=true
+FIELD_ENCRYPTION_KEY=<generate it, see below>
+# Optional: enables Gemini-generated analytics summaries
+GEMINI_API_KEY=<your Gemini API key>
+```
+
+Generate the encryption key:
+
+```bash
+uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+> **Back up this key.** If it is lost, every journal entry and session note becomes unreadable.
+
+Create the tables and an administrator, then start the server:
+
+```bash
+uv run python manage.py migrate
+uv run python manage.py createsuperuser
+uv run python manage.py shell -c "from rahati.models import User; User.objects.filter(is_superuser=True).update(role='admin')"
+uv run python manage.py runserver
+```
+
+- Admin: `http://127.0.0.1:8000/admin/`
+- API: `http://127.0.0.1:8000/api/`
+
+### Optional: starter content
+
+`uv run python manage.py seed_starter_cards` seeds the six existing
+pattern cards plus nine topic demo cards, publishes them for the woman-facing API,
+and seeds the fixed topic vocabulary if needed. The fixture contains demo placeholder
+content; review and replace it before serving real users.
+
+**Do not commit** `.env`, `db.sqlite3`, `private_media/` or `media/`. If `db.sqlite3` was committed by mistake, run `git rm --cached Backend/db.sqlite3`.
+
+## Testing
+
+### Backend tests
+
+```bash
+cd Backend
+uv run python manage.py test rahati
+```
+
+Coverage (once `coverage` is installed as a dev dependency):
+
+```bash
+coverage run manage.py test rahati
+coverage report --include="rahati/*"
+```
+
+The backend tests protect consent, encryption at rest, deletion, booking correctness and role and ownership rules. Unit tests also cover the Gemini summary service (language normalization, completeness validation, LanguageTool checks, and fallback behavior) and summary persistence, history retrieval, period filtering, and user isolation. They use local test data and do not call external services.
+
+### End-to-end smoke tests
+
+The Playwright suite starts the Next.js frontend and Django API, then tests the booking API with real HTTP requests. Its Django server migrates and seeds a fresh temporary SQLite database for every run; it does not use `Backend/db.sqlite3` or any staging data.
+
+After the backend setup in [Getting started](#getting-started), run `npm ci` from `frontend/` and install the browser once with `npx playwright install chromium`. Then run `npm run e2e` from `frontend/`. The suite starts both servers and uses a fresh temporary SQLite database. GitHub Actions runs it with Chromium. Browser tests for the login and booking screens are not written yet.
+
+### Demo-video data
+
+Run `seed_demo` only against an isolated demo database. In PowerShell:
+
+```powershell
+cd Backend
+$env:DEMO_SEED_ALLOWED = "true"
+$env:DEMO_SHARED_PASSWORD = "<choose a password with at least 16 characters>"
+python manage.py seed_demo
+python manage.py seed_demo --refresh
+```
+
+`--refresh` moves demo check-ins, slots, and session times forward to the current
+date. Without a shared password, the command generates random passwords and does
+not print them.
+
+## Deployment
+
+The backend can be hosted on any platform that runs Python, such as Render or Vercel.
+
+1. **Database:** create a managed PostgreSQL database. Do not use SQLite in production.
+2. **Environment variables:** set these in the host's settings, never in Git:
+
+   ```text
+   DJANGO_DEBUG=false
+   DJANGO_SECRET_KEY=<long random secret>
+   FIELD_ENCRYPTION_KEY=<Fernet key>
+   DATABASE_URL=<PostgreSQL URL>
+   GEMINI_API_KEY=<optional>
+   ```
+
+   Generate the keys with:
+
+   ```bash
+   python -c "import secrets; print(secrets.token_urlsafe(64))"
+   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+   ```
+
+3. **Build and start:** on Render, use the repository root with `bash build.sh` as the build command and `cd Backend && uv run --project .. gunicorn config.wsgi:application --bind 0.0.0.0:$PORT` as the start command. `build.sh` installs dependencies, collects static files, runs migrations and seeds demo content. On Vercel, set the root directory to `Backend`.
+4. **Check:** open `/api/health/` and `/admin/` over HTTPS.
+
+Allowed hosts and CORS origins are open to everyone for the demo (`config/settings.py`). Restrict them to your domains before a public launch.
+
+> **Before real users:** back up the database and `FIELD_ENCRYPTION_KEY` (losing the key makes journals and notes unreadable), set up private persistent storage for credential uploads, and finish the security checklist in [Security and privacy](#security-and-privacy).
 
 ## Architecture
 
+![Rahati architecture overview](Assets/Rahati-Architecture.png)
+
+_The picture shows the target design. Background jobs (Celery/Redis) are not built yet; the diagram below shows what runs today._
 
 ```mermaid
 flowchart LR
@@ -172,7 +291,7 @@ flowchart LR
     API["REST API<br/>JWT, role gates"]
     SVC["Services<br/>consent gate, free slots,<br/>analytics, AI summary"]
   end
-  DB[("Database<br/>SQLite in dev")]
+  DB[("Database<br/>SQLite in dev,<br/>PostgreSQL in production")]
   subgraph External["External services"]
     G["Gemini API<br/>summaries"]
     J["Jitsi<br/>video rooms"]
@@ -187,7 +306,6 @@ flowchart LR
   SVC -.-> J
   API -.-> F
 ```
-
 
 ### How a request is handled
 
@@ -227,7 +345,6 @@ Rahati/
         ├── admin.py          the admin persona
         └── tests/            automated tests
 ```
-
 
 ## Data model
 
@@ -273,7 +390,7 @@ erDiagram
   USER {
     string username "the nickname"
     string role "user, professional, admin"
-    string language "ar, fr"
+    string language "ar, fr, en"
   }
   PROFESSIONAL_PROFILE {
     string display_name
@@ -335,8 +452,6 @@ Design notes:
 - **Encrypted columns:** journal text and session notes are encrypted before they reach the database.
 - **Deletion:** user-owned records generally cascade when their user is deleted. Audit rows remain, with the actor link set to `NULL`; their target type and ID are not foreign keys.
 - **Translations** live in their own table, so adding a language adds rows, not columns.
-
-
 
 ## Key flows
 
@@ -510,11 +625,6 @@ bodies are empty and are fetched from the detail endpoint. Suggestions use only 
 woman's topic tags from the latest 14 local days. Woman-facing card responses use
 `Cache-Control: private, no-store`.
 
-From `Backend/`, `uv run python manage.py seed_starter_cards` seeds the six existing
-pattern cards plus nine topic demo cards, publishes them for the woman-facing API,
-and seeds the fixed topic vocabulary if needed. The fixture contains demo placeholder
-content; review and replace it before serving real users.
-
 ### Specified (not yet built)
 
 | Area | Endpoints |
@@ -523,8 +633,26 @@ content; review and replace it before serving real users.
 
 A machine-readable API schema (Swagger, via `drf-spectacular`) is not implemented yet. If added, it must not be public in production.
 
+## AI and analytics
+
+Analytics are calculated on request from the authenticated woman's own check-ins using plain statistics; no model is trained and no prediction is made. `GET /api/analytics?range=7|30|90` returns start and end dates, a daily mood and energy series, check-in count, averages, previous-period mood average and change, current streak, and lowest mood with its dates. The `topics` response field is currently empty; topic aggregation is not implemented.
+
+`POST /api/analytics` (and `POST /api/analytics/summary`) accepts the same ranges and returns the statistics plus an AI-generated summary in English or Arabic (`en`, `ar`; unsupported languages default to English). With check-ins and `GEMINI_API_KEY` configured, the backend prompts Gemini (`gemini-3.5-flash-lite`) using an explicit allow-list of numeric statistics: range, count, averages, mood change, and streak. Journal entries, notes, and other free-text user content are strictly never sent.
+
+Output validation and fallback:
+- **Completeness & structure:** Generated summaries are checked to ensure they are complete sentences and not empty, truncated, or prematurely cut off by token limits.
+- **Language quality:** Grammar and phrasing are validated via LanguageTool for English and Arabic.
+- **Deterministic fallback:** If Gemini fails, the API key is missing, or output validation fails, the service returns a supportive local template summary.
+
+Persistence and history:
+- Generated summaries are saved to the database in the `AnalyticsSummary` model with their range (7, 30, or 90 days), language, and timestamp.
+- Users can retrieve past summaries via `GET /api/analytics/history` (also at `/api/analytics/summaries`) and `GET /api/analytics/history/{id}`, with optional `?range=` period filtering and strict user ownership isolation.
+
+Summaries are informational and are not a diagnosis or medical advice. The prompt instructs Gemini not to diagnose, give medical advice, or invent facts, but that instruction is not a factual-accuracy safeguard. Both endpoints are private, authenticated user endpoints and return `Cache-Control: private, no-store`.
 
 ## Security and privacy
+
+Detailed documents: [security.md](security.md) (philosophy and threat model) and [Backend/SECURITY.md](Backend/SECURITY.md) (controls mapped to OWASP and tests).
 
 The security model follows **OWASP Top 10:2025** and the **OWASP API Security Top 10:2023**. The **OWASP Top 10 for LLM Applications** also applies to the analytics-summary feature.
 
@@ -546,7 +674,7 @@ The security model follows **OWASP Top 10:2025** and the **OWASP API Security To
 - Output completeness and language checks (via LanguageTool for English and Arabic) are enforced before a summary is accepted, with automatic fallback to a deterministic local template (LLM05, API10).
 - Summaries are persisted in `AnalyticsSummary` with user ownership isolation and period filtering.
 - Daily call caps and throttles remain planned additions to limit cost and abuse (LLM10, API4).
-- Online session links need an HMAC or equivalent server-side derivation and must be visible only to session participants during a limited time window (A04, A01).
+- Meeting links do not expire yet; limiting them to a time window around the session is planned (A01).
 
 ### Before any real woman uses the app (demo-minimum)
 
@@ -558,7 +686,7 @@ The security model follows **OWASP Top 10:2025** and the **OWASP API Security To
 
 ### Before a real launch
 
-The full baseline: CI for backend unit and security tests (the Playwright E2E workflow is present), an immutable audit log, encryption key rotation, an admin IP allow-list and stronger admin authentication, a role-by-route test matrix, structured logging with redaction, and a `SECURITY.md` mapping every OWASP item to code and tests.
+The full baseline: CI for backend unit and security tests (the Playwright E2E workflow is present), an immutable audit log, encryption key rotation, an admin IP allow-list and stronger admin authentication, a role-by-route test matrix, structured logging with redaction, and extending [Backend/SECURITY.md](Backend/SECURITY.md) so every OWASP item maps to code and tests.
 
 ### Accepted risks (for now)
 
@@ -566,128 +694,6 @@ The full baseline: CI for backend unit and security tests (the Playwright E2E wo
 - Integer ids are sequential; object-level checks are the protection.
 - Administrators have no two-factor login yet.
 - Wilaya, address and other professional details are only as trustworthy as the manual verification of her credential. A human must check a diploma against the official body.
-
-## Deployment
-
-The backend can be hosted on any platform that runs Python, such as Render or Vercel.
-
-1. **Database:** create a managed PostgreSQL database. Do not use SQLite in production.
-2. **Environment variables:** set these in the host's settings, never in Git:
-
-   ```text
-   DJANGO_DEBUG=false
-   DJANGO_SECRET_KEY=<long random secret>
-   FIELD_ENCRYPTION_KEY=<Fernet key>
-   DATABASE_URL=<PostgreSQL URL>
-   DJANGO_ALLOWED_HOSTS=<your backend domain>
-   CORS_ALLOWED_ORIGINS=<your frontend URL>
-   GEMINI_API_KEY=<optional>
-   ```
-
-   Generate the keys with:
-
-   ```bash
-   python -c "import secrets; print(secrets.token_urlsafe(64))"
-   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-   ```
-
-3. **Build and start:** on Render, use the repository root with `bash build.sh` as the build command and `cd Backend && uv run --project .. gunicorn config.wsgi:application --bind 0.0.0.0:$PORT` as the start command. `build.sh` installs dependencies, collects static files, runs migrations and seeds demo content. On Vercel, set the root directory to `Backend`.
-4. **Check:** open `/api/health/` and `/admin/` over HTTPS.
-
-> **Before real users:** back up the database and `FIELD_ENCRYPTION_KEY` (losing the key makes journals and notes unreadable), set up private persistent storage for credential uploads, and finish the security checklist in [Security and privacy](#security-and-privacy).
-
-## Getting started
-
-Requirements: Python 3.12 or newer (Django 6.1 requirement). Node.js 22 and npm are needed for the frontend E2E suite.
-
-```bash
-# from the repository root
-python -m venv .venv
-# Windows PowerShell:
-.\.venv\Scripts\Activate.ps1
-# macOS/Linux: source .venv/bin/activate
-python -m pip install -r Backend/requirements.txt
-
-cd Backend
-```
-
-Create `Backend/.env`:
-
-```
-FIELD_ENCRYPTION_KEY=<generate it, see below>
-# Optional: enables Gemini-generated analytics summaries
-GEMINI_API_KEY=<your Gemini API key>
-```
-
-Generate the encryption key:
-
-```bash
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
-
-> **Back up this key.** If it is lost, every journal entry and session note becomes unreadable.
-
-Required settings in `Backend/config/settings.py` (the project reads them at the bottom of the file):
-
-```python
-AUTH_USER_MODEL = "rahati.User"          # must be set before the first migration
-FIELD_ENCRYPTION_KEY = os.environ["FIELD_ENCRYPTION_KEY"]
-TIME_ZONE = "Africa/Algiers"
-INSTALLED_APPS += ["rest_framework", "corsheaders", "rahati"]
-```
-
-Create the tables and an administrator:
-
-```bash
-python manage.py makemigrations rahati
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py shell -c "from rahati.models import User; User.objects.filter(is_superuser=True).update(role='admin')"
-python manage.py runserver
-```
-
-- Admin: `http://127.0.0.1:8000/admin/`
-- API: `http://127.0.0.1:8000/api/`
-
-**Do not commit** `.env`, `db.sqlite3`, `private_media/` or `media/`. If `db.sqlite3` was committed by mistake, run `git rm --cached Backend/db.sqlite3`.
-
-## Testing
-
-### Demo-video data
-
-Run `seed_demo` only against an isolated demo database. In PowerShell:
-
-```powershell
-cd Backend
-$env:DEMO_SEED_ALLOWED = "true"
-$env:DEMO_SHARED_PASSWORD = "<choose a password with at least 16 characters>"
-python manage.py seed_demo
-python manage.py seed_demo --refresh
-```
-
-`--refresh` moves demo check-ins, slots, and session times forward to the current
-date. Without a shared password, the command generates random passwords and does
-not print them.
-
-```bash
-cd Backend
-python manage.py test rahati
-```
-
-Coverage (once `coverage` is installed as a dev dependency):
-
-```bash
-coverage run manage.py test rahati
-coverage report --include="rahati/*"
-```
-
-The backend tests protect consent, encryption at rest, deletion, booking correctness and role and ownership rules. Unit tests also cover the Gemini summary service (language normalization, completeness validation, LanguageTool checks, and fallback behavior) and summary persistence, history retrieval, period filtering, and user isolation (all 354 backend tests pass). They use local test data and do not call external services.
-
-### End-to-end smoke tests
-
-The Playwright suite starts the Next.js frontend and Django API, then tests the booking API with real HTTP requests. Its Django server migrates and seeds a fresh temporary SQLite database for every run; it does not use `Backend/db.sqlite3` or any staging data.
-
-After creating the root `.venv` and installing `Backend/requirements.txt` above, run `npm ci` from `frontend/` and install the browser once with `npx playwright install chromium`. Then run `npm run e2e` from `frontend/`. The suite starts both servers and uses a fresh temporary SQLite database. GitHub Actions runs it with Chromium. Browser coverage of login and booking can be added when those screens exist.
 
 ## Key decisions
 
@@ -699,7 +705,7 @@ After creating the root `.venv` and installing `Backend/requirements.txt` above,
 | No filtering professionals by symptom, specialty, language or rating | A woman seeking help may not know what is wrong; ratings invite unfairness. |
 | One user table with a role field | Three personas, one login system, one permission model. |
 | Slots are closed, never deleted, after a booking | Deleting would cascade and erase booking history. |
-| Video links generated by the server from a secret | Nothing stored to leak, nothing to guess. |
+| Random video room names, created only when a session is accepted | Hard to guess, and only the two participants ever see them. |
 | SQLite now, a server database later | Zero setup for a team that is starting. Models do not change when switching. |
 
 ## Roadmap
@@ -724,10 +730,10 @@ Suggested build order (each item depends on the earlier ones):
 
 ## Contributing
 
-- Work on a branch and open a pull request; every pull request must pass `python manage.py test rahati` from `Backend/` with the project virtual environment active.
+- Work on a branch and open a pull request; every pull request must pass `uv run python manage.py test rahati` from `Backend/`.
 - Every new endpoint needs: an explicit role gate, ownership scoping, a strict serializer with an explicit field list (never `__all__`), a text policy for every string field, pagination for lists, a throttle scope, an audit event for sensitive actions and tests for each of these.
 - Never log request bodies, tokens, journal text, addresses or video links.
-- Never commit secrets. Add new environment variables to `.env.example`.
+- Never commit secrets. Add new environment variables to [`Backend/.env.example`](Backend/.env.example).
 - Do not delete a test to make a change pass. If a test must change, say why in the pull request.
 
 ## Glossary
@@ -740,9 +746,9 @@ Suggested build order (each item depends on the earlier ones):
 - **Topic**: a fixed translated theme (such as stress, sleep or family) that can be attached to a check-in.
 - **Wilaya**: an Algerian administrative province, used as the location filter.
 
+## References
+- Lin, B., Li, J. Y., Kalani, K., Truong, K., & Mariakakis, A. (2025). *mcPHASES: A Dataset of Physiological, Hormonal, and Self-reported Events and Symptoms for Menstrual Health Tracking with Wearables*. PhysioNet, Version 1.0.0. [https://doi.org/10.13026/zx6a-2c81](https://doi.org/10.13026/zx6a-2c81)
+
 ## License
 
 See [LICENSE](LICENSE).
-
-## References 
-- Lin, B., Li, J. Y., Kalani, K., Truong, K., & Mariakakis, A. (2025). *mcPHASES: A Dataset of Physiological, Hormonal, and Self-reported Events and Symptoms for Menstrual Health Tracking with Wearables*. PhysioNet, Version 1.0.0. [https://doi.org/10.13026/zx6a-2c81](https://doi.org/10.13026/zx6a-2c81)
