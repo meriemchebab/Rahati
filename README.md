@@ -19,17 +19,16 @@ A private mental-wellbeing platform for Algerian women. A woman can understand h
 9. [Roles and permissions](#roles-and-permissions)
 10. [API overview](#api-overview)
 11. [Security and privacy](#security-and-privacy)
-12. [Deploy the backend on Render](#deploy-the-backend-on-render)
-13. [Deploy the backend on Vercel](#deploy-the-backend-on-vercel)
-14. [Getting started](#getting-started)
-15. [Testing](#testing)
-16. [Key decisions](#key-decisions)
-17. [Roadmap](#roadmap)
-18. [Team](#team)
-19. [Contributing](#contributing)
-20. [Glossary](#glossary)
-21. [License](#license)
-22. [References](#references)
+12. [Deployment](#deployment)
+13. [Getting started](#getting-started)
+14. [Testing](#testing)
+15. [Key decisions](#key-decisions)
+16. [Roadmap](#roadmap)
+17. [Team](#team)
+18. [Contributing](#contributing)
+19. [Glossary](#glossary)
+20. [License](#license)
+21. [References](#references)
 
 ---
 
@@ -568,119 +567,34 @@ The full baseline: CI for backend unit and security tests (the Playwright E2E wo
 - Administrators have no two-factor login yet.
 - Wilaya, address and other professional details are only as trustworthy as the manual verification of her credential. A human must check a diploma against the official body.
 
-## Deploy the backend on Render
+## Deployment
 
-The repository root contains `build.sh`, `pyproject.toml`, and `uv.lock`; the Django
-project is in `Backend/`. In Render, set **Root Directory** to the repository root
-(the folder containing those three files), not `Backend` or `Backend/rahati`.
+The backend can be hosted on any platform that runs Python, such as Render or Vercel.
 
-Create a PostgreSQL database in Render first, then create a Python web service for
-this repository with:
+1. **Database:** create a managed PostgreSQL database. Do not use SQLite in production.
+2. **Environment variables:** set these in the host's settings, never in Git:
 
-| Setting | Value |
-| --- | --- |
-| Root Directory | repository root |
-| Build Command | `bash build.sh` |
-| Start Command | `cd Backend && uv run --project .. gunicorn config.wsgi:application --bind 0.0.0.0:$PORT` |
+   ```text
+   DJANGO_DEBUG=false
+   DJANGO_SECRET_KEY=<long random secret>
+   FIELD_ENCRYPTION_KEY=<Fernet key>
+   DATABASE_URL=<PostgreSQL URL>
+   DJANGO_ALLOWED_HOSTS=<your backend domain>
+   CORS_ALLOWED_ORIGINS=<your frontend URL>
+   GEMINI_API_KEY=<optional>
+   ```
 
-Add these environment variables to the web service. Copy the PostgreSQL database's
-**Internal Database URL** into `DATABASE_URL`:
+   Generate the keys with:
 
-```text
-DJANGO_DEBUG=false
-DJANGO_SECRET_KEY=<unique-long-random-secret>
-FIELD_ENCRYPTION_KEY=<unique-Fernet-key>
-DATABASE_URL=<Render-PostgreSQL-Internal-Database-URL>
-```
+   ```bash
+   python -c "import secrets; print(secrets.token_urlsafe(64))"
+   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+   ```
 
-Generate keys locally with:
+3. **Build and start:** on Render, use the repository root with `bash build.sh` as the build command and `cd Backend && uv run --project .. gunicorn config.wsgi:application --bind 0.0.0.0:$PORT` as the start command. `build.sh` installs dependencies, collects static files, runs migrations and seeds demo content. On Vercel, set the root directory to `Backend`.
+4. **Check:** open `/api/health/` and `/admin/` over HTTPS.
 
-```powershell
-python -c "import secrets; print(secrets.token_urlsafe(64))"
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
-
-Keep the actual values in Render's environment settings, never in Git or this
-README. `GEMINI_API_KEY` is optional. `build.sh` syncs dependencies from the root
-uv lockfile, collects static files, applies migrations, and seeds the demo topics
-and starter cards. The public health check is `https://<service>.onrender.com/api/health/`.
-
-The current configuration permits all host names and CORS origins for the demo.
-Before a public production launch, restrict these to the deployed domains. Uploaded
-credential files currently use local storage, which is not durable across Render
-deployments; configure private persistent/object storage before accepting real uploads.
-
-## Deploy the backend on Vercel
-
-The Django API can be deployed as its own Vercel project before the web frontend.
-Vercel's Python runtime detects this app from `Backend/manage.py` and loads
-`config.wsgi.application`. In the Vercel project, set **Root Directory** to
-`Backend`; do not use the repository root for this backend project.
-
-### 1. Provision production services
-
-- Create a managed PostgreSQL database with TLS enabled. Do not use the repository's
-  SQLite database for Vercel: function filesystems are not durable application storage.
-- Arrange durable, private object storage for professional credential uploads before
-  accepting those uploads. `PRIVATE_MEDIA_ROOT` currently points to a local directory;
-  uploaded files can be lost between function invocations or deployments. Do not use
-  `/media/` or a public bucket for credentials.
-- Keep encrypted backups of the database and `FIELD_ENCRYPTION_KEY`. Losing that key
-  makes encrypted journal entries and session notes unreadable.
-
-### 2. Create the Vercel backend project
-
-Import the Git repository into Vercel and set its Root Directory to `Backend`.
-Use the Python framework preset if asked. The project needs no custom build command;
-Vercel detects Django from `manage.py`. Add the environment variables below to the
-Production environment (and Preview only if you have a separate preview database).
-Use the Vercel-provided PostgreSQL connection URL as `DATABASE_URL`.
-
-```text
-DJANGO_DEBUG=false
-DJANGO_SECRET_KEY=<unique-long-random-secret>
-DJANGO_ALLOWED_HOSTS=<your-backend-domain>,<your-project>.vercel.app
-FIELD_ENCRYPTION_KEY=<unique-Fernet-key>
-DATABASE_URL=<managed-PostgreSQL-URL>
-```
-
-Generate keys locally with:
-
-```powershell
-python -c "import secrets; print(secrets.token_urlsafe(64))"
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
-
-Keep the actual values in Vercel's environment variable settings, never in Git or
-the README. `GEMINI_API_KEY` is optional. Set `CORS_ALLOWED_ORIGINS` to the exact
-frontend HTTPS origin when that frontend has been deployed. Until then the API can
-be checked directly; the default only permits localhost.
-
-### 3. Initialize the database
-
-After the first deployment succeeds, run migrations against the production database
-from a trusted local checkout with the Production environment variables loaded:
-
-```powershell
-cd Backend
-python manage.py migrate
-python manage.py createsuperuser
-```
-
-Use the host's documented secure environment pull workflow or set those variables
-in the local process; never paste them into a committed file. Verify `/admin/` over
-HTTPS and check a known API route. The Django admin is authenticated.
-
-### 4. Deploy the frontend later
-
-Create a separate Vercel project rooted at `frontend` when its UI is ready. Configure
-the frontend's API base URL to the backend deployment, then set the backend's
-`CORS_ALLOWED_ORIGINS` to the frontend's production HTTPS origin and redeploy the
-backend. The current frontend is still the Next.js starter screen.
-
-**Deployment status:** this is deployment setup guidance, not a claim that the app is
-ready for public users. Complete the security work listed in “Before any real woman
-uses the app” and add durable private credential storage before onboarding real users.
+> **Before real users:** back up the database and `FIELD_ENCRYPTION_KEY` (losing the key makes journals and notes unreadable), set up private persistent storage for credential uploads, and finish the security checklist in [Security and privacy](#security-and-privacy).
 
 ## Getting started
 
