@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRouter, usePathname } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -14,6 +14,7 @@ import {
   LogOut,
 } from "lucide-react";
 
+import { getProfile } from "@/lib/professional-api";
 import { useAuth } from "@/components/auth/AuthContext";
 
 interface SidebarProps {
@@ -32,6 +33,18 @@ const navigationItems = [
   { label: "Settings", icon: Settings },
 ];
 
+function getInitials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+
+  if (words.length === 0) return "P";
+
+  if (words.length === 1) {
+    return words[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
+}
+
 export default function Sidebar({
   open,
   selectedPage,
@@ -39,50 +52,39 @@ export default function Sidebar({
   onNavigate,
   onClose,
 }: SidebarProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { user, profile, signOut } = useAuth();
+  const [displayName, setDisplayName] = useState("Professional");
+  const { signOut } = useAuth();
 
-  const routes: Record<string, string> = {
-    Overview: "/",
-    Calendar: "/calendar",
-    Requests: "/requests",
-    Patients: "/patients",
-    Settings: "/settings",
-  };
+  const loadProfile = useCallback(async () => {
+    try {
+      const profile = await getProfile();
 
-  const currentPage =
-    Object.entries(routes).find(([, route]) => route === pathname)?.[0] ??
-    selectedPage ??
-    "Overview";
+      const name =
+        typeof profile?.display_name === "string"
+          ? profile.display_name.trim()
+          : "";
 
-  const professionalName =
-    profile?.display_name || user?.nickname || "Professional";
-
-  const initials = professionalName
-    .replace(/^(Dr\.?|Doctor)\s+/i, "")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0].toUpperCase())
-    .join("");
-
-  function navigateToPage(label: string) {
-    onNavigate(label);
-    onClose();
-
-    const route = routes[label];
-
-    if (route) {
-      router.push(route);
+      if (name) {
+        setDisplayName(name);
+      }
+    } catch (error) {
+      console.error("Unable to load professional profile:", error);
     }
-  }
+  }, []);
 
-  function handleLogout() {
-    signOut();
-    onClose();
-    router.replace("/login");
-  }
+  useEffect(() => {
+    void loadProfile();
+
+    const handleProfileUpdate = () => {
+      void loadProfile();
+    };
+
+    window.addEventListener("rahati-profile-updated", handleProfileUpdate);
+
+    return () => {
+      window.removeEventListener("rahati-profile-updated", handleProfileUpdate);
+    };
+  }, [loadProfile]);
 
   return (
     <>
@@ -100,28 +102,27 @@ export default function Sidebar({
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* Brand */}
+        {/* Logo */}
         <div className="flex h-[84px] shrink-0 items-center justify-between border-b border-rahati-mauve/10 px-6">
           <button
             type="button"
-            onClick={() => navigateToPage("Overview")}
+            onClick={() => onNavigate("Overview")}
             className="flex items-center gap-3 text-left"
             aria-label="Go to Overview"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl text-white">
-              <Image
-                src="/images/rahati-logo.svg"
-                alt="Rahati logo"
-                width={40}
-                height={40}
-                priority
-              />
-            </span>
+            <Image
+              src="/images/rahati-logo.svg"
+              alt="Rahati logo"
+              width={40}
+              height={40}
+              priority
+            />
 
             <span className="flex flex-col">
               <span className="text-[20px] font-semibold tracking-tight text-rahati-plum">
                 rahati
               </span>
+
               <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-rahati-mauve-dark">
                 Professional
               </span>
@@ -146,13 +147,17 @@ export default function Sidebar({
 
           <nav className="space-y-1.5" aria-label="Professional navigation">
             {navigationItems.map(({ label, icon: Icon }) => {
-              const isActive = currentPage === label;
+              const isActive = selectedPage === label;
 
               return (
                 <button
                   key={label}
                   type="button"
-                  onClick={() => navigateToPage(label)}
+                  onClick={() => {
+                    onNavigate(label);
+                    onClose();
+                  }}
+                  aria-current={isActive ? "page" : undefined}
                   className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[13px] font-medium transition-colors ${
                     isActive
                       ? "bg-rahati-blush text-rahati-plum"
@@ -207,27 +212,37 @@ export default function Sidebar({
 
         {/* Professional profile and logout */}
         <div className="shrink-0 border-t border-rahati-mauve/10 p-4">
-          <div className="flex items-center gap-3 rounded-xl px-2 py-2">
+          <button
+            type="button"
+            onClick={() => {
+              onNavigate("Settings");
+              onClose();
+            }}
+            className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-rahati-blush/60"
+          >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rahati-lavender text-[12px] font-semibold text-rahati-plum">
-              {initials || "P"}
+              {getInitials(displayName)}
             </div>
 
             <div className="min-w-0 flex-1">
               <p className="truncate text-[12px] font-semibold text-rahati-plum">
-                {professionalName}
+                {displayName}
               </p>
+
               <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
                 Mental health professional
               </p>
             </div>
-          </div>
+
+            <Settings size={16} className="shrink-0 text-muted-foreground" />
+          </button>
 
           <button
             type="button"
-            onClick={handleLogout}
-            className="mt-3 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-700"
+            onClick={signOut}
+            className="mt-3 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-[13px] font-medium text-[#9b647e] transition hover:bg-[#f9eaf1] hover:text-[#82445f]"
           >
-            <LogOut size={17} />
+            <LogOut size={18} strokeWidth={1.8} />
             <span>Log out</span>
           </button>
         </div>
