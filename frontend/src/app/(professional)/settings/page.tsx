@@ -4,903 +4,863 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
-  CalendarDays,
   Check,
   ChevronRight,
-  Clock,
   Globe,
-  LockKeyhole,
-  Palette,
+  Loader2,
+  Moon,
+  RotateCcw,
   Save,
-  Settings2,
   ShieldCheck,
+  Sun,
   UserRound,
-  X,
 } from "lucide-react";
 
 import DashboardLayout from "../components/layout/DashboardLayout";
+import {
+  getProfile,
+  updateProfile,
+  type ProfessionalProfile,
+} from "@/lib/professional-api";
 
-type Language = "English" | "Français" | "العربية";
-type Section = "profile" | "preferences" | "notifications" | "appearance";
-type Appearance = "Light" | "Soft" | "System";
+type Tab =
+  | "profile"
+  | "preferences"
+  | "notifications"
+  | "appearance"
+  | "account";
+type Language = "en" | "fr" | "ar";
+type Theme = "light" | "soft" | "dark";
 
-type Profile = {
-  fullName: string;
-  email: string;
-  specialty: string;
-  phone: string;
-  bio: string;
-};
-
-type NotificationPreferences = {
-  appointmentRequests: boolean;
+type Preferences = {
+  language: Language;
+  theme: Theme;
   appointmentReminders: boolean;
-  patientUpdates: boolean;
+  newRequests: boolean;
+  sessionUpdates: boolean;
+  weeklySummary: boolean;
 };
 
-const initialProfile: Profile = {
-  fullName: "Dr. Sarah Benali",
-  email: "sarah.benali@example.com",
-  specialty: "Psychologist",
-  phone: "",
+const EMPTY_PROFILE: ProfessionalProfile = {
+  display_name: "",
   bio: "",
+  city: "",
+  address: "",
+  wilaya: "",
+  credential_kind: "",
+  status: "",
+  credential_uploaded_at: null,
 };
 
-const initialNotifications: NotificationPreferences = {
-  appointmentRequests: true,
+const DEFAULT_PREFERENCES: Preferences = {
+  language: "en",
+  theme: "soft",
   appointmentReminders: true,
-  patientUpdates: false,
+  newRequests: true,
+  sessionUpdates: true,
+  weeklySummary: false,
 };
 
-const translations = {
-  English: {
+const COPY = {
+  en: {
+    account: "ACCOUNT",
     title: "Settings",
     subtitle: "Manage your profile and workspace preferences.",
     profile: "Profile information",
-    profileDescription: "Your professional details",
     preferences: "Preferences",
-    preferencesDescription: "Language and appointments",
     notifications: "Notifications",
-    notificationsDescription: "Choose what you receive",
     appearance: "Appearance",
-    appearanceDescription: "Your interface preferences",
-    personalDetails: "Personal information",
-    personalDescription: "Keep your professional information up to date.",
-    fullName: "Full name",
-    email: "Email address",
-    specialty: "Specialty",
-    phone: "Phone number",
+    security: "Account",
+    profileDesc: "Your professional information",
+    preferencesDesc: "Language and regional settings",
+    notificationsDesc: "Manage your notification preferences",
+    appearanceDesc: "Personalize your workspace",
+    securityDesc: "Your account and verification status",
+    name: "Display name",
     bio: "Professional bio",
-    namePlaceholder: "Enter your full name",
-    emailPlaceholder: "Enter your email address",
-    specialtyPlaceholder: "Your specialty",
-    phonePlaceholder: "Enter your phone number",
-    bioPlaceholder: "Tell patients a little about yourself...",
-    save: "Save changes",
-    cancel: "Cancel",
-    saved: "Your changes have been saved.",
-    profileSaved: "Profile updated successfully.",
-    preferencesTitle: "Workspace preferences",
-    preferencesDescriptionFull:
-      "Customize your language and appointment reminders.",
-    language: "Display language",
-    languageDescription: "Choose the language used on this page.",
-    reminderTime: "Appointment reminder",
-    reminderDescription:
-      "Choose how long before an appointment you want a reminder.",
-    minutes15: "15 minutes before",
-    minutes30: "30 minutes before",
-    hour1: "1 hour before",
-    hours24: "24 hours before",
-    notificationTitle: "Notification preferences",
-    notificationDescription: "Choose which updates you would like to receive.",
-    requests: "Appointment requests",
-    requestsDescription: "Get notified when a woman requests an appointment.",
-    reminders: "Appointment reminders",
-    remindersDescription: "Receive reminders about upcoming sessions.",
-    patientUpdates: "Patient updates",
-    patientUpdatesDescription: "Receive updates about the women in your care.",
-    appearanceTitle: "Workspace appearance",
-    appearanceDescriptionFull:
-      "Choose your preferred appearance for the workspace.",
+    city: "City",
+    wilaya: "Wilaya",
+    address: "Professional address",
+    verification: "Verification status",
+    credential: "Credential type",
+    language: "Application language",
+    english: "English",
+    french: "French",
+    arabic: "Arabic",
+    theme: "Workspace appearance",
     light: "Light",
-    lightDescription: "A bright, clean interface",
     soft: "Soft",
-    softDescription: "Gentle colors and a calming feel",
-    system: "System",
-    systemDescription: "Follow your device preferences",
-    security: "Account security",
-    securityDescription:
-      "Authentication and password management will be available when login is connected.",
+    dark: "Dark",
+    reminders: "Appointment reminders",
+    remindersDesc: "Remind me about upcoming sessions",
+    requests: "New appointment requests",
+    requestsDesc: "Notify me about incoming requests",
+    updates: "Session updates",
+    updatesDesc: "Notify me when session details change",
+    summary: "Weekly summary",
+    summaryDesc: "A summary of your professional activity",
+    save: "Save changes",
+    cancel: "Discard changes",
+    savePreferences: "Save preferences",
+    saving: "Saving...",
+    loading: "Loading settings...",
+    saved: "Changes saved successfully.",
+    preferencesSaved: "Preferences saved on this device.",
+    loadError: "Unable to load your professional profile.",
+    unavailable: "Not available",
+    pending: "Pending",
+    verified: "Verified",
+    rejected: "Rejected",
     comingSoon: "Coming soon",
-    required: "Please enter your name and a valid email address.",
-    settingsMenu: "Settings sections",
-    languageChanged: "Language changed.",
-    professional: "Professional workspace",
+    localNotice:
+      "Language and notification preferences are saved in this browser. Actual push notifications require a notification service.",
+    themeNotice:
+      "This saves your appearance preference. Applying the theme throughout every page requires shared application-wide theme support.",
   },
-
-  Français: {
+  fr: {
+    account: "COMPTE",
     title: "Paramètres",
     subtitle: "Gérez votre profil et les préférences de votre espace.",
     profile: "Informations du profil",
-    profileDescription: "Vos informations professionnelles",
     preferences: "Préférences",
-    preferencesDescription: "Langue et rendez-vous",
     notifications: "Notifications",
-    notificationsDescription: "Choisissez les notifications à recevoir",
     appearance: "Apparence",
-    appearanceDescription: "Préférences de votre interface",
-    personalDetails: "Informations personnelles",
-    personalDescription: "Gardez vos informations professionnelles à jour.",
-    fullName: "Nom complet",
-    email: "Adresse e-mail",
-    specialty: "Spécialité",
-    phone: "Numéro de téléphone",
-    bio: "Présentation professionnelle",
-    namePlaceholder: "Saisissez votre nom complet",
-    emailPlaceholder: "Saisissez votre adresse e-mail",
-    specialtyPlaceholder: "Votre spécialité",
-    phonePlaceholder: "Saisissez votre numéro de téléphone",
-    bioPlaceholder: "Présentez-vous brièvement aux patientes...",
-    save: "Enregistrer les modifications",
-    cancel: "Annuler",
-    saved: "Vos modifications ont été enregistrées.",
-    profileSaved: "Profil mis à jour avec succès.",
-    preferencesTitle: "Préférences de l’espace",
-    preferencesDescriptionFull:
-      "Personnalisez la langue et les rappels de rendez-vous.",
-    language: "Langue d’affichage",
-    languageDescription: "Choisissez la langue utilisée sur cette page.",
-    reminderTime: "Rappel de rendez-vous",
-    reminderDescription:
-      "Choisissez le délai avant le rendez-vous pour recevoir un rappel.",
-    minutes15: "15 minutes avant",
-    minutes30: "30 minutes avant",
-    hour1: "1 heure avant",
-    hours24: "24 heures avant",
-    notificationTitle: "Préférences de notification",
-    notificationDescription:
-      "Choisissez les notifications que vous souhaitez recevoir.",
-    requests: "Demandes de rendez-vous",
-    requestsDescription:
-      "Soyez informée lorsqu’une femme demande un rendez-vous.",
-    reminders: "Rappels de rendez-vous",
-    remindersDescription: "Recevez des rappels pour les prochaines séances.",
-    patientUpdates: "Actualités des patientes",
-    patientUpdatesDescription:
-      "Recevez des mises à jour concernant les femmes que vous accompagnez.",
-    appearanceTitle: "Apparence de l’espace",
-    appearanceDescriptionFull:
-      "Choisissez l’apparence de votre espace de travail.",
+    security: "Compte",
+    profileDesc: "Vos informations professionnelles",
+    preferencesDesc: "Langue et paramètres régionaux",
+    notificationsDesc: "Gérez vos préférences de notification",
+    appearanceDesc: "Personnalisez votre espace",
+    securityDesc: "Votre compte et votre statut de vérification",
+    name: "Nom affiché",
+    bio: "Biographie professionnelle",
+    city: "Ville",
+    wilaya: "Wilaya",
+    address: "Adresse professionnelle",
+    verification: "Statut de vérification",
+    credential: "Type de justificatif",
+    language: "Langue de l'application",
+    english: "Anglais",
+    french: "Français",
+    arabic: "Arabe",
+    theme: "Apparence de l'espace",
     light: "Clair",
-    lightDescription: "Une interface lumineuse et épurée",
     soft: "Doux",
-    softDescription: "Des couleurs douces et apaisantes",
-    system: "Système",
-    systemDescription: "Suivre les préférences de votre appareil",
-    security: "Sécurité du compte",
-    securityDescription:
-      "La gestion de l’authentification et du mot de passe sera disponible lorsque la connexion sera intégrée.",
+    dark: "Sombre",
+    reminders: "Rappels de rendez-vous",
+    remindersDesc: "Recevoir des rappels avant les séances",
+    requests: "Nouvelles demandes",
+    requestsDesc: "Être informée des nouvelles demandes",
+    updates: "Mises à jour des séances",
+    updatesDesc: "Être informée des changements de séance",
+    summary: "Résumé hebdomadaire",
+    summaryDesc: "Un résumé de votre activité professionnelle",
+    save: "Enregistrer",
+    cancel: "Annuler les modifications",
+    savePreferences: "Enregistrer les préférences",
+    saving: "Enregistrement...",
+    loading: "Chargement des paramètres...",
+    saved: "Modifications enregistrées.",
+    preferencesSaved: "Préférences enregistrées sur cet appareil.",
+    loadError: "Impossible de charger votre profil professionnel.",
+    unavailable: "Non disponible",
+    pending: "En attente",
+    verified: "Vérifié",
+    rejected: "Refusé",
     comingSoon: "Bientôt disponible",
-    required: "Veuillez saisir votre nom et une adresse e-mail valide.",
-    settingsMenu: "Sections des paramètres",
-    languageChanged: "Langue modifiée.",
-    professional: "Espace professionnel",
+    localNotice:
+      "Les préférences sont enregistrées dans ce navigateur. Les notifications réelles nécessitent un service dédié.",
+    themeNotice:
+      "Le choix est enregistré. L'application du thème à toutes les pages nécessite une prise en charge globale.",
   },
-
-  العربية: {
+  ar: {
+    account: "الحساب",
     title: "الإعدادات",
-    subtitle: "إدارة ملفك الشخصي وتفضيلات مساحة العمل.",
+    subtitle: "إدارة ملفك المهني وتفضيلات مساحة العمل.",
     profile: "معلومات الملف الشخصي",
-    profileDescription: "معلوماتك المهنية",
     preferences: "التفضيلات",
-    preferencesDescription: "اللغة والمواعيد",
     notifications: "الإشعارات",
-    notificationsDescription: "اختاري الإشعارات التي تريدين تلقيها",
     appearance: "المظهر",
-    appearanceDescription: "تفضيلات الواجهة",
-    personalDetails: "المعلومات الشخصية",
-    personalDescription: "حافظي على تحديث معلوماتك المهنية.",
-    fullName: "الاسم الكامل",
-    email: "البريد الإلكتروني",
-    specialty: "التخصص",
-    phone: "رقم الهاتف",
+    security: "الحساب",
+    profileDesc: "معلوماتك المهنية",
+    preferencesDesc: "اللغة والإعدادات الإقليمية",
+    notificationsDesc: "إدارة تفضيلات الإشعارات",
+    appearanceDesc: "تخصيص مساحة العمل",
+    securityDesc: "حسابك وحالة التحقق",
+    name: "الاسم المعروض",
     bio: "نبذة مهنية",
-    namePlaceholder: "أدخلي اسمك الكامل",
-    emailPlaceholder: "أدخلي بريدك الإلكتروني",
-    specialtyPlaceholder: "تخصصك",
-    phonePlaceholder: "أدخلي رقم هاتفك",
-    bioPlaceholder: "عرّفي المراجعات بنفسك باختصار...",
-    save: "حفظ التغييرات",
-    cancel: "إلغاء",
-    saved: "تم حفظ التغييرات.",
-    profileSaved: "تم تحديث الملف الشخصي بنجاح.",
-    preferencesTitle: "تفضيلات مساحة العمل",
-    preferencesDescriptionFull: "خصصي اللغة وتذكيرات المواعيد.",
-    language: "لغة العرض",
-    languageDescription: "اختاري اللغة المستخدمة في هذه الصفحة.",
-    reminderTime: "التذكير بالموعد",
-    reminderDescription: "اختاري المدة التي تسبق الموعد لإرسال التذكير.",
-    minutes15: "قبل 15 دقيقة",
-    minutes30: "قبل 30 دقيقة",
-    hour1: "قبل ساعة واحدة",
-    hours24: "قبل 24 ساعة",
-    notificationTitle: "تفضيلات الإشعارات",
-    notificationDescription: "اختاري الإشعارات التي ترغبين في تلقيها.",
-    requests: "طلبات المواعيد",
-    requestsDescription: "إشعار عند طلب إحدى المراجعات موعدًا.",
-    reminders: "تذكيرات المواعيد",
-    remindersDescription: "تلقي تذكيرات بالجلسات القادمة.",
-    patientUpdates: "تحديثات المراجعات",
-    patientUpdatesDescription: "تلقي تحديثات متعلقة بالنساء اللواتي تتابعينهن.",
-    appearanceTitle: "مظهر مساحة العمل",
-    appearanceDescriptionFull: "اختاري المظهر المناسب لمساحة عملك.",
+    city: "المدينة",
+    wilaya: "الولاية",
+    address: "العنوان المهني",
+    verification: "حالة التحقق",
+    credential: "نوع الوثيقة",
+    language: "لغة التطبيق",
+    english: "الإنجليزية",
+    french: "الفرنسية",
+    arabic: "العربية",
+    theme: "مظهر مساحة العمل",
     light: "فاتح",
-    lightDescription: "واجهة مشرقة وبسيطة",
     soft: "هادئ",
-    softDescription: "ألوان ناعمة ومريحة",
-    system: "النظام",
-    systemDescription: "اتباع إعدادات جهازك",
-    security: "أمان الحساب",
-    securityDescription:
-      "ستتوفر إعدادات تسجيل الدخول وكلمة المرور بعد ربط نظام المصادقة.",
+    dark: "داكن",
+    reminders: "تذكيرات المواعيد",
+    remindersDesc: "التذكير بالجلسات القادمة",
+    requests: "طلبات المواعيد الجديدة",
+    requestsDesc: "الإشعار عند وصول طلب جديد",
+    updates: "تحديثات الجلسات",
+    updatesDesc: "الإشعار عند تغيير تفاصيل الجلسة",
+    summary: "الملخص الأسبوعي",
+    summaryDesc: "ملخص نشاطك المهني",
+    save: "حفظ التغييرات",
+    cancel: "إلغاء التغييرات",
+    savePreferences: "حفظ التفضيلات",
+    saving: "جارٍ الحفظ...",
+    loading: "جارٍ تحميل الإعدادات...",
+    saved: "تم حفظ التغييرات بنجاح.",
+    preferencesSaved: "تم حفظ التفضيلات على هذا الجهاز.",
+    loadError: "تعذر تحميل ملفك المهني.",
+    unavailable: "غير متاح",
+    pending: "قيد الانتظار",
+    verified: "تم التحقق",
+    rejected: "مرفوض",
     comingSoon: "قريبًا",
-    required: "يرجى إدخال الاسم وبريد إلكتروني صالح.",
-    settingsMenu: "أقسام الإعدادات",
-    languageChanged: "تم تغيير اللغة.",
-    professional: "مساحة العمل المهنية",
+    localNotice:
+      "تُحفظ التفضيلات في هذا المتصفح. تحتاج الإشعارات الفعلية إلى خدمة مخصصة.",
+    themeNotice:
+      "يُحفظ اختيار المظهر. يتطلب تطبيقه على جميع الصفحات دعمًا عامًا للسمات.",
   },
 } as const;
+
+function loadPreferences(): Preferences {
+  try {
+    const value = localStorage.getItem("rahati-preferences");
+    if (value) {
+      return { ...DEFAULT_PREFERENCES, ...JSON.parse(value) };
+    }
+  } catch {
+    // Use default preferences if local storage is unavailable.
+  }
+  return DEFAULT_PREFERENCES;
+}
+
+const inputClass =
+  "mt-2 w-full rounded-xl border border-[#f0dfe9] bg-[#fffafd] px-4 py-3 text-sm text-[#59384f] outline-none transition focus:border-[#c58eac] focus:ring-2 focus:ring-[#f5e5ee]";
+
+function Field({
+  label,
+  value,
+  onChange,
+  multiline = false,
+  required = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  multiline?: boolean;
+  required?: boolean;
+}) {
+  return (
+    <label className="block text-sm font-medium text-[#68475c]">
+      {label}
+      {multiline ? (
+        <textarea
+          className={inputClass}
+          rows={4}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      ) : (
+        <input
+          className={inputClass}
+          value={value}
+          required={required}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      )}
+    </label>
+  );
+}
+
+function Switch({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`relative h-6 w-11 shrink-0 rounded-full transition ${
+        checked ? "bg-[#b77b9d]" : "bg-[#dfd4dc]"
+      }`}
+    >
+      <span
+        className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-all ${
+          checked ? "left-6" : "left-1"
+        }`}
+      />
+    </button>
+  );
+}
 
 export default function SettingsPage() {
   const router = useRouter();
 
-  const [language, setLanguage] = useState<Language>("English");
-  const [profile, setProfile] = useState<Profile>(initialProfile);
-  const [savedProfile, setSavedProfile] = useState<Profile>(initialProfile);
-  const [notifications, setNotifications] =
-    useState<NotificationPreferences>(initialNotifications);
-  const [reminderTime, setReminderTime] = useState("30");
-  const [appearance, setAppearance] = useState<Appearance>("Soft");
-  const [activeSection, setActiveSection] = useState<Section>("profile");
-  const [message, setMessage] = useState("");
+  const [profile, setProfile] = useState<ProfessionalProfile>(EMPTY_PROFILE);
+  const [savedProfile, setSavedProfile] =
+    useState<ProfessionalProfile>(EMPTY_PROFILE);
+
+  const [preferences, setPreferences] =
+    useState<Preferences>(DEFAULT_PREFERENCES);
+  const [savedPreferences, setSavedPreferences] =
+    useState<Preferences>(DEFAULT_PREFERENCES);
+
+  const [activeTab, setActiveTab] = useState<Tab>("profile");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [currentDate, setCurrentDate] = useState("");
+  const [today, setToday] = useState<Date | null>(null);
 
-  const t = translations[language];
-  const isArabic = language === "العربية";
+  const t = COPY[preferences.language];
 
   useEffect(() => {
-    const now = new Date();
+    setToday(new Date());
 
-    setCurrentDate(
-      now.toLocaleDateString(
-        language === "Français"
-          ? "fr-FR"
-          : language === "العربية"
-            ? "ar"
-            : "en-US",
-        {
-          weekday: "long",
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        },
-      ),
-    );
-  }, [language]);
+    const stored = loadPreferences();
+    setPreferences(stored);
+    setSavedPreferences(stored);
 
-  const navigationItems: {
-    id: Section;
-    title: string;
+    async function loadProfile() {
+      try {
+        const result = await getProfile();
+        setProfile(result);
+        setSavedProfile(result);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : COPY.en.loadError);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void loadProfile();
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = preferences.language;
+    document.documentElement.dir =
+      preferences.language === "ar" ? "rtl" : "ltr";
+  }, [preferences.language]);
+
+  const changeProfile = (field: keyof ProfessionalProfile, value: string) => {
+    setProfile((current) => ({ ...current, [field]: value }));
+    setSuccess("");
+  };
+
+  const changePreference = <K extends keyof Preferences>(
+    field: K,
+    value: Preferences[K],
+  ) => {
+    setPreferences((current) => ({ ...current, [field]: value }));
+    setSuccess("");
+  };
+
+  const saveLocalPreferences = () => {
+    try {
+      localStorage.setItem("rahati-preferences", JSON.stringify(preferences));
+      setSavedPreferences(preferences);
+      setSuccess(t.preferencesSaved);
+      setError("");
+    } catch {
+      setError("Unable to save preferences in this browser.");
+    }
+  };
+
+  const saveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const updated = await updateProfile({
+        display_name: profile.display_name,
+        bio: profile.bio,
+        city: profile.city,
+        address: profile.address,
+        wilaya: profile.wilaya,
+      });
+
+      setProfile(updated);
+      setSavedProfile(updated);
+
+      // Refresh the professional name in the sidebar and Overview greeting.
+      window.dispatchEvent(new Event("rahati-profile-updated"));
+
+      try {
+        localStorage.setItem("rahati-preferences", JSON.stringify(preferences));
+        setSavedPreferences(preferences);
+      } catch {
+        // The profile was saved by Django even if browser storage fails.
+      }
+
+      setSuccess(t.saved);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to save your profile.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const cancelChanges = () => {
+    setProfile(savedProfile);
+    setPreferences(savedPreferences);
+    setError("");
+    setSuccess("");
+  };
+
+  const tabs: {
+    id: Tab;
+    label: string;
     description: string;
     icon: typeof UserRound;
   }[] = [
     {
       id: "profile",
-      title: t.profile,
-      description: t.profileDescription,
+      label: t.profile,
+      description: t.profileDesc,
       icon: UserRound,
     },
     {
       id: "preferences",
-      title: t.preferences,
-      description: t.preferencesDescription,
+      label: t.preferences,
+      description: t.preferencesDesc,
       icon: Globe,
     },
     {
       id: "notifications",
-      title: t.notifications,
-      description: t.notificationsDescription,
+      label: t.notifications,
+      description: t.notificationsDesc,
       icon: Bell,
     },
     {
       id: "appearance",
-      title: t.appearance,
-      description: t.appearanceDescription,
-      icon: Palette,
+      label: t.appearance,
+      description: t.appearanceDesc,
+      icon: Sun,
+    },
+    {
+      id: "account",
+      label: t.security,
+      description: t.securityDesc,
+      icon: ShieldCheck,
     },
   ];
 
-  function showMessage(text: string) {
-    setMessage(text);
-    setError("");
+  const status = (profile.status || "").toLowerCase();
+  const statusLabel =
+    status === "verified"
+      ? t.verified
+      : status === "pending"
+        ? t.pending
+        : status === "rejected"
+          ? t.rejected
+          : profile.status || t.unavailable;
 
-    window.setTimeout(() => setMessage(""), 3000);
-  }
-
-  function updateProfile(field: keyof Profile, value: string) {
-    setProfile((previous) => ({
-      ...previous,
-      [field]: value,
-    }));
-  }
-
-  function saveProfile() {
-    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email);
-
-    if (!profile.fullName.trim() || !validEmail) {
-      setError(t.required);
-      setMessage("");
-      return;
-    }
-
-    setSavedProfile({ ...profile });
-    showMessage(t.profileSaved);
-  }
-
-  function cancelProfileChanges() {
-    setProfile({ ...savedProfile });
-    setError("");
-    setMessage("");
-  }
-
-  function toggleNotification(key: keyof NotificationPreferences) {
-    setNotifications((previous) => ({
-      ...previous,
-      [key]: !previous[key],
-    }));
-  }
-
-  function navigateToSection(section: Section) {
-    setActiveSection(section);
-
-    document
-      .getElementById(section)
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  const cardClass =
-    "rounded-3xl border border-[#F0E7F0] bg-white/90 p-6 shadow-[0_8px_30px_rgba(102,67,101,0.045)] sm:p-7";
-
-  const inputClass =
-    "mt-2 w-full rounded-xl border border-[#E9DFEA] bg-[#FFFCFE] px-4 py-3 text-sm text-[#49394D] outline-none transition placeholder:text-[#B4A6B8] focus:border-[#B59BCB] focus:ring-4 focus:ring-[#B59BCB]/10";
+  const dateLocale =
+    preferences.language === "fr"
+      ? "fr-FR"
+      : preferences.language === "ar"
+        ? "ar-DZ"
+        : "en-US";
 
   return (
     <DashboardLayout
       sidebarOpen={sidebarOpen}
       selectedPage="Settings"
-      pendingRequests={3}
-      formattedDate={currentDate}
+      pendingRequests={0}
+      formattedDate={today ? today.toLocaleDateString(dateLocale) : ""}
       notificationsOpen={notificationsOpen}
-      onNavigate={(path: string) => router.push(path)}
+      onNavigate={(label) => {
+        const routes: Record<string, string> = {
+          Overview: "/",
+          Calendar: "/calendar",
+          Requests: "/requests",
+          Patients: "/patients",
+          Settings: "/settings",
+        };
+        router.push(routes[label] || "/");
+      }}
       onCloseSidebar={() => setSidebarOpen(false)}
       onOpenSidebar={() => setSidebarOpen(true)}
-      onToggleNotifications={() =>
-        setNotificationsOpen((previous) => !previous)
-      }
+      onToggleNotifications={() => setNotificationsOpen((value) => !value)}
     >
-      <main
-        dir={isArabic ? "rtl" : "ltr"}
-        className="min-h-screen bg-gradient-to-br from-[#FFF9FC] via-[#FCF8FF] to-[#F8F7FF] px-4 py-7 text-[#49394D] sm:px-7 lg:px-9 lg:py-9"
-      >
-        <div className="mx-auto max-w-7xl">
-          {/* Page heading */}
-          <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/80 px-3.5 py-2 text-xs font-semibold tracking-wide text-[#9978A4] shadow-sm ring-1 ring-[#F0E7F0]">
-                <Settings2 size={15} />
-                {t.professional}
-              </div>
+      <div dir={preferences.language === "ar" ? "rtl" : "ltr"}>
+        <header className="mb-7">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#b77b9d]">
+            {t.account}
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold text-[#59384f]">
+            {t.title}
+          </h1>
+          <p className="mt-2 text-sm text-[#94758a]">{t.subtitle}</p>
+        </header>
 
-              <h1 className="text-3xl font-semibold tracking-tight text-[#49394D] sm:text-4xl">
+        {error && (
+          <div
+            role="alert"
+            className="mb-5 rounded-xl bg-red-50 p-4 text-sm text-red-700"
+          >
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div
+            role="status"
+            className="mb-5 rounded-xl bg-[#edf7f1] p-4 text-sm text-[#527f68]"
+          >
+            {success}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-7 w-7 animate-spin text-[#bd83a3]" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+            {/* RESTORED LEFT SETTINGS MENU */}
+            <aside className="rounded-2xl bg-white/85 p-3 shadow-sm">
+              <p className="px-3 pb-3 pt-2 text-xs font-semibold uppercase tracking-wider text-[#b39aab]">
                 {t.title}
-              </h1>
-
-              <p className="mt-2 max-w-xl text-sm leading-6 text-[#95849A] sm:text-base">
-                {t.subtitle}
               </p>
-            </div>
 
-            <div className="flex items-center gap-2 self-start rounded-2xl border border-[#F0E7F0] bg-white/80 px-4 py-3 text-sm text-[#8F7D96] sm:self-auto">
-              <CalendarDays size={17} className="text-[#AD8AB8]" />
-              <span>{currentDate}</span>
-            </div>
-          </header>
+              <nav className="space-y-1" aria-label={t.title}>
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const active = activeTab === tab.id;
 
-          {/* Feedback messages */}
-          {message && (
-            <div
-              role="status"
-              className="mb-5 flex items-center gap-3 rounded-2xl border border-[#D9EBDD] bg-[#F2FAF3] px-4 py-3 text-sm text-[#477A59]"
-            >
-              <Check size={18} />
-              <span>{message}</span>
-              <button
-                type="button"
-                aria-label="Dismiss message"
-                onClick={() => setMessage("")}
-                className="ms-auto rounded-lg p-1 hover:bg-[#E5F4E8]"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          )}
-
-          {error && (
-            <div
-              role="alert"
-              className="mb-5 rounded-2xl border border-[#F0D6DD] bg-[#FFF5F7] px-4 py-3 text-sm text-[#A54E67]"
-            >
-              {error}
-            </div>
-          )}
-
-          <div className="grid items-start gap-6 lg:grid-cols-[265px_minmax(0,1fr)]">
-            {/* Settings navigation */}
-            <aside className="lg:sticky lg:top-6">
-              <div className="rounded-3xl border border-[#F0E7F0] bg-white/85 p-3 shadow-[0_8px_30px_rgba(102,67,101,0.04)]">
-                <p className="px-3 pb-3 pt-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#B09DB6]">
-                  {t.settingsMenu}
-                </p>
-
-                <nav className="space-y-1.5">
-                  {navigationItems.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = activeSection === item.id;
-
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => navigateToSection(item.id)}
-                        aria-current={isActive ? "location" : undefined}
-                        className={`group flex w-full items-center gap-3 rounded-2xl p-3 text-start transition-all duration-200 ${
-                          isActive
-                            ? "bg-gradient-to-r from-[#F7EAF2] to-[#F0ECFC] text-[#795B83] shadow-sm"
-                            : "text-[#8F8095] hover:bg-[#FCF7FC] hover:text-[#795B83]"
-                        }`}
-                      >
-                        <span
-                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
-                            isActive
-                              ? "bg-white text-[#A27EAD] shadow-sm"
-                              : "bg-[#FAF5FA] text-[#B09CB7] group-hover:bg-white"
-                          }`}
-                        >
-                          <Icon size={19} />
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start transition ${
+                        active
+                          ? "bg-[#f8edf4] text-[#80536f]"
+                          : "text-[#846b7c] hover:bg-[#fcf6fa]"
+                      }`}
+                    >
+                      <Icon size={18} className="shrink-0" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold">
+                          {tab.label}
                         </span>
-
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-semibold">
-                            {item.title}
-                          </span>
-                          <span className="mt-1 block text-xs leading-5 text-[#A596AA]">
-                            {item.description}
-                          </span>
+                        <span className="mt-1 block text-xs leading-relaxed opacity-75">
+                          {tab.description}
                         </span>
-
-                        <ChevronRight
-                          size={16}
-                          className={`shrink-0 transition-transform ${
-                            isActive
-                              ? "translate-x-0 text-[#A27EAD]"
-                              : "text-[#C7B9CC] group-hover:translate-x-0.5"
-                          }`}
-                        />
-                      </button>
-                    );
-                  })}
-                </nav>
-              </div>
-
-              {/* Security information */}
-              <div className="mt-4 rounded-3xl border border-[#EAE4F6] bg-gradient-to-br from-[#F4EFFB] to-[#FFF5F9] p-5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/90 text-[#9D83B6] shadow-sm">
-                  <ShieldCheck size={20} />
-                </div>
-
-                <h3 className="mt-4 text-sm font-semibold text-[#725A7D]">
-                  {t.security}
-                </h3>
-
-                <p className="mt-2 text-xs leading-5 text-[#95849D]">
-                  {t.securityDescription}
-                </p>
-
-                <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5 text-[11px] font-medium text-[#9C82A6]">
-                  <LockKeyhole size={13} />
-                  {t.comingSoon}
-                </div>
-              </div>
+                      </span>
+                      <ChevronRight size={15} className="shrink-0 opacity-60" />
+                    </button>
+                  );
+                })}
+              </nav>
             </aside>
 
-            {/* Settings sections */}
-            <div className="min-w-0 space-y-6">
-              {/* PROFILE */}
-              <section id="profile" className={cardClass}>
-                <div className="mb-6 flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F7EAF2] text-[#AC80A1]">
-                    <UserRound size={22} />
-                  </div>
-
-                  <div>
-                    <h2 className="text-lg font-semibold text-[#49394D]">
-                      {t.personalDetails}
+            {/* ACTIVE SETTINGS PANEL */}
+            <main className="min-w-0 rounded-2xl bg-white/85 p-5 shadow-sm sm:p-7">
+              {activeTab === "profile" && (
+                <form onSubmit={saveProfile} className="space-y-5">
+                  <div className="mb-6">
+                    <h2 className="text-lg font-semibold text-[#59384f]">
+                      {t.profile}
                     </h2>
-                    <p className="mt-1 text-sm leading-6 text-[#9A8A9F]">
-                      {t.personalDescription}
+                    <p className="mt-1 text-sm text-[#94758a]">
+                      {t.profileDesc}
                     </p>
                   </div>
-                </div>
 
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <label className="block text-sm font-medium text-[#6F5C75]">
-                    {t.fullName}
-                    <input
-                      type="text"
-                      autoComplete="name"
-                      value={profile.fullName}
-                      onChange={(event) =>
-                        updateProfile("fullName", event.target.value)
-                      }
-                      placeholder={t.namePlaceholder}
-                      className={inputClass}
+                  <Field
+                    label={t.name}
+                    value={profile.display_name}
+                    required
+                    onChange={(value) => changeProfile("display_name", value)}
+                  />
+                  <Field
+                    label={t.bio}
+                    value={profile.bio}
+                    multiline
+                    onChange={(value) => changeProfile("bio", value)}
+                  />
+
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    <Field
+                      label={t.city}
+                      value={profile.city}
+                      onChange={(value) => changeProfile("city", value)}
                     />
-                  </label>
-
-                  <label className="block text-sm font-medium text-[#6F5C75]">
-                    {t.email}
-                    <input
-                      type="email"
-                      autoComplete="email"
-                      value={profile.email}
-                      onChange={(event) =>
-                        updateProfile("email", event.target.value)
-                      }
-                      placeholder={t.emailPlaceholder}
-                      className={inputClass}
+                    <Field
+                      label={t.wilaya}
+                      value={profile.wilaya}
+                      onChange={(value) => changeProfile("wilaya", value)}
                     />
-                  </label>
-
-                  <label className="block text-sm font-medium text-[#6F5C75]">
-                    {t.specialty}
-                    <input
-                      type="text"
-                      value={profile.specialty}
-                      onChange={(event) =>
-                        updateProfile("specialty", event.target.value)
-                      }
-                      placeholder={t.specialtyPlaceholder}
-                      className={inputClass}
-                    />
-                  </label>
-
-                  <label className="block text-sm font-medium text-[#6F5C75]">
-                    {t.phone}
-                    <input
-                      type="tel"
-                      autoComplete="tel"
-                      value={profile.phone}
-                      onChange={(event) =>
-                        updateProfile("phone", event.target.value)
-                      }
-                      placeholder={t.phonePlaceholder}
-                      className={inputClass}
-                    />
-                  </label>
-
-                  <label className="block text-sm font-medium text-[#6F5C75] sm:col-span-2">
-                    {t.bio}
-                    <textarea
-                      rows={4}
-                      value={profile.bio}
-                      onChange={(event) =>
-                        updateProfile("bio", event.target.value)
-                      }
-                      placeholder={t.bioPlaceholder}
-                      className={`${inputClass} resize-y`}
-                    />
-                  </label>
-                </div>
-
-                <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-[#F5EEF5] pt-5">
-                  <button
-                    type="button"
-                    onClick={cancelProfileChanges}
-                    className="inline-flex items-center gap-2 rounded-xl border border-[#EAE0EB] bg-white px-4 py-2.5 text-sm font-medium text-[#8D7A93] transition hover:bg-[#FCF7FC]"
-                  >
-                    <X size={16} />
-                    {t.cancel}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={saveProfile}
-                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#B88FAE] to-[#A294CE] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-[0.97] hover:shadow-md"
-                  >
-                    <Save size={16} />
-                    {t.save}
-                  </button>
-                </div>
-              </section>
-
-              {/* PREFERENCES */}
-              <section id="preferences" className={cardClass}>
-                <div className="mb-6 flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EEEAFB] text-[#9485C5]">
-                    <Globe size={22} />
                   </div>
 
-                  <div>
-                    <h2 className="text-lg font-semibold text-[#49394D]">
-                      {t.preferencesTitle}
-                    </h2>
-                    <p className="mt-1 text-sm leading-6 text-[#9A8A9F]">
-                      {t.preferencesDescriptionFull}
+                  <Field
+                    label={t.address}
+                    value={profile.address}
+                    onChange={(value) => changeProfile("address", value)}
+                  />
+
+                  <div className="rounded-xl bg-[#fff5fa] p-4">
+                    <p className="text-sm font-semibold text-[#68475c]">
+                      {t.verification}
+                    </p>
+                    <p className="mt-1 text-sm text-[#94758a]">{statusLabel}</p>
+                    <p className="mt-3 text-xs text-[#a58c9c]">
+                      {t.credential}: {profile.credential_kind || t.unavailable}
                     </p>
                   </div>
-                </div>
 
-                <div className="space-y-5">
-                  <div className="flex flex-col gap-4 rounded-2xl bg-[#FCF9FD] p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#A58BB2] shadow-sm">
-                        <Globe size={17} />
-                      </div>
-
-                      <div>
-                        <h3 className="text-sm font-semibold text-[#6F5C75]">
-                          {t.language}
-                        </h3>
-                        <p className="mt-1 text-xs leading-5 text-[#A092A5]">
-                          {t.languageDescription}
-                        </p>
-                      </div>
-                    </div>
-
-                    <select
-                      value={language}
-                      onChange={(event) => {
-                        setLanguage(event.target.value as Language);
-                        setMessage("");
-                        setError("");
-                      }}
-                      aria-label={t.language}
-                      className="w-full rounded-xl border border-[#E9DFEA] bg-white px-4 py-3 text-sm text-[#6F5C75] outline-none transition focus:border-[#B59BCB] focus:ring-4 focus:ring-[#B59BCB]/10 sm:w-48"
+                  <div className="flex flex-wrap justify-end gap-3 border-t border-[#f5e7ef] pt-5">
+                    <button
+                      type="button"
+                      onClick={cancelChanges}
+                      disabled={saving}
+                      className="flex items-center gap-2 rounded-xl border border-[#eadce6] px-4 py-3 text-sm text-[#805b73] hover:bg-[#fcf5f9] disabled:opacity-50"
                     >
-                      <option value="English">English</option>
-                      <option value="Français">Français</option>
-                      <option value="العربية">العربية</option>
-                    </select>
-                  </div>
-
-                  <div className="flex flex-col gap-4 rounded-2xl bg-[#FCF9FD] p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#A58BB2] shadow-sm">
-                        <Clock size={17} />
-                      </div>
-
-                      <div>
-                        <h3 className="text-sm font-semibold text-[#6F5C75]">
-                          {t.reminderTime}
-                        </h3>
-                        <p className="mt-1 text-xs leading-5 text-[#A092A5]">
-                          {t.reminderDescription}
-                        </p>
-                      </div>
-                    </div>
-
-                    <select
-                      value={reminderTime}
-                      onChange={(event) => setReminderTime(event.target.value)}
-                      aria-label={t.reminderTime}
-                      className="w-full rounded-xl border border-[#E9DFEA] bg-white px-4 py-3 text-sm text-[#6F5C75] outline-none transition focus:border-[#B59BCB] focus:ring-4 focus:ring-[#B59BCB]/10 sm:w-48"
+                      <RotateCcw size={16} />
+                      {t.cancel}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="flex items-center gap-2 rounded-xl bg-[#b77b9d] px-5 py-3 text-sm font-medium text-white hover:bg-[#a96d8f] disabled:opacity-50"
                     >
-                      <option value="15">{t.minutes15}</option>
-                      <option value="30">{t.minutes30}</option>
-                      <option value="60">{t.hour1}</option>
-                      <option value="1440">{t.hours24}</option>
-                    </select>
+                      {saving ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <Save size={16} />
+                      )}
+                      {saving ? t.saving : t.save}
+                    </button>
                   </div>
-                </div>
-              </section>
+                </form>
+              )}
 
-              {/* NOTIFICATIONS */}
-              <section id="notifications" className={cardClass}>
-                <div className="mb-6 flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FBEAF0] text-[#C0809B]">
-                    <Bell size={22} />
+              {activeTab === "preferences" && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-lg font-semibold text-[#59384f]">
+                      {t.preferences}
+                    </h2>
+                    <p className="mt-1 text-sm text-[#94758a]">
+                      {t.preferencesDesc}
+                    </p>
                   </div>
 
                   <div>
-                    <h2 className="text-lg font-semibold text-[#49394D]">
-                      {t.notificationTitle}
-                    </h2>
-                    <p className="mt-1 text-sm leading-6 text-[#9A8A9F]">
-                      {t.notificationDescription}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  {(
-                    [
-                      {
-                        key: "appointmentRequests",
-                        title: t.requests,
-                        description: t.requestsDescription,
-                      },
-                      {
-                        key: "appointmentReminders",
-                        title: t.reminders,
-                        description: t.remindersDescription,
-                      },
-                      {
-                        key: "patientUpdates",
-                        title: t.patientUpdates,
-                        description: t.patientUpdatesDescription,
-                      },
-                    ] as const
-                  ).map((item) => {
-                    const enabled = notifications[item.key];
-
-                    return (
-                      <div
-                        key={item.key}
-                        className="flex items-center justify-between gap-4 rounded-2xl px-3 py-4 transition-colors hover:bg-[#FCF8FC] sm:px-4"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-sm font-semibold text-[#6F5C75]">
-                            {item.title}
-                          </h3>
-                          <p className="mt-1 text-xs leading-5 text-[#A092A5]">
-                            {item.description}
-                          </p>
-                        </div>
-
+                    <label className="text-sm font-medium text-[#68475c]">
+                      {t.language}
+                    </label>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                      {(
+                        [
+                          ["en", t.english],
+                          ["fr", t.french],
+                          ["ar", t.arabic],
+                        ] as const
+                      ).map(([value, label]) => (
                         <button
+                          key={value}
                           type="button"
-                          role="switch"
-                          aria-checked={enabled}
-                          aria-label={item.title}
-                          onClick={() => toggleNotification(item.key)}
-                          className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#B59BCB]/25 ${
-                            enabled ? "bg-[#A99AE8]" : "bg-[#DDD6E8]"
+                          onClick={() => changePreference("language", value)}
+                          className={`flex items-center justify-between rounded-xl border p-4 text-sm ${
+                            preferences.language === value
+                              ? "border-[#bd83a3] bg-[#fff1f8] font-semibold text-[#80536f]"
+                              : "border-[#f0dfe9] text-[#68475c] hover:bg-[#fcf5f9]"
                           }`}
                         >
-                          <span
-                            className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow-sm transition-[left] duration-200 ${
-                              enabled ? "left-[26px]" : "left-[2px]"
-                            }`}
-                          />
+                          {label}
+                          {preferences.language === value && (
+                            <Check size={16} />
+                          )}
                         </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-
-              {/* APPEARANCE */}
-              <section id="appearance" className={cardClass}>
-                <div className="mb-6 flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EAEFFC] text-[#8194C8]">
-                    <Palette size={22} />
+                      ))}
+                    </div>
                   </div>
 
+                  <p className="rounded-xl bg-[#fcf5f9] p-4 text-xs leading-relaxed text-[#94758a]">
+                    {t.localNotice}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={saveLocalPreferences}
+                    className="flex items-center gap-2 rounded-xl bg-[#b77b9d] px-5 py-3 text-sm font-medium text-white hover:bg-[#a96d8f]"
+                  >
+                    <Save size={16} />
+                    {t.savePreferences}
+                  </button>
+                </div>
+              )}
+
+              {activeTab === "notifications" && (
+                <div className="space-y-6">
                   <div>
-                    <h2 className="text-lg font-semibold text-[#49394D]">
-                      {t.appearanceTitle}
+                    <h2 className="text-lg font-semibold text-[#59384f]">
+                      {t.notifications}
                     </h2>
-                    <p className="mt-1 text-sm leading-6 text-[#9A8A9F]">
-                      {t.appearanceDescriptionFull}
+                    <p className="mt-1 text-sm text-[#94758a]">
+                      {t.notificationsDesc}
                     </p>
                   </div>
-                </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
                   {(
                     [
-                      {
-                        value: "Light",
-                        title: t.light,
-                        description: t.lightDescription,
-                        preview: "bg-white",
-                        accent: "bg-[#F4EAF2]",
-                      },
-                      {
-                        value: "Soft",
-                        title: t.soft,
-                        description: t.softDescription,
-                        preview: "bg-[#FCF7FC]",
-                        accent: "bg-[#EDE4F7]",
-                      },
-                      {
-                        value: "System",
-                        title: t.system,
-                        description: t.systemDescription,
-                        preview: "bg-gradient-to-br from-white to-[#F0ECF9]",
-                        accent: "bg-[#DCD3F1]",
-                      },
+                      ["appointmentReminders", t.reminders, t.remindersDesc],
+                      ["newRequests", t.requests, t.requestsDesc],
+                      ["sessionUpdates", t.updates, t.updatesDesc],
+                      ["weeklySummary", t.summary, t.summaryDesc],
                     ] as const
-                  ).map((option) => {
-                    const selected = appearance === option.value;
+                  ).map(([key, title, description]) => (
+                    <div
+                      key={key}
+                      className="flex items-center justify-between gap-4 border-b border-[#f5e7ef] pb-5 last:border-0"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-[#68475c]">
+                          {title}
+                        </p>
+                        <p className="mt-1 text-xs leading-relaxed text-[#94758a]">
+                          {description}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={preferences[key]}
+                        onChange={(value) => changePreference(key, value)}
+                      />
+                    </div>
+                  ))}
 
-                    return (
+                  <p className="rounded-xl bg-[#fcf5f9] p-4 text-xs leading-relaxed text-[#94758a]">
+                    {t.localNotice}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={saveLocalPreferences}
+                    className="flex items-center gap-2 rounded-xl bg-[#b77b9d] px-5 py-3 text-sm font-medium text-white hover:bg-[#a96d8f]"
+                  >
+                    <Save size={16} />
+                    {t.savePreferences}
+                  </button>
+                </div>
+              )}
+
+              {activeTab === "appearance" && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-lg font-semibold text-[#59384f]">
+                      {t.appearance}
+                    </h2>
+                    <p className="mt-1 text-sm text-[#94758a]">
+                      {t.appearanceDesc}
+                    </p>
+                  </div>
+
+                  <p className="text-sm font-medium text-[#68475c]">
+                    {t.theme}
+                  </p>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {(
+                      [
+                        ["light", t.light, Sun],
+                        ["soft", t.soft, Check],
+                        ["dark", t.dark, Moon],
+                      ] as const
+                    ).map(([value, label, Icon]) => (
                       <button
-                        key={option.value}
+                        key={value}
                         type="button"
-                        aria-pressed={selected}
-                        onClick={() =>
-                          setAppearance(option.value as Appearance)
-                        }
-                        className={`rounded-2xl border p-3 text-start transition-all duration-200 ${
-                          selected
-                            ? "border-[#B59BCB] bg-[#FAF5FC] ring-2 ring-[#B59BCB]/15"
-                            : "border-[#F0E7F0] bg-white hover:border-[#DCCBE2] hover:bg-[#FFFBFE]"
+                        onClick={() => changePreference("theme", value)}
+                        className={`flex items-center gap-3 rounded-xl border p-4 text-sm ${
+                          preferences.theme === value
+                            ? "border-[#bd83a3] bg-[#fff1f8] font-semibold text-[#80536f]"
+                            : "border-[#f0dfe9] text-[#68475c] hover:bg-[#fcf5f9]"
                         }`}
                       >
-                        <div
-                          className={`mb-3 h-20 overflow-hidden rounded-xl border border-[#F0E7F0] p-2 ${option.preview}`}
-                        >
-                          <div className="flex h-full gap-2">
-                            <div
-                              className={`w-1/4 rounded-md ${option.accent}`}
-                            />
-                            <div className="flex flex-1 flex-col gap-2 pt-1">
-                              <div className="h-2 w-3/4 rounded-full bg-[#DCCFE1]" />
-                              <div className="h-2 w-full rounded-full bg-[#EDE5EF]" />
-                              <div className="h-2 w-2/3 rounded-full bg-[#EDE5EF]" />
-                              <div className="mt-auto h-5 rounded-md bg-[#E9DCEB]" />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-semibold text-[#6F5C75]">
-                            {option.title}
-                          </span>
-
-                          {selected && (
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#B59BCB] text-white">
-                              <Check size={12} />
-                            </span>
-                          )}
-                        </div>
-
-                        <p className="mt-1 text-xs leading-5 text-[#A092A5]">
-                          {option.description}
-                        </p>
+                        <Icon size={18} />
+                        {label}
+                        {preferences.theme === value && (
+                          <Check size={15} className="ms-auto" />
+                        )}
                       </button>
-                    );
-                  })}
+                    ))}
+                  </div>
+
+                  <p className="rounded-xl bg-[#fcf5f9] p-4 text-xs leading-relaxed text-[#94758a]">
+                    {t.themeNotice}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={saveLocalPreferences}
+                    className="flex items-center gap-2 rounded-xl bg-[#b77b9d] px-5 py-3 text-sm font-medium text-white hover:bg-[#a96d8f]"
+                  >
+                    <Save size={16} />
+                    {t.savePreferences}
+                  </button>
                 </div>
+              )}
 
-                <p className="mt-4 text-xs leading-5 text-[#A092A5]">
-                  {t.appearanceDescriptionFull}
-                </p>
-              </section>
+              {activeTab === "account" && (
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="text-lg font-semibold text-[#59384f]">
+                      {t.security}
+                    </h2>
+                    <p className="mt-1 text-sm text-[#94758a]">
+                      {t.securityDesc}
+                    </p>
+                  </div>
 
-              {/* Footer */}
-              <footer className="px-2 pb-5 pt-1 text-center text-xs text-[#B0A1B5]">
-                Rahati · {t.professional}
-              </footer>
-            </div>
+                  <div className="rounded-xl bg-[#fff5fa] p-5">
+                    <div className="flex items-start gap-3">
+                      <ShieldCheck
+                        className="mt-0.5 text-[#b77b9d]"
+                        size={21}
+                      />
+                      <div>
+                        <p className="text-sm font-semibold text-[#68475c]">
+                          {t.verification}
+                        </p>
+                        <p className="mt-2 text-sm text-[#94758a]">
+                          {statusLabel}
+                        </p>
+                        <p className="mt-3 text-xs text-[#a58c9c]">
+                          {t.credential}:{" "}
+                          {profile.credential_kind || t.unavailable}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-[#94758a]">{t.comingSoon}</p>
+                </div>
+              )}
+            </main>
           </div>
-        </div>
-      </main>
+        )}
+      </div>
     </DashboardLayout>
   );
 }
