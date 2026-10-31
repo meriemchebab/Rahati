@@ -199,10 +199,12 @@ uv run python manage.py runserver
 
 ### Optional: starter content
 
-`uv run python manage.py seed_starter_cards` seeds the six existing
-pattern cards plus nine topic demo cards, publishes them for the woman-facing API,
-and seeds the fixed topic vocabulary if needed. The fixture contains demo placeholder
-content; review and replace it before serving real users.
+`uv run python manage.py seed_starter_cards` seeds 15 topic cards (2 or 3 per topic, in
+Arabic, French and English) plus six pattern cards, publishes them, and seeds the topic
+vocabulary if needed. It is safe to run again: it only creates missing cards and replaces
+text that is still a `[DEMO]` or `[DRAFT - NOT REVIEWED]` placeholder, never text a person
+has edited. The six pattern cards are still placeholders, and every card should be reviewed
+by a mental-health professional and native speakers before real users see it.
 
 **Do not commit** `.env`, `db.sqlite3`, `private_media/` or `media/`. If `db.sqlite3` was committed by mistake, run `git rm --cached Backend/db.sqlite3`.
 

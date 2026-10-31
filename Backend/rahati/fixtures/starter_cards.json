@@ -108,56 +108,26 @@
     }
   },
   {
-    "starter_key": "topic_sleep_1",
-    "topic": "sleep",
-    "translations": {
-      "ar": {
-        "title": "[DEMO] Sleep card 1",
-        "body": "[DEMO] Placeholder text about sleep. A professional must replace this with reviewed text.",
-        "action_text": "[DEMO] One small action about sleep.",
-        "support_note": "[DEMO] When to reach out for support."
-      },
-      "fr": {
-        "title": "[DEMO] Sleep card 1",
-        "body": "[DEMO] Placeholder text about sleep. A professional must replace this with reviewed text.",
-        "action_text": "[DEMO] One small action about sleep.",
-        "support_note": "[DEMO] When to reach out for support."
-      }
-    }
-  },
-  {
-    "starter_key": "topic_sleep_2",
-    "topic": "sleep",
-    "translations": {
-      "ar": {
-        "title": "[DEMO] Sleep card 2",
-        "body": "[DEMO] Placeholder text about sleep. A professional must replace this with reviewed text.",
-        "action_text": "[DEMO] One small action about sleep.",
-        "support_note": "[DEMO] When to reach out for support."
-      },
-      "fr": {
-        "title": "[DEMO] Sleep card 2",
-        "body": "[DEMO] Placeholder text about sleep. A professional must replace this with reviewed text.",
-        "action_text": "[DEMO] One small action about sleep.",
-        "support_note": "[DEMO] When to reach out for support."
-      }
-    }
-  },
-  {
     "starter_key": "topic_stress_1",
     "topic": "stress",
     "translations": {
+      "en": {
+        "title": "Your body is protecting you",
+        "body": "When you feel stressed, your body releases adrenaline and cortisol to prepare you to face a challenge, which is why your heart races and your shoulders tighten. This reaction is not a weakness; it is an old survival system doing its job a little too loudly. You can send your body a signal that you are safe by slowing your breathing, especially your exhale.",
+        "action_text": "Breathe in through your nose, take a second small sip of air, then breathe out slowly through your mouth.",
+        "support_note": "If stress is with you most days and starts to affect your sleep or appetite, a therapist can help you find its roots safely."
+      },
       "ar": {
-        "title": "[DEMO] Stress card 1",
-        "body": "[DEMO] Placeholder text about stress. A professional must replace this with reviewed text.",
-        "action_text": "[DEMO] One small action about stress.",
-        "support_note": "[DEMO] When to reach out for support."
+        "title": "جسدكِ يحاول حمايتكِ",
+        "body": "عندما تشعرين بالضغط، يفرز جسدكِ الأدرينالين والكورتيزول ليُهيّئكِ لمواجهة التحدي، ولهذا تتسارع دقات قلبكِ وتتشنّج كتفاكِ. هذا ليس ضعفًا، بل هو نظام قديم للنجاة يقوم بعمله بصوت أعلى قليلًا من اللازم. يمكنكِ أن تُطمئني جسدكِ بأنكِ في أمان عندما تُبطئين تنفّسكِ، خاصة الزفير.",
+        "action_text": "استنشقي من أنفكِ، ثم خذي نَفَسًا صغيرًا ثانيًا، وبعدها أخرجي الهواء ببطء من فمكِ.",
+        "support_note": "إذا رافقكِ الضغط معظم الأيام وبدأ يؤثّر على نومكِ أو شهيتكِ، يمكن لمختصة نفسية أن تساعدكِ على فهم جذوره في أمان."
       },
       "fr": {
-        "title": "[DEMO] Stress card 1",
-        "body": "[DEMO] Placeholder text about stress. A professional must replace this with reviewed text.",
-        "action_text": "[DEMO] One small action about stress.",
-        "support_note": "[DEMO] When to reach out for support."
+        "title": "Votre corps vous protège",
+        "body": "Quand vous êtes stressée, votre corps libère de l'adrénaline et du cortisol pour vous préparer à faire face, c'est pourquoi votre cœur s'accélère et vos épaules se crispent. Ce n'est pas une faiblesse : c'est un ancien système de survie qui fait son travail un peu trop fort. Vous pouvez signaler à votre corps qu'il est en sécurité en ralentissant votre respiration, surtout l'expiration.",
+        "action_text": "Inspirez par le nez, prenez une deuxième petite gorgée d'air, puis expirez lentement par la bouche.",
+        "support_note": "Si le stress est présent presque tous les jours et touche votre sommeil ou votre appétit, une psychologue peut vous aider à en comprendre l'origine en toute sécurité."
       }
     }
   },
@@ -165,17 +135,71 @@
     "starter_key": "topic_stress_2",
     "topic": "stress",
     "translations": {
+      "en": {
+        "title": "Not everything is yours",
+        "body": "Many women carry the worries of the whole household as if they alone must solve them. Separating what you can control from what you cannot is one of the most effective ways to lower mental pressure. Letting go of what is not in your hands is not giving up; it frees energy for what is.",
+        "action_text": "Think of one worry today and ask yourself: is any part of this in my hands right now?",
+        "support_note": "If your worries feel impossible to put down, talking to a professional can make the weight lighter."
+      },
       "ar": {
-        "title": "[DEMO] Stress card 2",
-        "body": "[DEMO] Placeholder text about stress. A professional must replace this with reviewed text.",
-        "action_text": "[DEMO] One small action about stress.",
-        "support_note": "[DEMO] When to reach out for support."
+        "title": "ليس كل شيء على عاتقكِ",
+        "body": "تحمل كثير من النساء همومَ البيت كلّه وكأنّ عليهنّ وحدهنّ إيجاد الحلول. التمييز بين ما يمكنكِ التحكّم فيه وما لا يمكنكِ من أنجع الطرق لتخفيف الضغط الذهني. التخلّي عمّا ليس بيدكِ ليس استسلامًا، بل هو توفير لطاقتكِ لما هو بيدكِ فعلًا.",
+        "action_text": "فكّري في همّ واحد اليوم واسألي نفسكِ: هل هناك جزء منه بيدي الآن؟",
+        "support_note": "إذا شعرتِ أنّه يستحيل عليكِ وضع همومكِ جانبًا، فالحديث مع مختصة قد يخفّف هذا الحِمل."
       },
       "fr": {
-        "title": "[DEMO] Stress card 2",
-        "body": "[DEMO] Placeholder text about stress. A professional must replace this with reviewed text.",
-        "action_text": "[DEMO] One small action about stress.",
-        "support_note": "[DEMO] When to reach out for support."
+        "title": "Tout ne repose pas sur vous",
+        "body": "Beaucoup de femmes portent les soucis de toute la maison comme si elles seules devaient tout résoudre. Distinguer ce que vous pouvez contrôler de ce que vous ne pouvez pas est l'un des moyens les plus efficaces de réduire la pression mentale. Lâcher ce qui n'est pas entre vos mains n'est pas abandonner : c'est libérer de l'énergie pour ce qui l'est.",
+        "action_text": "Pensez à un souci d'aujourd'hui et demandez-vous : une partie de cela est-elle entre mes mains maintenant ?",
+        "support_note": "Si vos soucis vous semblent impossibles à poser, en parler à une professionnelle peut alléger ce poids."
+      }
+    }
+  },
+  {
+    "starter_key": "topic_sleep_1",
+    "topic": "sleep",
+    "translations": {
+      "en": {
+        "title": "When your mind won't stop",
+        "body": "Lying in bed while your thoughts run through tomorrow's tasks is very common, especially at the end of a long day caring for others. Your brain keeps unfinished tasks active so it does not forget them. Writing them down tells your mind it can rest, because the list is safe on paper.",
+        "action_text": "Before sleeping, write three things you need to do tomorrow on a piece of paper and put it away.",
+        "support_note": "If you have trouble sleeping most nights for several weeks, a professional can help you understand why."
+      },
+      "ar": {
+        "title": "حين لا يهدأ ذهنكِ",
+        "body": "أن تستلقي في فراشكِ بينما تدور أفكاركِ حول مهام الغد أمر شائع جدًا، خاصة بعد يوم طويل من الاهتمام بالآخرين. يُبقي دماغكِ المهام غير المنجزة نشطة كي لا ينساها. كتابتها تُخبر عقلكِ أنّه يستطيع أن يرتاح، لأنّ القائمة محفوظة على الورق.",
+        "action_text": "قبل النوم، اكتبي ثلاثة أشياء عليكِ القيام بها غدًا على ورقة، ثم ضعيها جانبًا.",
+        "support_note": "إذا وجدتِ صعوبة في النوم معظم الليالي لعدّة أسابيع، يمكن لمختصة أن تساعدكِ على فهم السبب."
+      },
+      "fr": {
+        "title": "Quand l'esprit ne s'arrête pas",
+        "body": "Rester allongée pendant que vos pensées passent en revue les tâches de demain est très courant, surtout après une longue journée à prendre soin des autres. Votre cerveau garde les tâches inachevées actives pour ne pas les oublier. Les écrire indique à votre esprit qu'il peut se reposer, car la liste est en sécurité sur le papier.",
+        "action_text": "Avant de dormir, notez trois choses à faire demain sur une feuille, puis rangez-la.",
+        "support_note": "Si vous avez du mal à dormir la plupart des nuits depuis plusieurs semaines, une professionnelle peut vous aider à comprendre pourquoi."
+      }
+    }
+  },
+  {
+    "starter_key": "topic_sleep_2",
+    "topic": "sleep",
+    "translations": {
+      "en": {
+        "title": "Morning light, better nights",
+        "body": "Your sleep is guided by an internal clock that is set mainly by daylight. Getting natural light in the morning helps your body know when to feel awake and, later, when to feel sleepy. Even a few minutes near a window or on the balcony makes a difference.",
+        "action_text": "Tomorrow morning, drink your coffee or tea near a window or outside for five minutes.",
+        "support_note": "If tiredness stays with you even after sleeping well, it is worth checking in with a doctor or therapist."
+      },
+      "ar": {
+        "title": "ضوء الصباح لليالٍ أفضل",
+        "body": "يتحكّم في نومكِ ساعة داخلية يضبطها ضوء النهار أساسًا. التعرّض للضوء الطبيعي صباحًا يساعد جسدكِ على معرفة وقت اليقظة، ثم وقت النعاس لاحقًا. حتى دقائق قليلة قرب النافذة أو في الشرفة تُحدث فرقًا.",
+        "action_text": "صباح الغد، اشربي قهوتكِ أو شايكِ قرب النافذة أو في الخارج لمدة خمس دقائق.",
+        "support_note": "إذا لازمكِ التعب حتى بعد نوم جيّد، فمن المفيد استشارة طبيبة أو مختصة."
+      },
+      "fr": {
+        "title": "Lumière du matin, meilleures nuits",
+        "body": "Votre sommeil est guidé par une horloge interne réglée principalement par la lumière du jour. Recevoir de la lumière naturelle le matin aide votre corps à savoir quand être éveillé et, plus tard, quand avoir sommeil. Même quelques minutes près d'une fenêtre ou sur le balcon font une différence.",
+        "action_text": "Demain matin, buvez votre café ou votre thé près d'une fenêtre ou dehors pendant cinq minutes.",
+        "support_note": "Si la fatigue persiste même après un bon sommeil, il vaut la peine d'en parler à une médecin ou à une psychologue."
       }
     }
   },
@@ -183,17 +207,47 @@
     "starter_key": "topic_family_1",
     "topic": "family",
     "translations": {
+      "en": {
+        "title": "Love and limits together",
+        "body": "In our families, saying no can feel like being ungrateful or disrespectful. But you can love your family deeply and still have limits on your time and energy. A gentle boundary protects the relationship, because it prevents resentment from growing silently.",
+        "action_text": "Think of one small request this week you could answer with: \"I can't today, but I can tomorrow.\"",
+        "support_note": "If family tension leaves you feeling trapped or exhausted, a therapist can help you find words that feel respectful and safe."
+      },
       "ar": {
-        "title": "[DEMO] Family card 1",
-        "body": "[DEMO] Placeholder text about family. A professional must replace this with reviewed text.",
-        "action_text": "[DEMO] One small action about family.",
-        "support_note": "[DEMO] When to reach out for support."
+        "title": "المحبّة والحدود معًا",
+        "body": "في عائلاتنا، قد يبدو قول «لا» نكرانًا للجميل أو قلّة احترام. لكن يمكنكِ أن تحبّي عائلتكِ بعمق وأن تضعي في الوقت نفسه حدودًا لوقتكِ وطاقتكِ. الحدّ اللطيف يحمي العلاقة، لأنه يمنع الاستياء من أن يكبر في صمت.",
+        "action_text": "فكّري في طلب صغير هذا الأسبوع يمكنكِ أن تجيبي عنه بـ: «لا أستطيع اليوم، لكن أستطيع غدًا».",
+        "support_note": "إذا جعلكِ التوتر العائلي تشعرين بالاختناق أو الإنهاك، يمكن لمختصة أن تساعدكِ على إيجاد كلمات محترمة وآمنة."
       },
       "fr": {
-        "title": "[DEMO] Family card 1",
-        "body": "[DEMO] Placeholder text about family. A professional must replace this with reviewed text.",
-        "action_text": "[DEMO] One small action about family.",
-        "support_note": "[DEMO] When to reach out for support."
+        "title": "Aimer et poser des limites",
+        "body": "Dans nos familles, dire non peut sembler ingrat ou irrespectueux. Pourtant, vous pouvez aimer profondément votre famille tout en fixant des limites à votre temps et à votre énergie. Une limite posée avec douceur protège la relation, car elle empêche la rancœur de grandir en silence.",
+        "action_text": "Pensez à une petite demande cette semaine à laquelle vous pourriez répondre : « Je ne peux pas aujourd'hui, mais demain oui. »",
+        "support_note": "Si les tensions familiales vous laissent épuisée ou prise au piège, une psychologue peut vous aider à trouver des mots respectueux et sûrs."
+      }
+    }
+  },
+  {
+    "starter_key": "topic_family_2",
+    "topic": "family",
+    "translations": {
+      "en": {
+        "title": "You are allowed to feel tired",
+        "body": "Caring for parents, children or in-laws is an act of love, and it is also real work that drains energy. Feeling tired or even frustrated does not make you a bad daughter, wife or mother. Naming the feeling is often the first step to making it lighter.",
+        "action_text": "Complete this sentence silently for yourself: \"Today I gave a lot of myself to…\"",
+        "support_note": "If you feel you have nothing left to give, a professional can help you find support without guilt."
+      },
+      "ar": {
+        "title": "من حقّكِ أن تتعبي",
+        "body": "الاهتمام بالوالدين أو الأطفال أو أهل الزوج فعل محبّة، وهو أيضًا جهد حقيقي يستنزف الطاقة. شعوركِ بالتعب أو حتى بالضيق لا يجعل منكِ ابنةً أو زوجةً أو أمًّا سيّئة. تسمية الشعور هي غالبًا الخطوة الأولى لتخفيفه.",
+        "action_text": "أكملي هذه الجملة في سرّكِ: «اليوم أعطيتُ الكثير من نفسي لـ…»",
+        "support_note": "إذا شعرتِ أنّه لم يعد لديكِ ما تعطينه، يمكن لمختصة أن تساعدكِ على إيجاد الدعم دون شعور بالذنب."
+      },
+      "fr": {
+        "title": "Vous avez le droit d'être fatiguée",
+        "body": "Prendre soin de ses parents, de ses enfants ou de sa belle-famille est un acte d'amour, et c'est aussi un vrai travail qui épuise. Être fatiguée, voire agacée, ne fait pas de vous une mauvaise fille, épouse ou mère. Nommer ce que l'on ressent est souvent le premier pas pour l'alléger.",
+        "action_text": "Complétez cette phrase pour vous-même : « Aujourd'hui, j'ai beaucoup donné de moi à… »",
+        "support_note": "Si vous sentez que vous n'avez plus rien à donner, une professionnelle peut vous aider à trouver du soutien sans culpabilité."
       }
     }
   },
@@ -201,17 +255,47 @@
     "starter_key": "topic_work_study_1",
     "topic": "work_study",
     "translations": {
+      "en": {
+        "title": "One task at a time",
+        "body": "When there is too much to study or finish, the brain can freeze and procrastination often follows. This is usually a reaction to feeling overwhelmed, not laziness. Breaking a big task into a tiny first step lowers the pressure and makes starting much easier.",
+        "action_text": "Choose one task and do only its first small step for ten minutes, then stop if you want to.",
+        "support_note": "If pressure at work or school is affecting your health, talking to someone can help you regain balance."
+      },
       "ar": {
-        "title": "[DEMO] Work study card 1",
-        "body": "[DEMO] Placeholder text about work study. A professional must replace this with reviewed text.",
-        "action_text": "[DEMO] One small action about work study.",
-        "support_note": "[DEMO] When to reach out for support."
+        "title": "مهمّة واحدة في كل مرة",
+        "body": "عندما يكون هناك الكثير ممّا يجب مراجعته أو إنجازه، قد يتجمّد الدماغ ويتبعه التسويف غالبًا. هذا عادةً ردّ فعل على الشعور بالإرهاق، وليس كسلًا. تقسيم المهمّة الكبيرة إلى خطوة أولى صغيرة جدًا يخفّف الضغط ويجعل البدء أسهل بكثير.",
+        "action_text": "اختاري مهمّة واحدة وقومي بخطوتها الأولى الصغيرة فقط لمدة عشر دقائق، ثم توقّفي إن أردتِ.",
+        "support_note": "إذا كان ضغط العمل أو الدراسة يؤثّر على صحّتكِ، فالحديث مع مختصة قد يساعدكِ على استعادة توازنكِ."
       },
       "fr": {
-        "title": "[DEMO] Work study card 1",
-        "body": "[DEMO] Placeholder text about work study. A professional must replace this with reviewed text.",
-        "action_text": "[DEMO] One small action about work study.",
-        "support_note": "[DEMO] When to reach out for support."
+        "title": "Une tâche à la fois",
+        "body": "Quand il y a trop à réviser ou à terminer, le cerveau peut se figer et la procrastination suit souvent. C'est généralement une réaction au sentiment d'être débordée, pas de la paresse. Découper une grande tâche en une toute petite première étape réduit la pression et rend le démarrage bien plus facile.",
+        "action_text": "Choisissez une tâche et faites seulement sa première petite étape pendant dix minutes, puis arrêtez-vous si vous le souhaitez.",
+        "support_note": "Si la pression au travail ou dans les études affecte votre santé, en parler à quelqu'un peut vous aider à retrouver l'équilibre."
+      }
+    }
+  },
+  {
+    "starter_key": "topic_work_study_2",
+    "topic": "work_study",
+    "translations": {
+      "en": {
+        "title": "Rest is part of success",
+        "body": "Whether you are preparing for exams or juggling a job and home, it can feel like rest must be earned. In reality, the brain needs short breaks to store information and recover focus. Planned pauses make your effort more effective, not weaker.",
+        "action_text": "Stand up, stretch your arms above your head, and look at something far away for one minute.",
+        "support_note": "If you feel constantly drained or anxious about performance, a therapist can help you find a healthier rhythm."
+      },
+      "ar": {
+        "title": "الراحة جزء من النجاح",
+        "body": "سواء كنتِ تستعدّين للامتحانات أو توفّقين بين العمل والبيت، قد تشعرين أنّ الراحة يجب أن تُستحقّ. في الحقيقة، يحتاج الدماغ إلى فترات استراحة قصيرة ليحفظ المعلومات ويستعيد تركيزه. الاستراحات المخطّط لها تجعل جهدكِ أكثر فعالية، لا أضعف.",
+        "action_text": "قفي، مُدّي ذراعيكِ فوق رأسكِ، وانظري إلى شيء بعيد لمدة دقيقة واحدة.",
+        "support_note": "إذا شعرتِ بالاستنزاف الدائم أو بالقلق المستمر بشأن أدائكِ، يمكن لمختصة أن تساعدكِ على إيجاد إيقاع أكثر راحة."
+      },
+      "fr": {
+        "title": "Le repos fait partie de la réussite",
+        "body": "Que vous prépariez des examens ou que vous jongliez entre travail et maison, on peut avoir l'impression que le repos doit se mériter. En réalité, le cerveau a besoin de courtes pauses pour mémoriser et retrouver sa concentration. Des pauses prévues rendent vos efforts plus efficaces, pas plus faibles.",
+        "action_text": "Levez-vous, étirez les bras au-dessus de la tête et regardez quelque chose au loin pendant une minute.",
+        "support_note": "Si vous vous sentez constamment vidée ou anxieuse à propos de vos résultats, une psychologue peut vous aider à trouver un rythme plus sain."
       }
     }
   },
@@ -219,17 +303,47 @@
     "starter_key": "topic_self_esteem_1",
     "topic": "self_esteem",
     "translations": {
+      "en": {
+        "title": "Speak to yourself kindly",
+        "body": "We often speak to ourselves more harshly than we would ever speak to a sister or a friend. Research on self-compassion shows that treating yourself with kindness helps you recover from mistakes and keeps you motivated. Kindness to yourself is not selfishness; it is a strength.",
+        "action_text": "Think of one harsh thought you had about yourself today and rewrite it as a friend would say it.",
+        "support_note": "If negative thoughts about yourself feel constant, a professional can help you change that inner voice."
+      },
       "ar": {
-        "title": "[DEMO] Self esteem card 1",
-        "body": "[DEMO] Placeholder text about self esteem. A professional must replace this with reviewed text.",
-        "action_text": "[DEMO] One small action about self esteem.",
-        "support_note": "[DEMO] When to reach out for support."
+        "title": "تحدّثي إلى نفسكِ بلطف",
+        "body": "كثيرًا ما نخاطب أنفسنا بقسوة لا نخاطب بها أختًا أو صديقة أبدًا. تُظهر الأبحاث حول التعاطف مع الذات أنّ معاملة نفسكِ بلطف تساعدكِ على تجاوز الأخطاء وتحافظ على حماسكِ. اللطف مع نفسكِ ليس أنانية، بل هو قوّة.",
+        "action_text": "تذكّري فكرة قاسية راودتكِ عن نفسكِ اليوم، وأعيدي صياغتها كما كانت ستقولها لكِ صديقة.",
+        "support_note": "إذا شعرتِ أنّ الأفكار السلبية عن نفسكِ لا تفارقكِ، يمكن لمختصة أن تساعدكِ على تغيير هذا الصوت الداخلي."
       },
       "fr": {
-        "title": "[DEMO] Self esteem card 1",
-        "body": "[DEMO] Placeholder text about self esteem. A professional must replace this with reviewed text.",
-        "action_text": "[DEMO] One small action about self esteem.",
-        "support_note": "[DEMO] When to reach out for support."
+        "title": "Parlez-vous avec douceur",
+        "body": "Nous nous parlons souvent plus durement que nous ne parlerions jamais à une sœur ou à une amie. Les recherches sur l'autocompassion montrent que se traiter avec bienveillance aide à se relever après une erreur et à rester motivée. Être douce avec soi n'est pas de l'égoïsme : c'est une force.",
+        "action_text": "Repensez à une pensée dure que vous avez eue sur vous aujourd'hui et réécrivez-la comme une amie vous la dirait.",
+        "support_note": "Si les pensées négatives sur vous-même semblent constantes, une professionnelle peut vous aider à transformer cette voix intérieure."
+      }
+    }
+  },
+  {
+    "starter_key": "topic_self_esteem_2",
+    "topic": "self_esteem",
+    "translations": {
+      "en": {
+        "title": "Your worth is not comparison",
+        "body": "Social media and family comparisons can make it feel like everyone else is ahead in marriage, career or appearance. But you only see the best moments of other people's lives, never their struggles. Your path has its own timing and its own value.",
+        "action_text": "Write down one thing you did this week that you are quietly proud of.",
+        "support_note": "If comparison leaves you feeling worthless, talking with a therapist can help you reconnect with your own value."
+      },
+      "ar": {
+        "title": "قيمتكِ ليست مقارنة",
+        "body": "قد تجعلكِ مواقع التواصل والمقارنات العائلية تشعرين أنّ الجميع سبقكِ في الزواج أو العمل أو المظهر. لكنكِ لا ترين إلا أجمل لحظات حياة الآخرين، ولا ترين صعوباتهم أبدًا. لطريقكِ توقيته الخاص وقيمته الخاصة.",
+        "action_text": "اكتبي شيئًا واحدًا قمتِ به هذا الأسبوع وتفخرين به في داخلكِ.",
+        "support_note": "إذا جعلتكِ المقارنة تشعرين بأنكِ بلا قيمة، فالحديث مع مختصة قد يساعدكِ على إعادة التواصل مع قيمتكِ الحقيقية."
+      },
+      "fr": {
+        "title": "Votre valeur n'est pas une comparaison",
+        "body": "Les réseaux sociaux et les comparaisons familiales peuvent donner l'impression que toutes les autres sont en avance : mariage, carrière ou apparence. Mais vous ne voyez que les meilleurs moments de la vie des autres, jamais leurs difficultés. Votre chemin a son propre rythme et sa propre valeur.",
+        "action_text": "Notez une chose que vous avez faite cette semaine et dont vous êtes discrètement fière.",
+        "support_note": "Si la comparaison vous fait sentir sans valeur, en parler avec une psychologue peut vous aider à renouer avec votre propre valeur."
       }
     }
   },
@@ -237,17 +351,47 @@
     "starter_key": "topic_relationships_1",
     "topic": "relationships",
     "translations": {
+      "en": {
+        "title": "Your needs deserve words",
+        "body": "Many of us were raised to stay silent to keep the peace, hoping others will guess what we need. But unspoken needs often turn into hurt or distance. Calmly expressing how you feel, starting with \"I feel\" instead of \"you always\", helps the other person listen without becoming defensive.",
+        "action_text": "Prepare one sentence that starts with \"I feel… when… and I would like…\".",
+        "support_note": "If a relationship makes you feel unsafe, belittled or controlled, a professional can help you see clearly and find support."
+      },
       "ar": {
-        "title": "[DEMO] Relationships card 1",
-        "body": "[DEMO] Placeholder text about relationships. A professional must replace this with reviewed text.",
-        "action_text": "[DEMO] One small action about relationships.",
-        "support_note": "[DEMO] When to reach out for support."
+        "title": "احتياجاتكِ تستحقّ أن تُقال",
+        "body": "تربّت كثيرات منّا على الصمت حفاظًا على السلام، على أمل أن يفهم الآخرون ما نحتاجه دون أن نقوله. لكنّ الاحتياجات غير المُعبَّر عنها تتحوّل غالبًا إلى جرح أو مسافة. التعبير بهدوء عن شعوركِ، بالبدء بـ«أشعر» بدلًا من «أنت دائمًا»، يساعد الطرف الآخر على الإصغاء دون أن يتّخذ موقفًا دفاعيًا.",
+        "action_text": "حضّري جملة واحدة تبدأ بـ: «أشعر بـ… عندما… وأتمنّى…».",
+        "support_note": "إذا جعلتكِ علاقةٌ ما تشعرين بعدم الأمان أو بالتحقير أو بالسيطرة، يمكن لمختصة أن تساعدكِ على رؤية الأمور بوضوح وإيجاد الدعم."
       },
       "fr": {
-        "title": "[DEMO] Relationships card 1",
-        "body": "[DEMO] Placeholder text about relationships. A professional must replace this with reviewed text.",
-        "action_text": "[DEMO] One small action about relationships.",
-        "support_note": "[DEMO] When to reach out for support."
+        "title": "Vos besoins méritent des mots",
+        "body": "Beaucoup d'entre nous ont appris à se taire pour préserver la paix, en espérant que les autres devinent nos besoins. Mais les besoins non exprimés se transforment souvent en blessure ou en distance. Dire calmement ce que vous ressentez, en commençant par « je ressens » plutôt que « tu fais toujours », aide l'autre à écouter sans se mettre sur la défensive.",
+        "action_text": "Préparez une phrase qui commence par : « Je me sens… quand… et j'aimerais… ».",
+        "support_note": "Si une relation vous fait sentir en danger, rabaissée ou contrôlée, une professionnelle peut vous aider à y voir clair et à trouver du soutien."
+      }
+    }
+  },
+  {
+    "starter_key": "topic_relationships_2",
+    "topic": "relationships",
+    "translations": {
+      "en": {
+        "title": "Loneliness is a signal",
+        "body": "You can feel lonely even when surrounded by people, especially if you don't feel truly understood. Loneliness is a natural signal, like hunger, telling you that you need real connection. One honest conversation can matter more than many shallow ones.",
+        "action_text": "Send a short message to someone you trust: \"I was thinking of you today.\"",
+        "support_note": "If loneliness feels heavy for a long time, a therapist can offer a safe space to be heard."
+      },
+      "ar": {
+        "title": "الوحدة إشارة",
+        "body": "قد تشعرين بالوحدة حتى وأنتِ محاطة بالناس، خاصة إذا لم تشعري بأنكِ مفهومة حقًا. الوحدة إشارة طبيعية، مثل الجوع، تخبركِ بأنكِ بحاجة إلى تواصل حقيقي. محادثة صادقة واحدة قد تعني أكثر من محادثات سطحية كثيرة.",
+        "action_text": "أرسلي رسالة قصيرة لشخص تثقين به: «فكّرتُ فيكِ اليوم».",
+        "support_note": "إذا ثقل عليكِ الشعور بالوحدة لمدة طويلة، يمكن لمختصة أن توفّر لكِ مساحة آمنة لتُسمَعي."
+      },
+      "fr": {
+        "title": "La solitude est un signal",
+        "body": "On peut se sentir seule même entourée de monde, surtout quand on ne se sent pas vraiment comprise. La solitude est un signal naturel, comme la faim, qui vous dit que vous avez besoin d'un vrai lien. Une seule conversation sincère peut compter plus que beaucoup d'échanges superficiels.",
+        "action_text": "Envoyez un court message à une personne de confiance : « J'ai pensé à toi aujourd'hui. »",
+        "support_note": "Si la solitude pèse lourd depuis longtemps, une psychologue peut vous offrir un espace sûr pour être écoutée."
       }
     }
   },
@@ -255,17 +399,71 @@
     "starter_key": "topic_body_cycle_1",
     "topic": "body_cycle",
     "translations": {
+      "en": {
+        "title": "Your mood has a rhythm",
+        "body": "In the days before your period, falling hormone levels can make you more sensitive, irritable or tearful. This is a real biological change, not you being \"too emotional\". Knowing where you are in your cycle can help you plan gentler days and judge yourself less.",
+        "action_text": "Check today's cycle day in your log and notice if your mood has changed compared to last week.",
+        "support_note": "If your mood before your period becomes very low or affects your relationships every month, a professional can help."
+      },
       "ar": {
-        "title": "[DEMO] Body cycle card 1",
-        "body": "[DEMO] Placeholder text about body cycle. A professional must replace this with reviewed text.",
-        "action_text": "[DEMO] One small action about body cycle.",
-        "support_note": "[DEMO] When to reach out for support."
+        "title": "لمزاجكِ إيقاع",
+        "body": "في الأيام التي تسبق الدورة الشهرية، قد يجعلكِ انخفاض مستوى الهرمونات أكثر حساسية أو انفعالًا أو ميلًا للبكاء. هذا تغيّر بيولوجي حقيقي، وليس لأنكِ «عاطفية أكثر من اللازم». معرفة موقعكِ في دورتكِ تساعدكِ على التخطيط لأيام ألطف وعلى الحكم على نفسكِ بقسوة أقل.",
+        "action_text": "تحقّقي من يوم دورتكِ اليوم في سجلّكِ، ولاحظي إن كان مزاجكِ قد تغيّر مقارنة بالأسبوع الماضي.",
+        "support_note": "إذا صار مزاجكِ قبل الدورة منخفضًا جدًا أو أثّر على علاقاتكِ كل شهر، يمكن لمختصة أن تساعدكِ."
       },
       "fr": {
-        "title": "[DEMO] Body cycle card 1",
-        "body": "[DEMO] Placeholder text about body cycle. A professional must replace this with reviewed text.",
-        "action_text": "[DEMO] One small action about body cycle.",
-        "support_note": "[DEMO] When to reach out for support."
+        "title": "Votre humeur a un rythme",
+        "body": "Dans les jours qui précèdent vos règles, la baisse des hormones peut vous rendre plus sensible, irritable ou au bord des larmes. C'est un vrai changement biologique, pas le signe que vous êtes « trop émotive ». Savoir où vous en êtes dans votre cycle aide à prévoir des journées plus douces et à moins vous juger.",
+        "action_text": "Regardez le jour de votre cycle dans votre suivi et observez si votre humeur a changé par rapport à la semaine dernière.",
+        "support_note": "Si votre humeur avant les règles devient très basse ou affecte vos relations chaque mois, une professionnelle peut vous aider."
+      }
+    }
+  },
+  {
+    "starter_key": "topic_body_cycle_2",
+    "topic": "body_cycle",
+    "translations": {
+      "en": {
+        "title": "Gentle care during your period",
+        "body": "During your period, fatigue, cramps and low energy are common, and your body is working harder than usual. Warmth relaxes the muscles of the uterus and can ease pain naturally. Slowing down on these days is a way of listening to your body, not falling behind.",
+        "action_text": "Place something warm on your lower belly, or drink a warm cup of herbal tea slowly.",
+        "support_note": "If your pain or fatigue stops you from your usual activities, please check in with a doctor."
+      },
+      "ar": {
+        "title": "رعاية لطيفة أثناء الدورة",
+        "body": "خلال الدورة الشهرية، من الشائع الشعور بالتعب والتقلّصات وانخفاض الطاقة، فجسدكِ يبذل جهدًا أكبر من المعتاد. الدفء يُرخي عضلات الرحم ويمكن أن يخفّف الألم بشكل طبيعي. التمهّل في هذه الأيام طريقة للإصغاء إلى جسدكِ، وليس تأخّرًا عن الآخرين.",
+        "action_text": "ضعي شيئًا دافئًا على أسفل بطنكِ، أو اشربي كوبًا دافئًا من مشروب الأعشاب ببطء.",
+        "support_note": "إذا كان الألم أو التعب يمنعكِ من القيام بأنشطتكِ المعتادة، فاستشيري طبيبة من فضلكِ."
+      },
+      "fr": {
+        "title": "Prendre soin de soi pendant les règles",
+        "body": "Pendant les règles, la fatigue, les crampes et le manque d'énergie sont fréquents, et votre corps travaille plus que d'habitude. La chaleur détend les muscles de l'utérus et peut soulager la douleur naturellement. Ralentir ces jours-là, c'est écouter votre corps, pas prendre du retard.",
+        "action_text": "Posez quelque chose de chaud sur le bas de votre ventre, ou buvez lentement une tisane chaude.",
+        "support_note": "Si la douleur ou la fatigue vous empêche de faire vos activités habituelles, consultez une médecin."
+      }
+    }
+  },
+  {
+    "starter_key": "topic_body_cycle_3",
+    "topic": "body_cycle",
+    "translations": {
+      "en": {
+        "title": "Your body is not the enemy",
+        "body": "Women often hear many judgments about their bodies, from weight to skin to shape. These comments can slowly turn into a critical voice that makes us feel at war with our own body. Thanking your body for what it does, not only how it looks, helps rebuild a calmer relationship with it.",
+        "action_text": "Name one thing your body allowed you to do today, like walking, hugging or cooking.",
+        "support_note": "If thoughts about your body or eating take up much of your day, a therapist can help with care and without judgment."
+      },
+      "ar": {
+        "title": "جسدكِ ليس عدوّكِ",
+        "body": "كثيرًا ما تسمع النساء أحكامًا عن أجسادهنّ، من الوزن إلى البشرة إلى الشكل. يمكن لهذه التعليقات أن تتحوّل شيئًا فشيئًا إلى صوت ناقد يجعلنا نشعر وكأنّنا في حرب مع أجسادنا. شكر جسدكِ على ما يقوم به، لا على مظهره فقط، يساعد على بناء علاقة أهدأ معه.",
+        "action_text": "سمّي شيئًا واحدًا سمح لكِ جسدكِ بفعله اليوم، كالمشي أو العناق أو الطبخ.",
+        "support_note": "إذا كانت أفكاركِ حول جسدكِ أو الأكل تشغل جزءًا كبيرًا من يومكِ، يمكن لمختصة أن تساعدكِ بعناية ودون أحكام."
+      },
+      "fr": {
+        "title": "Votre corps n'est pas l'ennemi",
+        "body": "Les femmes entendent souvent beaucoup de jugements sur leur corps : le poids, la peau, la silhouette. Ces remarques peuvent peu à peu devenir une voix critique qui nous met en guerre contre notre propre corps. Remercier votre corps pour ce qu'il fait, et pas seulement pour son apparence, aide à retrouver une relation plus apaisée avec lui.",
+        "action_text": "Nommez une chose que votre corps vous a permis de faire aujourd'hui : marcher, serrer quelqu'un dans vos bras, cuisiner.",
+        "support_note": "Si les pensées sur votre corps ou sur l'alimentation occupent une grande partie de votre journée, une psychologue peut vous aider avec bienveillance et sans jugement."
       }
     }
   }
