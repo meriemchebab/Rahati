@@ -4,6 +4,8 @@ The woman's side of Rahati: a mobile app for Android and iOS, also running on th
 from the team's `rahati-mobile-app` Figma file and talks only to the Django API in `Backend/`.
 Nothing outside this folder is needed or changed by it.
 
+**Backend:** the deployed Rahati API on Render, `https://rahati-38bh.onrender.com`, used by default.
+
 **Live web demo:** https://fulldready.tech/Rahati/ (the app inside a phone frame; the app alone is at
 `/Rahati/app/`). It uses the deployed backend, so the first load can be slow while the server wakes up.
 
@@ -64,13 +66,12 @@ Needs Node.js 18 or newer.
 ```bash
 cd mobile-app
 npm install
-cp .env.example .env        # then set EXPO_PUBLIC_API_URL
 npx expo start              # press w for the web, or scan the QR code with Expo Go
 ```
 
-`EXPO_PUBLIC_API_URL` is the backend address without `/api` (the deployed one, or
-`http://localhost:8000`). It is read when the app is bundled, so restart Expo after changing it.
-On a real phone with a local backend, use your computer's local IP and run Django with
+The app uses the deployed backend on Render out of the box. To use another one (for example a local
+backend), copy `.env.example` to `.env` and set `EXPO_PUBLIC_API_URL` (the address without `/api`);
+it is read when the app is bundled, so restart Expo after changing it. On a real phone with a local backend, use your computer's local IP and run Django with
 `python manage.py runserver 0.0.0.0:8000`. For the web, the backend must allow the app's address
 in CORS.
 

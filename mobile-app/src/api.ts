@@ -95,7 +95,8 @@ const K_URL = "rahati.server";
 const K_ACCESS = "rahati.access";
 const K_REFRESH = "rahati.refresh";
 
-const DEFAULT_URL = (process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000").replace(/\/+$/, "");
+// The deployed Rahati backend, unless EXPO_PUBLIC_API_URL points somewhere else (e.g. a local one).
+const DEFAULT_URL = (process.env.EXPO_PUBLIC_API_URL || "https://rahati-38bh.onrender.com").replace(/\/+$/, "");
 
 let baseUrl = DEFAULT_URL;
 let access: string | null = null;
