@@ -28,30 +28,31 @@ export default function IncomingRequests({
   );
 
   return (
-    <article className="min-w-0 overflow-hidden rounded-2xl bg-white/90 shadow-[0_4px_24px_rgba(64,53,65,0.04)]">
+    <article className="min-w-0 overflow-hidden rounded-2xl bg-card shadow-[0_4px_24px_rgba(17,16,24,0.035)]">
       <div className="flex items-center justify-between px-5 py-5 sm:px-6">
         <div>
-          <h3 className="text-base font-semibold text-rahati-plum">
+          <h3 className="text-base font-semibold text-card-foreground">
             Incoming requests
           </h3>
+
           <p className="mt-1 text-xs text-muted-foreground">
             Review appointment requests.
           </p>
         </div>
 
-        <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-rahati-pink px-2 text-xs font-semibold text-rahati-mauve-dark">
+        <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-rahati-lilac px-2 text-xs font-semibold text-rahati-ink">
           {pendingRequests.length}
         </span>
       </div>
 
       <div className="space-y-3 p-4 sm:p-5">
         {pendingRequests.length === 0 ? (
-          <div className="rounded-2xl bg-[#f4f8f3] px-6 py-12 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#e3eee2] text-[#66876d]">
+          <div className="rounded-2xl bg-muted px-6 py-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rahati-lilac text-rahati-ink">
               <CheckCircle2 size={23} />
             </div>
 
-            <p className="mt-3 text-sm font-semibold text-rahati-plum">
+            <p className="mt-3 text-sm font-semibold text-foreground">
               All caught up!
             </p>
 
@@ -66,11 +67,11 @@ export default function IncomingRequests({
             return (
               <div
                 key={request.id}
-                className="rounded-2xl bg-[#faf5f9] p-4 transition-colors hover:bg-[#f7eef5] sm:p-5"
+                className="rounded-2xl bg-muted p-4 transition-colors hover:bg-rahati-lilac/60 sm:p-5"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h4 className="text-sm font-semibold text-rahati-plum">
+                    <h4 className="text-sm font-semibold text-foreground">
                       Appointment request
                     </h4>
 
@@ -79,14 +80,15 @@ export default function IncomingRequests({
                     </p>
                   </div>
 
-                  <span className="rounded-full bg-[#fbf2df] px-2.5 py-1 text-[10px] font-medium text-[#99783e]">
+                  <span className="rounded-full bg-calendar-pending-bg px-2.5 py-1 text-[10px] font-medium text-calendar-pending-text">
                     Pending
                   </span>
                 </div>
 
                 <div className="mt-4 space-y-2">
-                  <p className="inline-flex items-center gap-2 text-xs text-rahati-plum">
-                    <CalendarDays size={14} className="text-rahati-mauve" />
+                  <p className="inline-flex items-center gap-2 text-xs text-foreground">
+                    <CalendarDays size={14} className="text-[#7673FF]" />
+
                     {new Date(request.starts_at).toLocaleDateString(undefined, {
                       weekday: "short",
                       day: "numeric",
@@ -110,7 +112,7 @@ export default function IncomingRequests({
                     type="button"
                     disabled={isUpdating}
                     onClick={() => onUpdateRequest(request.id, "accepted")}
-                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-rahati-mauve px-3 py-2.5 text-xs font-semibold text-white transition hover:bg-rahati-mauve-dark disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#7673FF] px-3 py-2.5 text-xs font-semibold text-[#111018] transition-colors hover:bg-[#7673FF]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7673FF] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Check size={15} />
                     {isUpdating ? "Updating..." : "Accept"}
@@ -120,7 +122,7 @@ export default function IncomingRequests({
                     type="button"
                     disabled={isUpdating}
                     onClick={() => onUpdateRequest(request.id, "declined")}
-                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-white px-3 py-2.5 text-xs font-semibold text-[#a35e68] transition hover:bg-[#fcf1f1] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-card px-3 py-2.5 text-xs font-semibold text-card-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7673FF] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <X size={15} />
                     Decline
@@ -132,11 +134,11 @@ export default function IncomingRequests({
         )}
       </div>
 
-      <div className="border-t border-border px-5 py-3.5 sm:px-6">
+      <div className="px-5 py-3.5 sm:px-6">
         <button
           type="button"
           onClick={onViewAll}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-rahati-mauve-dark hover:underline"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#7673FF] transition-colors hover:text-[#625FE0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7673FF] focus-visible:ring-offset-2"
         >
           View all requests
           <ChevronRight size={15} />

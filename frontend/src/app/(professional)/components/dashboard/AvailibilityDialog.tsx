@@ -23,7 +23,7 @@ export default function AvailabilityDialog({
 }: AvailabilityDialogProps) {
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-rahati-plum/30 p-4 backdrop-blur-[3px]"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-rahati-ink/35 p-4 backdrop-blur-[3px]"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
@@ -34,17 +34,17 @@ export default function AvailabilityDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="availability-dialog-title"
-        className="w-full max-w-md rounded-2xl border border-border bg-white p-6 shadow-xl"
+        className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-[0_20px_60px_rgba(17,16,24,0.16)]"
       >
         <div className="flex items-start justify-between">
           <div>
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-rahati-pink text-rahati-mauve-dark">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-rahati-lilac text-rahati-ink">
               <CalendarPlus size={20} />
             </div>
 
             <h2
               id="availability-dialog-title"
-              className="text-lg font-semibold text-rahati-plum"
+              className="text-lg font-semibold text-card-foreground"
             >
               Add availability
             </h2>
@@ -58,7 +58,7 @@ export default function AvailabilityDialog({
             type="button"
             aria-label="Close dialog"
             onClick={onClose}
-            className="rounded-lg p-2 text-muted-foreground hover:bg-rahati-pink"
+            className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <X size={18} />
           </button>
@@ -68,7 +68,7 @@ export default function AvailabilityDialog({
           <div>
             <label
               htmlFor="availability-date"
-              className="mb-2 block text-sm font-medium text-rahati-plum"
+              className="mb-2 block text-sm font-medium text-foreground"
             >
               Date
             </label>
@@ -78,14 +78,14 @@ export default function AvailabilityDialog({
               type="date"
               value={availabilityDate}
               onChange={(event) => onDateChange(event.target.value)}
-              className="w-full rounded-xl border border-input bg-white px-3 py-3 text-sm outline-none focus:border-rahati-mauve focus:ring-2 focus:ring-rahati-mauve/20"
+              className="w-full rounded-xl border border-input bg-background px-3 py-3 text-sm text-foreground outline-none transition focus:border-[#7673FF] focus:ring-2 focus:ring-[#7673FF]/20"
             />
           </div>
 
           <div>
             <label
               htmlFor="availability-time"
-              className="mb-2 block text-sm font-medium text-rahati-plum"
+              className="mb-2 block text-sm font-medium text-foreground"
             >
               Start time
             </label>
@@ -95,14 +95,14 @@ export default function AvailabilityDialog({
               type="time"
               value={availabilityTime}
               onChange={(event) => onTimeChange(event.target.value)}
-              className="w-full rounded-xl border border-input bg-white px-3 py-3 text-sm outline-none focus:border-rahati-mauve focus:ring-2 focus:ring-rahati-mauve/20"
+              className="w-full rounded-xl border border-input bg-background px-3 py-3 text-sm text-foreground outline-none transition focus:border-[#7673FF] focus:ring-2 focus:ring-[#7673FF]/20"
             />
           </div>
 
           {availabilityMessage && (
             <p
               aria-live="polite"
-              className="rounded-xl bg-rahati-sage p-3 text-xs leading-5 text-[#587a60]"
+              className="rounded-xl bg-calendar-success-bg p-3 text-xs leading-5 text-calendar-success-text"
             >
               {availabilityMessage}
             </p>
@@ -111,7 +111,7 @@ export default function AvailabilityDialog({
           <button
             type="button"
             onClick={onSave}
-            className="w-full rounded-xl bg-rahati-mauve px-4 py-3 text-sm font-medium text-white transition hover:bg-rahati-mauve-dark"
+            className="w-full rounded-xl bg-[#7673FF] px-4 py-3 text-sm font-semibold text-[#111018] transition-colors hover:bg-[#7673FF]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7673FF] focus-visible:ring-offset-2"
           >
             Save availability
           </button>

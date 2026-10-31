@@ -19,7 +19,7 @@ const weeklyHours = [
 export default function WeeklyHoursDialog({ onClose }: WeeklyHoursDialogProps) {
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-rahati-plum/30 p-4 backdrop-blur-[3px]"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-rahati-ink/35 p-4 backdrop-blur-[3px]"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
@@ -30,17 +30,17 @@ export default function WeeklyHoursDialog({ onClose }: WeeklyHoursDialogProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="weekly-hours-title"
-        className="w-full max-w-md rounded-2xl border border-border bg-white p-6 shadow-xl"
+        className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-[0_20px_60px_rgba(17,16,24,0.16)]"
       >
         <div className="flex items-start justify-between">
           <div>
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-rahati-pink text-rahati-mauve-dark">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-rahati-lilac text-rahati-ink">
               <Clock3 size={20} />
             </div>
 
             <h2
               id="weekly-hours-title"
-              className="text-lg font-semibold text-rahati-plum"
+              className="text-lg font-semibold text-card-foreground"
             >
               Your weekly hours
             </h2>
@@ -54,27 +54,25 @@ export default function WeeklyHoursDialog({ onClose }: WeeklyHoursDialogProps) {
             type="button"
             aria-label="Close dialog"
             onClick={onClose}
-            className="rounded-lg p-2 text-muted-foreground hover:bg-rahati-pink"
+            className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="mt-5 space-y-3">
+        <div className="mt-5 space-y-2">
           {weeklyHours.map(([day, time]) => (
             <div
               key={day}
-              className="flex items-center justify-between rounded-xl border border-border px-4 py-3"
+              className="flex items-center justify-between rounded-xl bg-muted px-4 py-3 transition-colors hover:bg-rahati-lilac/60"
             >
-              <span className="text-sm font-medium text-rahati-plum">
-                {day}
-              </span>
+              <span className="text-sm font-medium text-foreground">{day}</span>
 
               <span
                 className={`text-xs ${
                   time === "Unavailable"
                     ? "text-muted-foreground"
-                    : "font-medium text-[#66876d]"
+                    : "font-medium text-foreground"
                 }`}
               >
                 {time}
@@ -82,7 +80,7 @@ export default function WeeklyHoursDialog({ onClose }: WeeklyHoursDialogProps) {
             </div>
           ))}
 
-          <p className="pt-1 text-xs leading-5 text-muted-foreground">
+          <p className="pt-2 text-xs leading-5 text-muted-foreground">
             These hours are illustrative. Editing and saving a real schedule
             will be handled when the backend is connected.
           </p>

@@ -28,19 +28,25 @@ export default function StatsCards({
       ? Math.round((completedActions / totalAssignedActions) * 100)
       : 0;
 
+  const cardClass =
+    "rounded-2xl bg-card p-5 shadow-[0_4px_24px_rgba(17,16,24,0.035)] transition-shadow hover:shadow-[0_6px_28px_rgba(118,115,255,0.09)]";
+
+  const iconClass =
+    "flex h-10 w-10 items-center justify-center rounded-xl text-rahati-ink";
+
   return (
     <section
       aria-label="Practice statistics"
       className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
     >
       {/* Pending requests */}
-      <article className="rounded-2xl bg-white/90 p-5 shadow-[0_4px_24px_rgba(64,53,65,0.04)]">
+      <article className={cardClass}>
         <div className="flex items-start justify-between">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rahati-pink text-rahati-mauve-dark">
+          <div className={`${iconClass} bg-rahati-lilac`}>
             <ClipboardList size={20} />
           </div>
 
-          <span className="rounded-full bg-[#fbf2df] px-2.5 py-1 text-[10px] font-medium text-[#99783e]">
+          <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
             Needs review
           </span>
         </div>
@@ -48,14 +54,14 @@ export default function StatsCards({
         <p className="mt-5 text-sm text-muted-foreground">Pending requests</p>
 
         <div className="mt-1 flex items-end justify-between">
-          <p className="text-3xl font-semibold tracking-tight text-rahati-plum">
+          <p className="text-3xl font-semibold tracking-tight text-foreground">
             {pendingRequests}
           </p>
 
           <button
             type="button"
             onClick={onReviewRequests}
-            className="mb-1 inline-flex items-center gap-1 text-xs font-medium text-rahati-mauve-dark hover:underline"
+            className="mb-1 inline-flex items-center gap-1 text-xs font-semibold text-[#7673FF] transition-colors hover:text-[#625FE0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7673FF] focus-visible:ring-offset-2"
           >
             Review <ArrowUpRight size={14} />
           </button>
@@ -67,13 +73,13 @@ export default function StatsCards({
       </article>
 
       {/* Today's sessions */}
-      <article className="rounded-2xl bg-white/90 p-5 shadow-[0_4px_24px_rgba(64,53,65,0.04)]">
+      <article className={cardClass}>
         <div className="flex items-start justify-between">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rahati-lavender text-[#78638e]">
+          <div className={`${iconClass} bg-rahati-periwinkle`}>
             <CalendarCheck size={20} />
           </div>
 
-          <span className="rounded-full bg-[#eaf3eb] px-2.5 py-1 text-[10px] font-medium text-[#587a60]">
+          <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
             Today
           </span>
         </div>
@@ -83,7 +89,7 @@ export default function StatsCards({
         </p>
 
         <div className="mt-1 flex items-end gap-2">
-          <p className="text-3xl font-semibold tracking-tight text-rahati-plum">
+          <p className="text-3xl font-semibold tracking-tight text-foreground">
             4
           </p>
 
@@ -92,24 +98,22 @@ export default function StatsCards({
 
         <div className="mt-3 flex items-center justify-between text-xs">
           <span className="text-muted-foreground">
-            <span className="font-medium text-[#66876d]">2 done</span>
+            <span className="font-medium text-foreground">2 done</span>
             {" · "}2 remaining
           </span>
 
-          <span className="font-medium text-rahati-mauve-dark">
-            Next: 10:00
-          </span>
+          <span className="font-medium text-foreground">Next: 10:00</span>
         </div>
       </article>
 
       {/* Availability */}
-      <article className="rounded-2xl bg-white/90 p-5 shadow-[0_4px_24px_rgba(64,53,65,0.04)]">
+      <article className={cardClass}>
         <div className="flex items-start justify-between">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rahati-sage text-[#66876d]">
+          <div className={`${iconClass} bg-muted`}>
             <CalendarPlus size={20} />
           </div>
 
-          <span className="rounded-full bg-rahati-sage px-2.5 py-1 text-[10px] font-medium text-[#587a60]">
+          <span className="rounded-full bg-rahati-lilac px-2.5 py-1 text-[10px] font-medium text-rahati-ink">
             This week
           </span>
         </div>
@@ -117,7 +121,7 @@ export default function StatsCards({
         <p className="mt-5 text-sm text-muted-foreground">Available slots</p>
 
         <div className="mt-1 flex items-end gap-2">
-          <p className="text-3xl font-semibold tracking-tight text-rahati-plum">
+          <p className="text-3xl font-semibold tracking-tight text-foreground">
             12
           </p>
 
@@ -126,23 +130,22 @@ export default function StatsCards({
 
         <div className="mt-3 flex items-center justify-between text-xs">
           <span className="text-muted-foreground">8 visible to women</span>
-
-          <span className="font-medium text-[#66876d]">67%</span>
+          <span className="font-medium text-foreground">67%</span>
         </div>
 
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#edf0eb]">
-          <div className="h-full w-2/3 rounded-full bg-[#91aa96]" />
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+          <div className="h-full w-2/3 rounded-full bg-[#7673FF]" />
         </div>
       </article>
 
       {/* Assigned actions */}
-      <article className="rounded-2xl bg-white/90 p-5 shadow-[0_4px_24px_rgba(64,53,65,0.04)]">
+      <article className={cardClass}>
         <div className="flex items-start justify-between">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f8e8e6] text-[#b56e72]">
+          <div className={`${iconClass} bg-rahati-light-pink/50`}>
             <CheckCircle2 size={20} />
           </div>
 
-          <span className="rounded-full bg-rahati-lavender px-2.5 py-1 text-[10px] font-medium text-[#78638e]">
+          <span className="rounded-full bg-rahati-periwinkle px-2.5 py-1 text-[10px] font-medium text-rahati-ink">
             All patients
           </span>
         </div>
@@ -152,7 +155,7 @@ export default function StatsCards({
         </p>
 
         <div className="mt-1 flex items-end gap-2">
-          <p className="text-3xl font-semibold tracking-tight text-rahati-plum">
+          <p className="text-3xl font-semibold tracking-tight text-foreground">
             {completedActions}
           </p>
 
@@ -166,14 +169,14 @@ export default function StatsCards({
             Completed by your patients
           </span>
 
-          <span className="font-medium text-rahati-mauve-dark">
+          <span className="font-medium text-foreground">
             {completionPercentage}%
           </span>
         </div>
 
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-rahati-pink">
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-rahati-mauve"
+            className="h-full rounded-full bg-[#7673FF] transition-all duration-500"
             style={{ width: `${completionPercentage}%` }}
           />
         </div>

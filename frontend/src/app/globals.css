@@ -13,8 +13,15 @@
   --font-heading: var(--font-sans);
 
   /* Rahati brand palette */
-  --color-rahati-blush: var(--rahati-blush);
+  --color-rahati-violet: var(--rahati-violet);
+  --color-rahati-lilac: var(--rahati-lilac);
   --color-rahati-pink: var(--rahati-pink);
+  --color-rahati-periwinkle: var(--rahati-periwinkle);
+  --color-rahati-light-pink: var(--rahati-light-pink);
+  --color-rahati-ink: var(--rahati-ink);
+
+  /* Legacy aliases - preserve existing component compatibility */
+  --color-rahati-blush: var(--rahati-blush);
   --color-rahati-mauve: var(--rahati-mauve);
   --color-rahati-mauve-dark: var(--rahati-mauve-dark);
   --color-rahati-lavender: var(--rahati-lavender);
@@ -112,177 +119,243 @@
   --color-calendar-error-text: var(--calendar-error-text);
 }
 
-/* Light theme: Rahati's default appearance */
+/* =========================================================
+   RAHATI DESIGN SYSTEM — LIGHT THEME
+   ========================================================= */
+
 :root {
   color-scheme: light;
 
-  /* Brand colors */
-  --rahati-blush: #fcf8fa;
-  --rahati-pink: #f5e8ef;
-  --rahati-mauve: #a77b96;
-  --rahati-mauve-dark: #916681;
-  --rahati-lavender: #eee8f5;
-  --rahati-sage: #e5eee5;
-  --rahati-plum: #403541;
-  --rahati-rose: #b86f82;
+  /* ---------------------------------------------------------
+     Brand palette
+     --------------------------------------------------------- */
 
-  /* General surfaces and text */
-  --background: #fcf8fa;
-  --foreground: #403541;
+  --rahati-violet: #7673ff;
+  --rahati-lilac: #e9ccfd;
+  --rahati-pink: #f580ff;
+  --rahati-periwinkle: #ccb9fe;
+  --rahati-light-pink: #fda3ff;
+  --rahati-ink: #111018;
+
+  /* ---------------------------------------------------------
+     Neutral palette
+     --------------------------------------------------------- */
+
+  --background: #f6f4fa;
+  --foreground: #111018;
+
+  --page-background: #f6f4fa;
+  --surface-white: #ffffff;
+  --surface-soft: #f1ecf8;
+
+  --text-primary: #111018;
+  --text-secondary: #656376;
+  --text-placeholder: #8b899d;
+
+  /* ---------------------------------------------------------
+     Legacy brand aliases
+     These keep older components working while we migrate them.
+     --------------------------------------------------------- */
+
+  --rahati-blush: #f6f4fa;
+  --rahati-pink-old: #f580ff;
+  --rahati-mauve: #7673ff;
+  --rahati-mauve-dark: #625fe0;
+  --rahati-lavender: #e9ccfd;
+  --rahati-sage: #f1ecf8;
+  --rahati-plum: #111018;
+  --rahati-rose: #f580ff;
+
+  /* ---------------------------------------------------------
+     Cards and popovers
+     --------------------------------------------------------- */
 
   --card: #ffffff;
-  --card-foreground: #403541;
+  --card-foreground: #111018;
 
   --popover: #ffffff;
-  --popover-foreground: #403541;
+  --popover-foreground: #111018;
 
-  /* Primary actions */
-  --primary: #a77b96;
-  --primary-foreground: #ffffff;
+  /* ---------------------------------------------------------
+     Primary actions
+     Dark text is intentional for WCAG contrast.
+     --------------------------------------------------------- */
 
-  /* Secondary elements */
-  --secondary: #f5e8ef;
-  --secondary-foreground: #62495c;
+  --primary: #7673ff;
+  --primary-foreground: #111018;
 
-  /* Muted surfaces and text */
-  --muted: #f3edf2;
-  --muted-foreground: #887b89;
+  /* Secondary surfaces */
+  --secondary: #ccb9fe;
+  --secondary-foreground: #111018;
 
-  /* Hover states and highlights */
-  --accent: #eee8f5;
-  --accent-foreground: #59465f;
+  /* Muted surfaces and supporting text */
+  --muted: #f1ecf8;
+  --muted-foreground: #656376;
+
+  /* Interactive highlights */
+  --accent: #e9ccfd;
+  --accent-foreground: #111018;
 
   /* Feedback */
-  --destructive: #b86f82;
+  --destructive: #b42335;
 
   /* Borders and focus indicators */
-  --border: #eae1e8;
-  --input: #e5d9e3;
-  --ring: #a77b96;
+  --border: #e5deef;
+  --input: #dcd3e9;
+  --ring: #7673ff;
 
-  /* Charts */
-  --chart-1: #a77b96;
-  --chart-2: #c895aa;
-  --chart-3: #a99bc4;
-  --chart-4: #91aa96;
-  --chart-5: #d7b6c8;
+  /* ---------------------------------------------------------
+     Charts and data visualization
+     --------------------------------------------------------- */
+
+  --chart-1: #7673ff;
+  --chart-2: #ccb9fe;
+  --chart-3: #e9ccfd;
+  --chart-4: #f580ff;
+  --chart-5: #fda3ff;
 
   /* General sizing */
   --radius: 0.75rem;
 
-  /* Sidebar */
-  --sidebar: #f1e6ef;
-  --sidebar-foreground: #59465a;
-  --sidebar-primary: #a77b96;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e8d7e5;
-  --sidebar-accent-foreground: #59465a;
-  --sidebar-border: #e5d6e3;
-  --sidebar-ring: #a77b96;
+  /* ---------------------------------------------------------
+     Sidebar
+     --------------------------------------------------------- */
+
+  --sidebar: #f1ecf8;
+  --sidebar-foreground: #111018;
+
+  --sidebar-primary: #7673ff;
+  --sidebar-primary-foreground: #111018;
+
+  --sidebar-accent: #ccb9fe;
+  --sidebar-accent-foreground: #111018;
+
+  --sidebar-border: #e5deef;
+  --sidebar-ring: #7673ff;
+
+  /* =========================================================
+     CALENDAR DESIGN TOKENS
+     ========================================================= */
 
   /* Calendar surfaces */
   --calendar-surface: #ffffff;
-  --calendar-surface-soft: #fbf9fd;
-  --calendar-surface-muted: #f5f1fa;
-  --calendar-surface-hover: #f1ecfc;
+  --calendar-surface-soft: #f6f4fa;
+  --calendar-surface-muted: #f1ecf8;
+  --calendar-surface-hover: #e9ccfd;
 
   /* Calendar text */
-  --calendar-heading: #403651;
-  --calendar-text: #5f536f;
-  --calendar-text-muted: #81788f;
-  --calendar-text-subtle: #94899f;
-  --calendar-text-weekend: #a79ab6;
+  --calendar-heading: #111018;
+  --calendar-text: #656376;
+  --calendar-text-muted: #656376;
+  --calendar-text-subtle: #8b899d;
+  --calendar-text-weekend: #8b899d;
 
   /* Calendar accents */
-  --calendar-accent: #8b78c6;
-  --calendar-accent-hover: #7864b5;
-  --calendar-accent-soft: #e8e5fc;
-  --calendar-accent-text: #6555a1;
+  --calendar-accent: #7673ff;
+  --calendar-accent-hover: #625fe0;
+  --calendar-accent-soft: #e9ccfd;
+  --calendar-accent-text: #111018;
 
-  /* Appointment status colors */
+  /* Available appointments */
   --calendar-available-bg: #e8f5ee;
-  --calendar-available-text: #327653;
+  --calendar-available-text: #245b3e;
   --calendar-available-border: #b7dec8;
 
+  /* Pending appointments */
   --calendar-pending-bg: #fff0d8;
-  --calendar-pending-text: #95621d;
+  --calendar-pending-text: #70450c;
   --calendar-pending-border: #f0d3a1;
 
-  --calendar-accepted-bg: #c8b6fe;
-  --calendar-accepted-text: #51428c;
+  /* Accepted appointments */
+  --calendar-accepted-bg: #ccb9fe;
+  --calendar-accepted-text: #111018;
   --calendar-accepted-border: #b4a0f1;
 
-  --calendar-completed-bg: #bdcfff;
-  --calendar-completed-text: #36558d;
-  --calendar-completed-border: #a4bcef;
+  /* Completed appointments */
+  --calendar-completed-bg: #e9ccfd;
+  --calendar-completed-text: #111018;
+  --calendar-completed-border: #d4b5ef;
 
-  /* Calendar borders and feedback */
-  --calendar-border: #eee7f6;
-  --calendar-border-soft: #f0eaf7;
-  --calendar-success-bg: #eff8f2;
-  --calendar-success-text: #327653;
-  --calendar-success-border: #b8dcc5;
+  /* Calendar borders */
+  --calendar-border: #e5deef;
+  --calendar-border-soft: #f1ecf8;
+
+  /* Calendar feedback */
+  --calendar-success-bg: #e8f5ee;
+  --calendar-success-text: #245b3e;
+  --calendar-success-border: #b7dec8;
+
   --calendar-error-bg: #fff0f0;
-  --calendar-error-text: #a34555;
+  --calendar-error-text: #a32235;
 }
 
-/* Dark theme — available for future use */
+/* =========================================================
+   DARK THEME — PRESERVED FOR FUTURE USE
+   ========================================================= */
+
 .dark {
   color-scheme: dark;
 
-  --background: #251f28;
-  --foreground: #f8eff5;
+  --background: #211d2a;
+  --foreground: #f6f4fa;
 
-  --card: #302632;
-  --card-foreground: #f8eff5;
+  --card: #302a3b;
+  --card-foreground: #f6f4fa;
 
-  --popover: #302632;
-  --popover-foreground: #f8eff5;
+  --popover: #302a3b;
+  --popover-foreground: #f6f4fa;
 
-  --primary: #c69ab6;
-  --primary-foreground: #302632;
+  --primary: #a9a6ff;
+  --primary-foreground: #111018;
 
-  --secondary: #443344;
-  --secondary-foreground: #f8eff5;
+  --secondary: #51446c;
+  --secondary-foreground: #f6f4fa;
 
-  --muted: #3b303d;
-  --muted-foreground: #c2b2c2;
+  --muted: #393244;
+  --muted-foreground: #c4bfd2;
 
-  --accent: #49384d;
-  --accent-foreground: #f8eff5;
+  --accent: #51446c;
+  --accent-foreground: #f6f4fa;
 
-  --destructive: #d78b9e;
+  --destructive: #e28b9a;
 
-  --border: #4a3b4b;
-  --input: #4a3b4b;
-  --ring: #c69ab6;
+  --border: #51485f;
+  --input: #51485f;
+  --ring: #a9a6ff;
 
-  --chart-1: #c69ab6;
-  --chart-2: #d9a6b7;
-  --chart-3: #b6a8d2;
-  --chart-4: #a0bea5;
-  --chart-5: #e2c1d2;
+  --chart-1: #a9a6ff;
+  --chart-2: #ccb9fe;
+  --chart-3: #e9ccfd;
+  --chart-4: #f580ff;
+  --chart-5: #fda3ff;
 
-  --sidebar: #302632;
-  --sidebar-foreground: #f8eff5;
-  --sidebar-primary: #c69ab6;
-  --sidebar-primary-foreground: #302632;
-  --sidebar-accent: #49384d;
-  --sidebar-accent-foreground: #f8eff5;
-  --sidebar-border: #4a3b4b;
-  --sidebar-ring: #c69ab6;
+  --sidebar: #302a3b;
+  --sidebar-foreground: #f6f4fa;
+
+  --sidebar-primary: #a9a6ff;
+  --sidebar-primary-foreground: #111018;
+
+  --sidebar-accent: #51446c;
+  --sidebar-accent-foreground: #f6f4fa;
+
+  --sidebar-border: #51485f;
+  --sidebar-ring: #a9a6ff;
 }
+
+/* =========================================================
+   BASE STYLES
+   ========================================================= */
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
 
-  body {
-    @apply bg-background text-foreground;
-  }
-
   html {
     @apply font-sans;
+  }
+
+  body {
+    @apply bg-background text-foreground;
   }
 }

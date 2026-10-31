@@ -58,13 +58,13 @@ export default function LoginPage() {
         <div>
           <label
             htmlFor="username"
-            className="mb-2 block text-sm font-medium text-[#68475e]"
+            className="mb-2 block text-sm font-medium text-[#111018]"
           >
             Username
           </label>
 
           <div className="relative">
-            <User className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#b49aaa]" />
+            <User className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8b899d]" />
 
             <input
               id="username"
@@ -73,7 +73,7 @@ export default function LoginPage() {
               placeholder="Enter your username"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
-              className="h-12 w-full rounded-xl border border-[#eadde6] bg-[#fdfafd] pl-12 pr-4 text-[#68475e] outline-none transition placeholder:text-[#b9a8b4] focus:border-[#b783a0] focus:ring-4 focus:ring-[#f2e5ed]"
+              className="h-12 w-full rounded-xl border border-[#dcd3e9] bg-white pl-12 pr-4 text-[#111018] outline-none transition placeholder:text-[#8b899d] focus:border-[#7673FF] focus:ring-4 focus:ring-[#ccb9fe]/30"
             />
           </div>
         </div>
@@ -81,13 +81,13 @@ export default function LoginPage() {
         <div>
           <label
             htmlFor="password"
-            className="mb-2 block text-sm font-medium text-[#68475e]"
+            className="mb-2 block text-sm font-medium text-[#111018]"
           >
             Password
           </label>
 
           <div className="relative">
-            <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#b49aaa]" />
+            <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8b899d]" />
 
             <input
               id="password"
@@ -96,14 +96,14 @@ export default function LoginPage() {
               placeholder="Enter your password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="h-12 w-full rounded-xl border border-[#eadde6] bg-[#fdfafd] pl-12 pr-12 text-[#68475e] outline-none transition placeholder:text-[#b9a8b4] focus:border-[#b783a0] focus:ring-4 focus:ring-[#f2e5ed]"
+              className="h-12 w-full rounded-xl border border-[#dcd3e9] bg-white pl-12 pr-12 text-[#111018] outline-none transition placeholder:text-[#8b899d] focus:border-[#7673FF] focus:ring-4 focus:ring-[#ccb9fe]/30"
             />
 
             <button
               type="button"
               onClick={() => setShowPassword((current) => !current)}
               aria-label={showPassword ? "Hide password" : "Show password"}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-[#a58b9d] hover:text-[#68475e]"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8b899d] transition hover:text-[#7673FF]"
             >
               {showPassword ? (
                 <EyeOff className="h-5 w-5" />
@@ -126,7 +126,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#95617f] font-medium text-white shadow-md shadow-[#95617f]/15 transition hover:bg-[#80516d] disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#7673FF] font-medium text-[#111018] shadow-md shadow-[#7673FF]/15 transition hover:bg-[#CCB9FE] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? (
             <>
@@ -139,11 +139,11 @@ export default function LoginPage() {
         </button>
       </form>
 
-      <p className="mt-8 text-center text-sm text-[#947f8e]">
+      <p className="mt-8 text-center text-sm text-[#656376]">
         Don't have a professional account?{" "}
         <Link
           href="/register"
-          className="font-semibold text-[#95617f] hover:text-[#68475e]"
+          className="font-semibold text-[#7673FF] transition hover:text-[#111018]"
         >
           Create an account
         </Link>
