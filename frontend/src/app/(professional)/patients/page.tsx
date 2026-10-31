@@ -1,672 +1,700 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import {
-  Search,
-  UsersRound,
-  UserRound,
-  CalendarDays,
-  Clock3,
-  Heart,
-  ArrowUpRight,
-  MessageCircle,
-  CheckCircle2,
-  FileText,
+  Users,
+  RefreshCw,
+  Plus,
+  Check,
+  Trash2,
+  Pencil,
   X,
-  ChevronRight,
-  Sparkles,
+  ClipboardList,
+  CalendarDays,
 } from "lucide-react";
 
 import DashboardLayout from "../components/layout/DashboardLayout";
+import {
+  getPatients,
+  getPatientTodos,
+  createPatientTodo,
+  updatePatientTodo,
+  deletePatientTodo,
+  type ProfessionalPatient,
+  type PatientTodo,
+} from "@/lib/professional-api";
 
-type PatientStatus = "Active" | "Follow-up";
+type PatientWithTodos = ProfessionalPatient & {
+  actions: PatientTodo[];
+  actionsLoading: boolean;
+};
 
-interface Patient {
-  id: number;
-  name: string;
-  initials: string;
-  status: PatientStatus;
-  lastSession: string;
-  nextAppointment: string;
-  nextAppointmentTime: string;
-  sessionsCompleted: number;
-  sharedUpdates: number;
-  summary: string;
-  sharedNote: string;
-  recentActivity: string[];
-}
-
-type PatientFilter = "All" | PatientStatus;
-
-const INITIAL_PATIENTS: Patient[] = [
-  {
-    id: 1,
-    name: "Amel K.",
-    initials: "AK",
-    status: "Active",
-    lastSession: "October 26, 2026",
-    nextAppointment: "November 2, 2026",
-    nextAppointmentTime: "10:00 AM",
-    sessionsCompleted: 6,
-    sharedUpdates: 2,
-    summary:
-      "An ongoing therapeutic relationship with regular appointments scheduled.",
-    sharedNote:
-      "Shared progress updates are available for the professional to review.",
-    recentActivity: [
-      "Completed a session on October 26",
-      "Shared a personal progress update",
-      "Next appointment scheduled for November 2",
-    ],
-  },
-  {
-    id: 2,
-    name: "Lina B.",
-    initials: "LB",
-    status: "Follow-up",
-    lastSession: "October 20, 2026",
-    nextAppointment: "November 3, 2026",
-    nextAppointmentTime: "2:00 PM",
-    sessionsCompleted: 4,
-    sharedUpdates: 1,
-    summary:
-      "A follow-up appointment is scheduled to continue the previous sessions.",
-    sharedNote:
-      "One shared progress update is available for the professional to review.",
-    recentActivity: [
-      "Completed a session on October 20",
-      "Shared a progress update",
-      "Follow-up appointment scheduled for November 3",
-    ],
-  },
-  {
-    id: 3,
-    name: "Nour A.",
-    initials: "NA",
-    status: "Active",
-    lastSession: "October 28, 2026",
-    nextAppointment: "November 4, 2026",
-    nextAppointmentTime: "11:00 AM",
-    sessionsCompleted: 8,
-    sharedUpdates: 0,
-    summary: "An ongoing patient with a regular appointment schedule.",
-    sharedNote: "There are no new shared updates to review at the moment.",
-    recentActivity: [
-      "Completed a session on October 28",
-      "Appointment confirmed for November 4",
-    ],
-  },
-  {
-    id: 4,
-    name: "Sara M.",
-    initials: "SM",
-    status: "Follow-up",
-    lastSession: "October 16, 2026",
-    nextAppointment: "November 5, 2026",
-    nextAppointmentTime: "9:00 AM",
-    sessionsCompleted: 3,
-    sharedUpdates: 3,
-    summary:
-      "A follow-up is planned to review progress since the previous appointment.",
-    sharedNote:
-      "Three shared updates are available for the professional to review.",
-    recentActivity: [
-      "Completed a session on October 16",
-      "Shared a new progress update",
-      "Follow-up appointment scheduled for November 5",
-    ],
-  },
-  {
-    id: 5,
-    name: "Yasmine R.",
-    initials: "YR",
-    status: "Active",
-    lastSession: "October 23, 2026",
-    nextAppointment: "November 6, 2026",
-    nextAppointmentTime: "1:00 PM",
-    sessionsCompleted: 5,
-    sharedUpdates: 1,
-    summary: "Regular sessions are being used to review ongoing progress.",
-    sharedNote:
-      "One shared progress update is available for the professional to review.",
-    recentActivity: [
-      "Completed a session on October 23",
-      "Shared a progress update",
-      "Next appointment scheduled for November 6",
-    ],
-  },
-];
-
-const PATIENT_FILTERS: PatientFilter[] = ["All", "Active", "Follow-up"];
-
-const AVATAR_BACKGROUNDS = [
-  "#BDCFFF",
-  "#B8C0FF",
-  "#C8B6FE",
-  "#E7C5FF",
-  "#FED5FF",
-];
+const emptyForm = {
+  title: "",
+  description: "",
+  due_date: "",
+};
 
 export default function PatientsPage() {
-  const router = useRouter();
+  const [patients, setPatients] = useState<PatientWithTodos[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [formattedDate, setFormattedDate] = useState("");
-  const [patients] = useState<Patient[]>(INITIAL_PATIENTS);
-  const [activeFilter, setActiveFilter] = useState<PatientFilter>("All");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<number | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editingTodo, setEditingTodo] = useState<PatientTodo | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    setFormattedDate(
-      new Intl.DateTimeFormat("en", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      }).format(new Date()),
-    );
+  const loadPatients = useCallback(async (refresh = false) => {
+    if (refresh) setRefreshing(true);
+    else setLoading(true);
+
+    setError("");
+
+    try {
+      const data = await getPatients();
+
+      setPatients(
+        data.map((patient) => ({
+          ...patient,
+          actions: [],
+          actionsLoading: false,
+        })),
+      );
+
+      if (data.length > 0) {
+        setSelectedPatient((current) =>
+          current && data.some((patient) => patient.id === current)
+            ? current
+            : data[0].id,
+        );
+      } else {
+        setSelectedPatient(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load patients.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
-  const activeCount = patients.filter(
-    (patient) => patient.status === "Active",
-  ).length;
+  const loadTodos = useCallback(async (patientId: number) => {
+    setPatients((current) =>
+      current.map((patient) =>
+        patient.id === patientId
+          ? { ...patient, actionsLoading: true }
+          : patient,
+      ),
+    );
 
-  const followUpCount = patients.filter(
-    (patient) => patient.status === "Follow-up",
-  ).length;
+    try {
+      const actions = await getPatientTodos(patientId);
 
-  const sharedUpdatesCount = patients.reduce(
-    (total, patient) => total + patient.sharedUpdates,
-    0,
+      setPatients((current) =>
+        current.map((patient) =>
+          patient.id === patientId
+            ? { ...patient, actions, actionsLoading: false }
+            : patient,
+        ),
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to load assigned actions.",
+      );
+
+      setPatients((current) =>
+        current.map((patient) =>
+          patient.id === patientId
+            ? { ...patient, actionsLoading: false }
+            : patient,
+        ),
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadPatients();
+  }, [loadPatients]);
+
+  useEffect(() => {
+    if (selectedPatient !== null) {
+      void loadTodos(selectedPatient);
+    }
+  }, [selectedPatient, loadTodos]);
+
+  const activePatient = patients.find(
+    (patient) => patient.id === selectedPatient,
   );
 
-  const filteredPatients = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
+  function openCreateForm() {
+    setEditingTodo(null);
+    setForm(emptyForm);
+    setShowForm(true);
+    setError("");
+    setSuccess("");
+  }
 
-    return patients.filter((patient) => {
-      const matchesFilter =
-        activeFilter === "All" || patient.status === activeFilter;
-
-      const matchesSearch =
-        !query || patient.name.toLowerCase().includes(query);
-
-      return matchesFilter && matchesSearch;
+  function openEditForm(todo: PatientTodo) {
+    setEditingTodo(todo);
+    setForm({
+      title: todo.title,
+      description: todo.description ?? "",
+      due_date: todo.due_date ?? "",
     });
-  }, [patients, activeFilter, searchQuery]);
+    setShowForm(true);
+    setError("");
+    setSuccess("");
+  }
 
-  function handleNavigate(label: string) {
-    const routes: Record<string, string> = {
-      Overview: "/",
-      Calendar: "/calendar",
-      Requests: "/requests",
-      Patients: "/patients",
-      Settings: "/settings",
+  async function saveTodo(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!selectedPatient || !form.title.trim()) {
+      setError("Please enter an action title.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    const payload = {
+      title: form.title.trim(),
+      description: form.description.trim(),
+      due_date: form.due_date || null,
     };
 
-    setSidebarOpen(false);
+    try {
+      if (editingTodo) {
+        await updatePatientTodo(selectedPatient, editingTodo.id, payload);
+        setSuccess("The action has been updated.");
+      } else {
+        await createPatientTodo(selectedPatient, payload);
+        setSuccess("The action has been assigned.");
+      }
 
-    if (routes[label]) {
-      router.push(routes[label]);
+      setShowForm(false);
+      setEditingTodo(null);
+      setForm(emptyForm);
+
+      await Promise.all([loadTodos(selectedPatient), loadPatients(true)]);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to save this action.",
+      );
+    } finally {
+      setSaving(false);
     }
   }
 
+  async function toggleTodo(todo: PatientTodo) {
+    if (!selectedPatient) return;
+
+    const completed = Boolean(todo.is_completed ?? todo.completed);
+
+    setError("");
+    setSuccess("");
+
+    try {
+      await updatePatientTodo(selectedPatient, todo.id, {
+        is_completed: !completed,
+        completed: !completed,
+        done_at: !completed ? new Date().toISOString() : null,
+      });
+
+      await loadTodos(selectedPatient);
+      await loadPatients(true);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to update this action.",
+      );
+    }
+  }
+
+  async function removeTodo(todoId: number) {
+    if (!selectedPatient) return;
+
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this assigned action?",
+    );
+
+    if (!confirmed) return;
+
+    setError("");
+    setSuccess("");
+
+    try {
+      await deletePatientTodo(selectedPatient, todoId);
+      setSuccess("The action has been deleted.");
+
+      await Promise.all([loadTodos(selectedPatient), loadPatients(true)]);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to delete this action.",
+      );
+    }
+  }
+
+  const completedCount =
+    activePatient?.actions.filter((todo) =>
+      Boolean(todo.is_completed ?? todo.completed),
+    ).length ?? 0;
+
+  const totalCount = activePatient?.actions.length ?? 0;
+
   return (
-    <DashboardLayout
-      sidebarOpen={sidebarOpen}
-      selectedPage="Patients"
-      pendingRequests={3}
-      formattedDate={formattedDate}
-      notificationsOpen={notificationsOpen}
-      onNavigate={handleNavigate}
-      onCloseSidebar={() => setSidebarOpen(false)}
-      onOpenSidebar={() => setSidebarOpen(true)}
-      onToggleNotifications={() => setNotificationsOpen((current) => !current)}
-    >
-      <div className="space-y-7">
-        {/* Heading */}
-        <section>
-          <div className="mb-2 flex items-center gap-2 text-sm font-medium text-[#8273B5]">
-            <UsersRound size={17} />
-            YOUR PRACTICE
-          </div>
-
-          <h1 className="text-3xl font-semibold tracking-tight text-[#352D4B]">
-            Your patients
-          </h1>
-
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#81788F]">
-            Keep track of your patient relationships, upcoming sessions, and
-            shared progress updates.
-          </p>
-        </section>
-
-        {/* Summary cards */}
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <PatientStat
-            label="Total patients"
-            value={patients.length}
-            description="In your practice"
-            icon={<UsersRound size={20} />}
-            background="#BDCFFF"
-            iconColor="#45639A"
-          />
-
-          <PatientStat
-            label="Active patients"
-            value={activeCount}
-            description="Ongoing appointments"
-            icon={<Heart size={20} />}
-            background="#B8C0FF"
-            iconColor="#5958A5"
-          />
-
-          <PatientStat
-            label="Follow-ups"
-            value={followUpCount}
-            description="Follow-up status"
-            icon={<CalendarDays size={20} />}
-            background="#C8B6FE"
-            iconColor="#6B56A0"
-          />
-
-          <PatientStat
-            label="Shared updates"
-            value={sharedUpdatesCount}
-            description="Updates shared with you"
-            icon={<MessageCircle size={20} />}
-            background="#FED5FF"
-            iconColor="#9A5C91"
-          />
-        </section>
-
-        {/* Patient list */}
-        <section className="rounded-[28px] border border-white/80 bg-white/85 p-4 shadow-[0_10px_40px_rgba(79,61,113,0.05)] sm:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <DashboardLayout selectedPage="Patients">
+      <main className="min-h-screen bg-[#f7f0f5] px-4 py-6 sm:px-7 lg:px-9">
+        <div className="mx-auto max-w-7xl">
+          <header className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-              <h2 className="text-xl font-semibold text-[#403651]">
-                Patient directory
-              </h2>
-              <p className="mt-1 text-sm text-[#91879E]">
-                Browse your patients and their latest activity.
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#a17c99]">
+                Your practice
               </p>
-            </div>
-
-            <div className="relative w-full lg:max-w-xs">
-              <Search
-                size={18}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#A49AAF]"
-              />
-
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search patients..."
-                aria-label="Search patients"
-                className="w-full rounded-2xl border border-[#ECE4F4] bg-[#FCFAFE] py-3 pl-10 pr-4 text-sm text-[#403651] outline-none transition placeholder:text-[#A49AAF] focus:border-[#B8C0FF] focus:ring-2 focus:ring-[#B8C0FF]/30"
-              />
-            </div>
-          </div>
-
-          {/* Filters */}
-          <div className="mt-6 flex flex-wrap gap-2">
-            {PATIENT_FILTERS.map((filter) => {
-              const count =
-                filter === "All"
-                  ? patients.length
-                  : patients.filter((patient) => patient.status === filter)
-                      .length;
-
-              const selected = activeFilter === filter;
-
-              return (
-                <button
-                  key={filter}
-                  type="button"
-                  onClick={() => setActiveFilter(filter)}
-                  className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition ${
-                    selected
-                      ? "bg-[#E7C5FF] text-[#65457E] shadow-sm"
-                      : "bg-[#F7F3FB] text-[#81788F] hover:bg-[#F0E9FA]"
-                  }`}
-                >
-                  {filter}
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${
-                      selected
-                        ? "bg-white/70 text-[#65457E]"
-                        : "bg-white text-[#81788F]"
-                    }`}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Patient cards */}
-          <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
-            {filteredPatients.map((patient) => {
-              const avatarBackground =
-                AVATAR_BACKGROUNDS[
-                  (patient.id - 1) % AVATAR_BACKGROUNDS.length
-                ];
-
-              return (
-                <article
-                  key={patient.id}
-                  className="rounded-[24px] bg-[#FCFAFE] p-5 transition hover:bg-[#FAF6FF] sm:p-6"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-sm font-semibold text-[#594A84]"
-                        style={{ backgroundColor: avatarBackground }}
-                      >
-                        {patient.initials}
-                      </div>
-
-                      <div className="min-w-0">
-                        <h3 className="truncate text-base font-semibold text-[#403651]">
-                          {patient.name}
-                        </h3>
-
-                        <PatientStatusBadge status={patient.status} />
-                      </div>
-                    </div>
-
-                    {patient.sharedUpdates > 0 && (
-                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#F1E9FF] px-2.5 py-1.5 text-xs font-medium text-[#775CA5]">
-                        <Sparkles size={13} />
-                        {patient.sharedUpdates}{" "}
-                        {patient.sharedUpdates === 1 ? "update" : "updates"}
-                      </span>
-                    )}
-                  </div>
-
-                  <p className="mt-4 text-sm leading-6 text-[#81788F]">
-                    {patient.summary}
-                  </p>
-
-                  <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="rounded-2xl bg-white p-3.5">
-                      <div className="flex items-center gap-2 text-xs text-[#91879E]">
-                        <Clock3 size={15} className="text-[#927FC7]" />
-                        Last session
-                      </div>
-
-                      <p className="mt-2 text-sm font-medium text-[#514566]">
-                        {patient.lastSession}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-white p-3.5">
-                      <div className="flex items-center gap-2 text-xs text-[#91879E]">
-                        <CalendarDays size={15} className="text-[#927FC7]" />
-                        Next appointment
-                      </div>
-
-                      <p className="mt-2 text-sm font-medium text-[#514566]">
-                        {patient.nextAppointment}
-                      </p>
-
-                      <p className="mt-1 text-xs text-[#91879E]">
-                        {patient.nextAppointmentTime}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="text-xs text-[#91879E]">
-                      {patient.sessionsCompleted} sessions completed
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPatient(patient)}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#8B78C6] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#7864B5]"
-                    >
-                      View profile
-                      <ArrowUpRight size={16} />
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-
-          {filteredPatients.length === 0 && (
-            <div className="rounded-[24px] bg-[#FCFAFE] px-5 py-14 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#E7C5FF] text-[#78529B]">
-                <UsersRound size={25} />
-              </div>
-
-              <h3 className="mt-4 font-semibold text-[#403651]">
-                No patients found
-              </h3>
-
-              <p className="mt-2 text-sm text-[#91879E]">
-                Try another name or change the selected filter.
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#67465d]">
+                Your patients
+              </h1>
+              <p className="mt-2 text-sm text-[#927d8d]">
+                Manage your connected patients and their assigned actions.
               </p>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery("");
-                  setActiveFilter("All");
-                }}
-                className="mt-4 rounded-xl bg-[#F0E9FA] px-4 py-2.5 text-sm font-medium text-[#67559A] transition hover:bg-[#E7C5FF]"
-              >
-                Clear filters
-              </button>
-            </div>
-          )}
-        </section>
-      </div>
-
-      {/* Patient profile dialog */}
-      {selectedPatient && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-[#302541]/35 p-4 backdrop-blur-sm"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setSelectedPatient(null);
-            }
-          }}
-        >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="patient-profile-title"
-            className="my-auto w-full max-w-xl rounded-[28px] border border-white/80 bg-white p-6 shadow-[0_24px_80px_rgba(48,37,65,0.2)] sm:p-8"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div
-                  className="flex h-14 w-14 items-center justify-center rounded-2xl text-base font-semibold text-[#594A84]"
-                  style={{
-                    backgroundColor:
-                      AVATAR_BACKGROUNDS[
-                        (selectedPatient.id - 1) % AVATAR_BACKGROUNDS.length
-                      ],
-                  }}
-                >
-                  {selectedPatient.initials}
-                </div>
-
-                <div>
-                  <h2
-                    id="patient-profile-title"
-                    className="text-xl font-semibold text-[#403651]"
-                  >
-                    {selectedPatient.name}
-                  </h2>
-
-                  <PatientStatusBadge status={selectedPatient.status} />
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setSelectedPatient(null)}
-                aria-label="Close patient profile"
-                className="rounded-xl p-2 text-[#81788F] transition hover:bg-[#F4EFF9]"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <p className="mt-5 text-sm leading-6 text-[#81788F]">
-              {selectedPatient.summary}
-            </p>
-
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-[#F6F2FC] p-4">
-                <div className="flex items-center gap-2 text-xs text-[#81788F]">
-                  <CheckCircle2 size={15} className="text-[#8B78C6]" />
-                  Sessions completed
-                </div>
-
-                <p className="mt-2 text-2xl font-semibold text-[#403651]">
-                  {selectedPatient.sessionsCompleted}
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-[#F6F2FC] p-4">
-                <div className="flex items-center gap-2 text-xs text-[#81788F]">
-                  <MessageCircle size={15} className="text-[#8B78C6]" />
-                  Shared updates
-                </div>
-
-                <p className="mt-2 text-2xl font-semibold text-[#403651]">
-                  {selectedPatient.sharedUpdates}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-5 rounded-2xl bg-[#FCFAFE] p-4">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-[#514566]">
-                <FileText size={17} className="text-[#8B78C6]" />
-                Shared information
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-[#81788F]">
-                {selectedPatient.sharedNote}
-              </p>
-            </div>
-
-            <div className="mt-5">
-              <h3 className="text-sm font-semibold text-[#514566]">
-                Recent activity
-              </h3>
-
-              <div className="mt-3 space-y-3">
-                {selectedPatient.recentActivity.map((activity, index) => (
-                  <div key={activity} className="flex items-start gap-3">
-                    <span
-                      className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
-                      style={{
-                        backgroundColor:
-                          AVATAR_BACKGROUNDS[index % AVATAR_BACKGROUNDS.length],
-                      }}
-                    />
-
-                    <p className="text-sm leading-5 text-[#756A85]">
-                      {activity}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-6 rounded-2xl bg-[#F6F2FC] p-4">
-              <p className="text-xs text-[#91879E]">Next appointment</p>
-
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-sm font-semibold text-[#514566]">
-                    {selectedPatient.nextAppointment}
-                  </p>
-
-                  <p className="mt-1 text-xs text-[#81788F]">
-                    {selectedPatient.nextAppointmentTime}
-                  </p>
-                </div>
-
-                <CalendarDays size={20} className="text-[#8B78C6]" />
-              </div>
             </div>
 
             <button
               type="button"
-              onClick={() => setSelectedPatient(null)}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#8B78C6] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#7864B5]"
+              onClick={() => void loadPatients(true)}
+              disabled={refreshing}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-[#76556e] shadow-sm transition hover:bg-[#fbf5fa] disabled:opacity-50"
             >
-              Close profile
-              <ChevronRight size={16} />
+              <RefreshCw
+                size={16}
+                className={refreshing ? "animate-spin" : ""}
+              />
+              Refresh
             </button>
+          </header>
+
+          {error && (
+            <div className="mb-5 flex items-start justify-between gap-3 rounded-xl bg-[#faeaea] px-4 py-3 text-sm text-[#a34f4f]">
+              <span>{error}</span>
+              <button
+                type="button"
+                onClick={() => setError("")}
+                aria-label="Dismiss error"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-5 rounded-xl bg-[#e8f2e8] px-4 py-3 text-sm text-[#55785b]">
+              {success}
+            </div>
+          )}
+
+          <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <article className="rounded-2xl bg-white/90 p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f1e7f0] text-[#896987]">
+                  <Users size={19} />
+                </div>
+                <p className="text-sm text-[#927d8d]">Connected patients</p>
+              </div>
+              <p className="mt-4 text-3xl font-semibold text-[#67465d]">
+                {patients.length}
+              </p>
+            </article>
+
+            <article className="rounded-2xl bg-white/90 p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fff4df] text-[#9b7431]">
+                  <ClipboardList size={19} />
+                </div>
+                <p className="text-sm text-[#927d8d]">Open actions</p>
+              </div>
+              <p className="mt-4 text-3xl font-semibold text-[#67465d]">
+                {patients.reduce((sum, patient) => sum + patient.todos.open, 0)}
+              </p>
+            </article>
+
+            <article className="rounded-2xl bg-white/90 p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#e8f2e8] text-[#66876d]">
+                  <Check size={19} />
+                </div>
+                <p className="text-sm text-[#927d8d]">Completed actions</p>
+              </div>
+              <p className="mt-4 text-3xl font-semibold text-[#67465d]">
+                {patients.reduce((sum, patient) => sum + patient.todos.done, 0)}
+              </p>
+            </article>
           </section>
+
+          {loading ? (
+            <div className="rounded-2xl bg-white/90 px-6 py-20 text-center text-sm text-[#927d8d] shadow-sm">
+              Loading your patients…
+            </div>
+          ) : patients.length === 0 ? (
+            <div className="rounded-2xl bg-white/90 px-6 py-20 text-center shadow-sm">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#f1e7f0] text-[#896987]">
+                <Users size={22} />
+              </div>
+              <h2 className="mt-4 text-base font-semibold text-[#67465d]">
+                No connected patients yet
+              </h2>
+              <p className="mt-2 text-sm text-[#927d8d]">
+                Patients will appear here when they have an accepted or
+                completed session with you.
+              </p>
+            </div>
+          ) : (
+            <section className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(260px,0.8fr)_minmax(0,1.7fr)]">
+              <aside className="rounded-2xl bg-white/90 p-4 shadow-sm sm:p-5">
+                <h2 className="mb-4 px-1 text-base font-semibold text-[#67465d]">
+                  Patient list
+                </h2>
+
+                <div className="space-y-2">
+                  {patients.map((patient) => (
+                    <button
+                      key={patient.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPatient(patient.id);
+                        setShowForm(false);
+                        setError("");
+                        setSuccess("");
+                      }}
+                      className={`w-full rounded-xl p-4 text-left transition ${
+                        selectedPatient === patient.id
+                          ? "bg-[#f1e7f0] ring-1 ring-[#dfcddd]"
+                          : "bg-[#faf6f9] hover:bg-[#f5edf4]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e8dce7] text-sm font-semibold text-[#80647e]">
+                          {patient.nickname.slice(0, 1).toUpperCase()}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-[#67465d]">
+                            {patient.nickname}
+                          </p>
+                          <p className="mt-1 text-[11px] text-[#927d8d]">
+                            Patient #{patient.id}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-2 text-[10px]">
+                        <span className="rounded-full bg-white px-2.5 py-1 text-[#80647e]">
+                          {patient.todos.open} open
+                        </span>
+                        <span className="rounded-full bg-white px-2.5 py-1 text-[#66876d]">
+                          {patient.todos.done} done
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </aside>
+
+              <section className="min-w-0 rounded-2xl bg-white/90 p-4 shadow-sm sm:p-6">
+                {activePatient ? (
+                  <>
+                    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[#a17c99]">
+                          Patient overview
+                        </p>
+                        <h2 className="mt-2 text-xl font-semibold text-[#67465d]">
+                          {activePatient.nickname}
+                        </h2>
+                        <p className="mt-1 text-xs text-[#927d8d]">
+                          Patient #{activePatient.id}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={openCreateForm}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#8d6b88] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#785775]"
+                      >
+                        <Plus size={15} />
+                        Assign an action
+                      </button>
+                    </div>
+
+                    <div className="mt-5 rounded-xl bg-[#faf6f9] p-4">
+                      <p className="text-xs font-medium text-[#927d8d]">
+                        Shared information
+                      </p>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {activePatient.shared.length > 0 ? (
+                          activePatient.shared.map((item) => (
+                            <span
+                              key={item}
+                              className="rounded-full bg-[#eee4ed] px-3 py-1.5 text-xs font-medium capitalize text-[#80647e]"
+                            >
+                              {item}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-[#927d8d]">
+                            No categories are currently shared.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-6">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <h3 className="text-base font-semibold text-[#67465d]">
+                            Assigned actions
+                          </h3>
+                          <p className="mt-1 text-xs text-[#927d8d]">
+                            Actions assigned to this patient.
+                          </p>
+                        </div>
+
+                        <span className="rounded-full bg-[#f1e7f0] px-3 py-1.5 text-xs font-medium text-[#80647e]">
+                          {completedCount} / {totalCount} completed
+                        </span>
+                      </div>
+
+                      <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#f0e6ef]">
+                        <div
+                          className="h-full rounded-full bg-[#91aa96] transition-all"
+                          style={{
+                            width: `${
+                              totalCount > 0
+                                ? (completedCount / totalCount) * 100
+                                : 0
+                            }%`,
+                          }}
+                        />
+                      </div>
+
+                      {activePatient.actionsLoading ? (
+                        <p className="py-12 text-center text-sm text-[#927d8d]">
+                          Loading assigned actions…
+                        </p>
+                      ) : activePatient.actions.length === 0 ? (
+                        <div className="mt-5 rounded-xl bg-[#faf6f9] px-5 py-12 text-center">
+                          <ClipboardList
+                            size={23}
+                            className="mx-auto text-[#a17c99]"
+                          />
+                          <p className="mt-3 text-sm font-semibold text-[#67465d]">
+                            No assigned actions yet
+                          </p>
+                          <p className="mt-1 text-xs text-[#927d8d]">
+                            Create an action to help this patient follow their
+                            progress.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="mt-4 space-y-3">
+                          {activePatient.actions.map((todo) => {
+                            const isCompleted = Boolean(
+                              todo.is_completed ?? todo.completed,
+                            );
+
+                            return (
+                              <article
+                                key={todo.id}
+                                className="flex flex-col justify-between gap-3 rounded-xl bg-[#faf6f9] p-4 sm:flex-row sm:items-center"
+                              >
+                                <div className="flex min-w-0 items-start gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => void toggleTodo(todo)}
+                                    aria-label={
+                                      isCompleted
+                                        ? "Mark as incomplete"
+                                        : "Mark as complete"
+                                    }
+                                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
+                                      isCompleted
+                                        ? "border-[#78947d] bg-[#78947d] text-white"
+                                        : "border-[#cbb8c9] bg-white text-transparent hover:border-[#78947d]"
+                                    }`}
+                                  >
+                                    <Check size={13} />
+                                  </button>
+
+                                  <div className="min-w-0">
+                                    <p
+                                      className={`text-sm font-semibold ${
+                                        isCompleted
+                                          ? "text-[#9a8997] line-through"
+                                          : "text-[#67465d]"
+                                      }`}
+                                    >
+                                      {todo.title}
+                                    </p>
+
+                                    {todo.description && (
+                                      <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-[#927d8d]">
+                                        {todo.description}
+                                      </p>
+                                    )}
+
+                                    {todo.due_date && (
+                                      <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-[#927d8d]">
+                                        <CalendarDays size={12} />
+                                        Due{" "}
+                                        {new Date(
+                                          `${todo.due_date}T00:00:00`,
+                                        ).toLocaleDateString()}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex shrink-0 items-center gap-2 self-end sm:self-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => openEditForm(todo)}
+                                    aria-label="Edit action"
+                                    className="rounded-lg p-2 text-[#80647e] transition hover:bg-[#eee4ed]"
+                                  >
+                                    <Pencil size={15} />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => void removeTodo(todo.id)}
+                                    aria-label="Delete action"
+                                    className="rounded-lg p-2 text-[#ad6969] transition hover:bg-[#faeaea]"
+                                  >
+                                    <Trash2 size={15} />
+                                  </button>
+                                </div>
+                              </article>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="py-16 text-center text-sm text-[#927d8d]">
+                    Select a patient to view their information.
+                  </div>
+                )}
+              </section>
+            </section>
+          )}
+
+          {showForm && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#3f2d3d]/35 p-4 backdrop-blur-sm">
+              <form
+                onSubmit={saveTodo}
+                className="w-full max-w-lg rounded-2xl bg-[#fffafd] p-6 shadow-xl"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-semibold text-[#67465d]">
+                      {editingTodo
+                        ? "Edit assigned action"
+                        : "Assign an action"}
+                    </h2>
+                    <p className="mt-1 text-xs text-[#927d8d]">
+                      {activePatient?.nickname}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="rounded-lg p-2 text-[#80647e] hover:bg-[#f1e7f0]"
+                    aria-label="Close form"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <label className="mt-6 block text-xs font-semibold text-[#76556e]">
+                  Action title
+                </label>
+                <input
+                  required
+                  maxLength={200}
+                  value={form.title}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      title: event.target.value,
+                    }))
+                  }
+                  placeholder="For example: Complete the weekly reflection"
+                  className="mt-2 w-full rounded-xl border border-[#e8dce7] bg-white px-4 py-3 text-sm text-[#67465d] outline-none transition placeholder:text-[#b7a5b5] focus:border-[#a17c99]"
+                />
+
+                <label className="mt-4 block text-xs font-semibold text-[#76556e]">
+                  Description
+                </label>
+                <textarea
+                  rows={4}
+                  value={form.description}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      description: event.target.value,
+                    }))
+                  }
+                  placeholder="Add instructions or details…"
+                  className="mt-2 w-full resize-none rounded-xl border border-[#e8dce7] bg-white px-4 py-3 text-sm text-[#67465d] outline-none transition placeholder:text-[#b7a5b5] focus:border-[#a17c99]"
+                />
+
+                <label className="mt-4 block text-xs font-semibold text-[#76556e]">
+                  Due date
+                </label>
+                <input
+                  type="date"
+                  value={form.due_date}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      due_date: event.target.value,
+                    }))
+                  }
+                  className="mt-2 w-full rounded-xl border border-[#e8dce7] bg-white px-4 py-3 text-sm text-[#67465d] outline-none focus:border-[#a17c99]"
+                />
+
+                <div className="mt-6 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="rounded-xl px-4 py-2.5 text-xs font-semibold text-[#80647e] hover:bg-[#f1e7f0]"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="rounded-xl bg-[#8d6b88] px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-[#785775] disabled:opacity-50"
+                  >
+                    {saving
+                      ? "Saving…"
+                      : editingTodo
+                        ? "Save changes"
+                        : "Assign action"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
-      )}
+      </main>
     </DashboardLayout>
-  );
-}
-
-function PatientStat({
-  label,
-  value,
-  description,
-  icon,
-  background,
-  iconColor,
-}: {
-  label: string;
-  value: number;
-  description: string;
-  icon: React.ReactNode;
-  background: string;
-  iconColor: string;
-}) {
-  return (
-    <article className="rounded-[24px] border border-white/80 bg-white/85 p-5 shadow-[0_6px_24px_rgba(79,61,113,0.04)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_30px_rgba(79,61,113,0.08)]">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-[#81788F]">{label}</p>
-          <p className="mt-3 text-3xl font-semibold text-[#403651]">{value}</p>
-        </div>
-
-        <div
-          className="flex h-11 w-11 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: background, color: iconColor }}
-        >
-          {icon}
-        </div>
-      </div>
-
-      <p className="mt-3 text-xs text-[#94899F]">{description}</p>
-    </article>
-  );
-}
-
-function PatientStatusBadge({ status }: { status: PatientStatus }) {
-  const isActive = status === "Active";
-
-  return (
-    <span
-      className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
-        isActive ? "bg-[#E8F5EE] text-[#327653]" : "bg-[#FFF0D8] text-[#95621D]"
-      }`}
-    >
-      <span
-        className={`h-1.5 w-1.5 rounded-full ${
-          isActive ? "bg-[#54A477]" : "bg-[#D69A3E]"
-        }`}
-      />
-      {status}
-    </span>
   );
 }

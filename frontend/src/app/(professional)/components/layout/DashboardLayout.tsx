@@ -1,28 +1,28 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  sidebarOpen: boolean;
   selectedPage: string;
-  pendingRequests: number;
-  formattedDate: string;
-  notificationsOpen: boolean;
-  onNavigate: (label: string) => void;
-  onCloseSidebar: () => void;
-  onOpenSidebar: () => void;
-  onToggleNotifications: () => void;
+  sidebarOpen?: boolean;
+  pendingRequests?: number;
+  formattedDate?: string;
+  notificationsOpen?: boolean;
+  onNavigate?: (label: string) => void;
+  onCloseSidebar?: () => void;
+  onOpenSidebar?: () => void;
+  onToggleNotifications?: () => void;
 }
 
 export default function DashboardLayout({
   children,
-  sidebarOpen,
   selectedPage,
-  pendingRequests,
+  sidebarOpen,
+  pendingRequests = 0,
   formattedDate,
   notificationsOpen,
   onNavigate,
@@ -30,23 +30,85 @@ export default function DashboardLayout({
   onOpenSidebar,
   onToggleNotifications,
 }: DashboardLayoutProps) {
+  const [internalSidebarOpen, setInternalSidebarOpen] = useState(false);
+  const [internalNotificationsOpen, setInternalNotificationsOpen] =
+    useState(false);
+
+  const isSidebarOpen = sidebarOpen ?? internalSidebarOpen;
+  const areNotificationsOpen = notificationsOpen ?? internalNotificationsOpen;
+
+  const date =
+    formattedDate ??
+    new Date().toLocaleDateString("en-US", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+  function handleCloseSidebar() {
+    if (onCloseSidebar) {
+      onCloseSidebar();
+    } else {
+      setInternalSidebarOpen(false);
+    }
+  }
+
+  function handleOpenSidebar() {
+    if (onOpenSidebar) {
+      onOpenSidebar();
+    } else {
+      setInternalSidebarOpen(true);
+    }
+  }
+
+  function handleToggleNotifications() {
+    if (onToggleNotifications) {
+      onToggleNotifications();
+    } else {
+      setInternalNotificationsOpen((current) => !current);
+    }
+  }
+
+  function handleNavigate(label: string) {
+    onNavigate?.(label);
+
+    if (!onNavigate) {
+      const routes: Record<string, string> = {
+        Overview: "/",
+        Calendar: "/calendar",
+        Requests: "/requests",
+        Patients: "/patients",
+        Settings: "/settings",
+      };
+
+      const route = routes[label];
+
+      if (route) {
+        window.location.href = route;
+      }
+    }
+
+    handleCloseSidebar();
+  }
+
   return (
     <div className="min-h-screen bg-[#f7f0f5] text-foreground">
       <Sidebar
-        open={sidebarOpen}
+        open={isSidebarOpen}
         selectedPage={selectedPage}
         pendingRequests={pendingRequests}
-        onNavigate={onNavigate}
-        onClose={onCloseSidebar}
+        onNavigate={handleNavigate}
+        onClose={handleCloseSidebar}
       />
 
       <div className="min-h-screen lg:pl-[260px]">
         <Topbar
-          formattedDate={formattedDate}
-          notificationsOpen={notificationsOpen}
+          formattedDate={date}
+          notificationsOpen={areNotificationsOpen}
           pendingRequests={pendingRequests}
-          onToggleNotifications={onToggleNotifications}
-          onOpenSidebar={onOpenSidebar}
+          onToggleNotifications={handleToggleNotifications}
+          onOpenSidebar={handleOpenSidebar}
         />
 
         <main className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 xl:px-9">
