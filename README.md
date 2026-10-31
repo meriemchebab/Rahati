@@ -19,14 +19,17 @@ A private mental-wellbeing platform for Algerian women. A woman can understand h
 9. [Roles and permissions](#roles-and-permissions)
 10. [API overview](#api-overview)
 11. [Security and privacy](#security-and-privacy)
-12. [Getting started](#getting-started)
-13. [Testing](#testing)
-14. [Key decisions](#key-decisions)
-15. [Roadmap](#roadmap)
-16. [Contributing](#contributing)
-17. [Glossary](#glossary)
-18. [License](#license)
-19. [References](#references)
+12. [Deploy the backend on Render](#deploy-the-backend-on-render)
+13. [Deploy the backend on Vercel](#deploy-the-backend-on-vercel)
+14. [Getting started](#getting-started)
+15. [Testing](#testing)
+16. [Key decisions](#key-decisions)
+17. [Roadmap](#roadmap)
+18. [Team](#team)
+19. [Contributing](#contributing)
+20. [Glossary](#glossary)
+21. [License](#license)
+22. [References](#references)
 
 ---
 
@@ -76,7 +79,9 @@ However, its available mental health indicators do not capture every dimension o
 
 To complement our literature review and better understand women's real-life experiences, we conducted an online survey.
 
-The questionnaire was designed and distributed by the Rahati project team across several online platforms
+The questionnaire was designed and distributed by the Rahati project team across several online platforms.
+
+> 📄 **Full statistics and methodology:** see the [Rahati Survey and Research Report (PDF)](Rahati_Survey_and_Research_Report.pdf).
 
 **Data collection overview:**
 
@@ -90,7 +95,7 @@ The questionnaire was designed and distributed by the Rahati project team across
 
 ### 3. Key Findings
 
-The survey provided initial insights into women's main challenges and expectations.
+The survey provided initial insights into women's main challenges and expectations. The figures below are a summary; the complete results are in the [survey report](Rahati_Survey_and_Research_Report.pdf).
 
 #### 3.1. Main Challenges
 
@@ -793,6 +798,16 @@ Suggested build order (each item depends on the earlier ones):
 
 **People work that code cannot replace:** professionals to review the card texts and the AI wording, native speakers for the Arabic, a human check of every professional's credential, and a pilot with consenting women.
 
+## Team
+
+| Name | Role | Responsibilities | GitHub |
+|---|---|---|---|
+| _Name_ | Project lead | _e.g. planning, coordination_ | [@username](https://github.com/username) |
+| _Name_ | Backend developer | _e.g. Django API, database_ | [@username](https://github.com/username) |
+| _Name_ | Frontend developer | _e.g. Next.js web app_ | [@username](https://github.com/username) |
+| _Name_ | UI/UX designer | _e.g. user flows, mockups_ | [@username](https://github.com/username) |
+| _Name_ | Research & data | _e.g. survey, literature review_ | [@username](https://github.com/username) |
+
 ## Contributing
 
 - Work on a branch and open a pull request; every pull request must pass `python manage.py test rahati` from `Backend/` with the project virtual environment active.
@@ -814,5 +829,6 @@ Suggested build order (each item depends on the earlier ones):
 ## License
 
 See [LICENSE](LICENSE).
+
 ## References 
 - Lin, B., Li, J. Y., Kalani, K., Truong, K., & Mariakakis, A. (2025). *mcPHASES: A Dataset of Physiological, Hormonal, and Self-reported Events and Symptoms for Menstrual Health Tracking with Wearables*. PhysioNet, Version 1.0.0. [https://doi.org/10.13026/zx6a-2c81](https://doi.org/10.13026/zx6a-2c81)
