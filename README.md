@@ -859,7 +859,7 @@ Suggested build order (each item depends on the earlier ones):
 |---|---|---|---|
 | _Name_ | Project lead | _e.g. planning, coordination_ | [@username](https://github.com/username) |
 | _Name_ | Backend developer | _e.g. Django API, database_ | [@username](https://github.com/username) |
-| _Name_ | Frontend developer | _e.g. Next.js web app_ | [@username](https://github.com/username) |
+| _Katia Ghezali_ | Frontend developer | <ul><li> Developed responsive interfaces and interactive dashboards using Next.js, React, and Tailwind CSS.</li> <li> Connected frontend components to backend APIs to retrieve and display data, and deployed the application.</li></ul> | [@KatiaGhezali](https://github.com/KatiaGhezali) |
 | _Name_ | UI/UX designer | _e.g. user flows, mockups_ | [@username](https://github.com/username) |
 | _Name_ | Research & data | _e.g. survey, literature review_ | [@username](https://github.com/username) |
 
