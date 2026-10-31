@@ -12,15 +12,18 @@ A private mental-wellbeing platform for Algerian women. A woman can understand h
   - [Principles](#principles)
   - [What the product does](#what-the-product-does)
   - [Research Background & Data Collection](#research-background--data-collection)
+- **Architecture and apps**
+  - [Architecture](#architecture)
+  - [Backend structure](#backend-structure)
+  - [Web app](#web-app)
+  - [Mobile app](#mobile-app)
 - **Build and run**
   - [Getting started](#getting-started)
   - [Frontend](#frontend)
   - [Mobile app](#mobile-app)
   - [Testing](#testing)
   - [Deployment](#deployment)
-- **How it works**
-  - [Architecture](#architecture)
-  - [Backend structure](#backend-structure)
+- **How the backend works**
   - [Data model](#data-model)
   - [Key flows](#key-flows)
   - [Roles and permissions](#roles-and-permissions)
@@ -145,191 +148,16 @@ Future work could focus on collecting more diverse data, expanding the number of
 
 **Overall, the literature review and exploratory survey helped identify a research gap and provided initial user-driven insights to guide the development of Rahati.**
 
-## Getting started
-
-Requirements: Python 3.13 or newer and [uv](https://docs.astral.sh/uv/). Node.js 22 and npm are needed for the frontend and E2E tests.
-
-```bash
-# from the repository root
-uv sync
-cd Backend
-```
-
-<details>
-<summary>Without uv (pip)</summary>
-
-```bash
-python -m venv .venv
-# Windows PowerShell: .\.venv\Scripts\Activate.ps1
-# macOS/Linux: source .venv/bin/activate
-python -m pip install -r Backend/requirements.txt
-cd Backend
-```
-
-Then drop the `uv run` prefix from the commands below.
-</details>
-
-Copy [`Backend/.env.example`](Backend/.env.example) to `Backend/.env` and fill it in. For local development it needs at least:
-
-```text
-DJANGO_DEBUG=true
-FIELD_ENCRYPTION_KEY=<generate it, see below>
-# Optional: enables Gemini-generated analytics summaries
-GEMINI_API_KEY=<your Gemini API key>
-```
-
-Generate the encryption key:
-
-```bash
-uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
-
-> **Back up this key.** If it is lost, every journal entry and session note becomes unreadable.
-
-Create the tables and an administrator, then start the server:
-
-```bash
-uv run python manage.py migrate
-uv run python manage.py createsuperuser
-uv run python manage.py shell -c "from rahati.models import User; User.objects.filter(is_superuser=True).update(role='admin')"
-uv run python manage.py runserver
-```
-
-- Admin: `http://127.0.0.1:8000/admin/`
-- API: `http://127.0.0.1:8000/api/`
-
-### Optional: starter content
-
-`uv run python manage.py seed_starter_cards` seeds 15 topic cards (2 or 3 per topic, in
-Arabic, French and English) plus six pattern cards, publishes them, and seeds the topic
-vocabulary if needed. It is safe to run again: it only creates missing cards and replaces
-text that is still a `[DEMO]` or `[DRAFT - NOT REVIEWED]` placeholder, never text a person
-has edited. The six pattern cards are still placeholders, and every card should be reviewed
-by a mental-health professional and native speakers before real users see it.
-
-**Do not commit** `.env`, `db.sqlite3`, `private_media/` or `media/`. If `db.sqlite3` was committed by mistake, run `git rm --cached Backend/db.sqlite3`.
-## Mobile app
-
-The woman's app lives in [`mobile-app/`](mobile-app/): Home (check-in, cycle, to-dos, weekly summary), Statistics, Therapy (find a professional, book, choose what to share, my sessions), Library, Journal and Profile, in English, French and Arabic (right-to-left).
-
-**Stack:** Expo SDK 58 (React Native 0.88, React 19), TypeScript, expo-router, react-native-reanimated, react-native-svg, react-native-web for the web build. The full stack, screens and the endpoints each one uses are in [`mobile-app/README.md`](mobile-app/README.md).
-
-```bash
-cd mobile-app
-npm install
-npx expo start      # press w for the web, or scan the QR code with Expo Go
-```
-
-It uses the deployed backend on Render by default. To use a local backend, copy `mobile-app/.env.example` to `mobile-app/.env` and set `EXPO_PUBLIC_API_URL=http://localhost:8000`.
-
-**Live web demo:** [fulldready.tech/Rahati](https://fulldready.tech/Rahati/) (the app inside a phone frame).
-
-
-## Frontend
-
-The Rahati frontend provides the user interface for mental-health professionals to manage their practice and access the platform's features.
-
-The frontend was developed using **Next.js, React, and Tailwind CSS**, with reusable components to maintain a consistent design and user experience across the application.
-
-Key contributions and features include:
-
-- **User authentication interfaces:** Login and registration pages designed to support the platform's authentication workflows.
-- **Professional dashboard:** Interfaces for viewing practice statistics, appointment requests, patients, and calendar availability.
-- **Responsive interface:** Layouts designed to adapt to different screen sizes.
-- **API communication:** Frontend functionality designed to communicate with the backend API and display application data.
-- **Deployment:** Configured and deployed the frontend application using Vercel.
-
-#### Frontend and API communication
-
-The frontend is built with Next.js and React. It uses API requests to communicate with the backend services, enabling the interface to retrieve and display application data.
-
-This supports workflows such as authentication and accessing professional dashboard information. Backend development and API implementation are handled separately from the frontend work.
-
-#### Frontend deployment
-
-The Rahati frontend is deployed on **Vercel**.
-
-**Live application:** [View Rahati](https://rahati-frontend.vercel.app)
-
-The frontend deployment uses environment variables to configure the backend API endpoint. Deployment configuration and private credentials are maintained separately from the source code. Secrets and sensitive information must never be committed to the repository.
-
-## Testing
-
-### Backend tests
-
-```bash
-cd Backend
-uv run python manage.py test rahati
-```
-
-Coverage (once `coverage` is installed as a dev dependency):
-
-```bash
-coverage run manage.py test rahati
-coverage report --include="rahati/*"
-```
-
-The backend tests protect consent, encryption at rest, deletion, booking correctness and role and ownership rules. Unit tests also cover the Gemini summary service (language normalization, completeness validation, LanguageTool checks, and fallback behavior) and summary persistence, history retrieval, period filtering, and user isolation. They use local test data and do not call external services.
-
-### End-to-end smoke tests
-
-The Playwright suite starts the Next.js frontend and Django API, then tests the booking API with real HTTP requests. Its Django server migrates and seeds a fresh temporary SQLite database for every run; it does not use `Backend/db.sqlite3` or any staging data.
-
-After the backend setup in [Getting started](#getting-started), run `npm ci` from `frontend/` and install the browser once with `npx playwright install chromium`. Then run `npm run e2e` from `frontend/`. The suite starts both servers and uses a fresh temporary SQLite database. GitHub Actions runs it with Chromium. Browser tests for the login and booking screens are not written yet.
-
-### Demo-video data
-
-Run `seed_demo` only against an isolated demo database. In PowerShell:
-
-```powershell
-cd Backend
-$env:DEMO_SEED_ALLOWED = "true"
-$env:DEMO_SHARED_PASSWORD = "<choose a password with at least 16 characters>"
-python manage.py seed_demo
-python manage.py seed_demo --refresh
-```
-
-`--refresh` moves demo check-ins, slots, and session times forward to the current
-date. Without a shared password, the command generates random passwords and does
-not print them.
-
-## Deployment
-
-The backend can be hosted on any platform that runs Python, such as Render or Vercel.
-
-1. **Database:** create a managed PostgreSQL database. Do not use SQLite in production.
-2. **Environment variables:** set these in the host's settings, never in Git:
-
-   ```text
-   DJANGO_DEBUG=false
-   DJANGO_SECRET_KEY=<long random secret>
-   FIELD_ENCRYPTION_KEY=<Fernet key>
-   DATABASE_URL=<PostgreSQL URL>
-   GEMINI_API_KEY=<optional>
-   ```
-
-   Generate the keys with:
-
-   ```bash
-   python -c "import secrets; print(secrets.token_urlsafe(64))"
-   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-   ```
-
-3. **Build and start:** on Render, use the repository root with `bash build.sh` as the build command and `cd Backend && uv run --project .. gunicorn config.wsgi:application --bind 0.0.0.0:$PORT` as the start command. `build.sh` installs dependencies, collects static files, runs migrations and seeds demo content. On Vercel, set the root directory to `Backend`.
-4. **Check:** open `/api/health/` and `/admin/` over HTTPS.
-
-Allowed hosts and CORS origins are open to everyone for the demo (`config/settings.py`). Restrict them to your domains before a public launch.
-
-> **Before real users:** back up the database and `FIELD_ENCRYPTION_KEY` (losing the key makes journals and notes unreadable), set up private persistent storage for credential uploads, and finish the security checklist in [Security and privacy](#security-and-privacy).
-
 ## Architecture
 
-the diagram below shows what runs today.
+![Rahati architecture overview](Assets/Rahati-Architecture.png)
+
+_The picture shows the target design. Background jobs (Celery/Redis) are not built yet; the diagram below shows what runs today._
 
 ```mermaid
 flowchart LR
   subgraph Clients
-    M["Mobile app<br/>Expo / React Native"]
+    M["Mobile app<br/>React Native"]
     W["Web app<br/>Next.js"]
     A["Django admin"]
   end
@@ -391,6 +219,292 @@ Rahati/
         ├── admin.py          the admin persona
         └── tests/            automated tests
 ```
+
+## Web app
+
+The web app is in [`frontend/`](frontend/), built with Next.js 16, React 19, TypeScript and Tailwind CSS. It uses the backend only through the REST API and keeps the login tokens in the browser.
+
+**Status:** sign-in and the professional dashboard are built. Screens for women are not built yet; women use the API for now.
+
+| Area | Folder in `frontend/src/app/` | What it does |
+|---|---|---|
+| Sign-in | `(auth)/login`, `(auth)/register` | Log in; apply as a professional |
+| Overview | `(professional)/page.tsx` | Greeting, stats, incoming requests, calendar preview |
+| Requests | `(professional)/requests` | Accept or decline session requests |
+| Patients | `(professional)/patients` | Her patients and their shared data |
+| Calendar | `(professional)/calendar` | Slots, weekly hours and time off |
+| Settings | `(professional)/settings` | Profile and account settings |
+
+```
+frontend/
+├── src/app/          pages (route folders above)
+├── src/components/   shared components (auth context and guard)
+├── src/lib/          API client, auth helpers, utilities
+├── src/types/        TypeScript types
+└── e2e/              Playwright end-to-end tests
+```
+
+## Mobile app
+
+**Planned, not started.** The mobile app for women will be built with React Native and Expo (see the [architecture picture](#architecture)). It will use the same REST API and accounts as the web app, so no backend changes are needed to start it. When it is added, give it its own folder (for example `mobile/`) and add its setup steps to [Getting started](#getting-started).
+
+## Getting started
+
+Run the backend first; the web app talks to it through the API.
+
+### Backend (Django API)
+
+Requirements: Python 3.13 or newer and [uv](https://docs.astral.sh/uv/).
+
+```bash
+# from the repository root
+uv sync
+cd Backend
+```
+
+<details>
+<summary>Without uv (pip)</summary>
+
+```bash
+python -m venv .venv
+# Windows PowerShell: .\.venv\Scripts\Activate.ps1
+# macOS/Linux: source .venv/bin/activate
+python -m pip install -r Backend/requirements.txt
+cd Backend
+```
+
+Then drop the `uv run` prefix from the commands below.
+</details>
+
+Copy [`Backend/.env.example`](Backend/.env.example) to `Backend/.env` and fill it in. For local development it needs at least:
+
+```text
+DJANGO_DEBUG=true
+FIELD_ENCRYPTION_KEY=<generate it, see below>
+# Optional: enables Gemini-generated analytics summaries
+GEMINI_API_KEY=<your Gemini API key>
+```
+
+Generate the encryption key:
+
+```bash
+uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+> **Back up this key.** If it is lost, every journal entry and session note becomes unreadable.
+
+Create the tables and an administrator, then start the server:
+
+```bash
+uv run python manage.py migrate
+uv run python manage.py createsuperuser
+uv run python manage.py shell -c "from rahati.models import User; User.objects.filter(is_superuser=True).update(role='admin')"
+uv run python manage.py runserver
+```
+
+- Admin: `http://127.0.0.1:8000/admin/`
+- API: `http://127.0.0.1:8000/api/`
+
+#### Optional: starter content
+
+`uv run python manage.py seed_starter_cards` seeds 15 topic cards (2 or 3 per topic, in
+Arabic, French and English) plus six pattern cards, publishes them, and seeds the topic
+vocabulary if needed. It is safe to run again: it only creates missing cards and replaces
+text that is still a `[DEMO]` or `[DRAFT - NOT REVIEWED]` placeholder, never text a person
+has edited. The six pattern cards are still placeholders, and every card should be reviewed
+by a mental-health professional and native speakers before real users see it.
+
+**Do not commit** `.env`, `db.sqlite3`, `private_media/` or `media/`. If `db.sqlite3` was committed by mistake, run `git rm --cached Backend/db.sqlite3`.
+## Mobile app
+
+The woman's app lives in [`mobile-app/`](mobile-app/): Home (check-in, cycle, to-dos, weekly summary), Statistics, Therapy (find a professional, book, choose what to share, my sessions), Library, Journal and Profile, in English, French and Arabic (right-to-left).
+
+**Stack:** Expo SDK 58 (React Native 0.88, React 19), TypeScript, expo-router, react-native-reanimated, react-native-svg, react-native-web for the web build. The full stack, screens and the endpoints each one uses are in [`mobile-app/README.md`](mobile-app/README.md).
+
+```bash
+cd mobile-app
+npm install
+npx expo start      # press w for the web, or scan the QR code with Expo Go
+```
+
+It uses the deployed backend on Render by default. To use a local backend, copy `mobile-app/.env.example` to `mobile-app/.env` and set `EXPO_PUBLIC_API_URL=http://localhost:8000`.
+
+**Live web demo:** [fulldready.tech/Rahati](https://fulldready.tech/Rahati/) (the app inside a phone frame).
+
+
+## Frontend
+
+The Rahati frontend provides the user interface for mental-health professionals to manage their practice and access the platform's features.
+
+The frontend was developed using **Next.js, React, and Tailwind CSS**, with reusable components to maintain a consistent design and user experience across the application.
+
+Key contributions and features include:
+
+- **User authentication interfaces:** Login and registration pages designed to support the platform's authentication workflows.
+- **Professional dashboard:** Interfaces for viewing practice statistics, appointment requests, patients, and calendar availability.
+- **Responsive interface:** Layouts designed to adapt to different screen sizes.
+- **API communication:** Frontend functionality designed to communicate with the backend API and display application data.
+- **Deployment:** Configured and deployed the frontend application using Vercel.
+
+#### Frontend and API communication
+
+The frontend is built with Next.js and React. It uses API requests to communicate with the backend services, enabling the interface to retrieve and display application data.
+
+This supports workflows such as authentication and accessing professional dashboard information. Backend development and API implementation are handled separately from the frontend work.
+
+#### Frontend deployment
+
+The Rahati frontend is deployed on **Vercel**.
+
+**Live application:** [View Rahati](https://rahati-frontend.vercel.app)
+
+The frontend deployment uses environment variables to configure the backend API endpoint. Deployment configuration and private credentials are maintained separately from the source code. Secrets and sensitive information must never be committed to the repository.
+
+### Web app (Next.js)
+
+Requirements: Node.js 22 or newer and npm.
+
+```bash
+cd frontend
+npm ci
+```
+
+Create `frontend/.env.local` pointing to the backend (no `/api` at the end):
+
+```text
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+```
+
+```bash
+npm run dev
+```
+
+Open `http://localhost:3000`. Log in with a professional account, or register one and verify it from the Django admin.
+
+### Mobile app
+
+Not in this repository yet. See [Mobile app](#mobile-app).
+
+## Testing
+
+### Backend tests
+
+```bash
+cd Backend
+uv run python manage.py test rahati
+```
+
+Coverage (once `coverage` is installed as a dev dependency):
+
+```bash
+coverage run manage.py test rahati
+coverage report --include="rahati/*"
+```
+
+The backend tests protect consent, encryption at rest, deletion, booking correctness and role and ownership rules. Unit tests also cover the Gemini summary service (language normalization, completeness validation, LanguageTool checks, and fallback behavior) and summary persistence, history retrieval, period filtering, and user isolation. They use local test data and do not call external services.
+
+### Web app checks
+
+```bash
+cd frontend
+npm run lint
+npm run build
+```
+
+### End-to-end smoke tests
+
+The Playwright suite starts the Next.js frontend and Django API, then tests the booking API with real HTTP requests. Its Django server migrates and seeds a fresh temporary SQLite database for every run; it does not use `Backend/db.sqlite3` or any staging data.
+
+After the backend setup in [Getting started](#getting-started), run `npm ci` from `frontend/` and install the browser once with `npx playwright install chromium`. Then run `npm run e2e` from `frontend/`. The suite starts both servers and uses a fresh temporary SQLite database. GitHub Actions runs it with Chromium. Browser tests for the login and booking screens are not written yet.
+
+### Demo-video data
+
+Run `seed_demo` only against an isolated demo database. In PowerShell:
+
+```powershell
+cd Backend
+$env:DEMO_SEED_ALLOWED = "true"
+$env:DEMO_SHARED_PASSWORD = "<choose a password with at least 16 characters>"
+python manage.py seed_demo
+python manage.py seed_demo --refresh
+```
+
+`--refresh` moves demo check-ins, slots, and session times forward to the current
+date. Without a shared password, the command generates random passwords and does
+not print them.
+
+## Deployment
+
+### Backend (Render)
+
+The backend runs as a Render web service with a Render PostgreSQL database.
+
+1. **Database:** create a Render PostgreSQL database and copy its **Internal Database URL** into `DATABASE_URL`. Do not use SQLite in production.
+2. **Environment variables:** set these in the host's settings, never in Git:
+
+   ```text
+   DJANGO_DEBUG=false
+   DJANGO_SECRET_KEY=<long random secret>
+   FIELD_ENCRYPTION_KEY=<Fernet key>
+   DATABASE_URL=<PostgreSQL URL>
+   GEMINI_API_KEY=<optional>
+   ```
+
+   Generate the keys with:
+
+   ```bash
+   python -c "import secrets; print(secrets.token_urlsafe(64))"
+   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+   ```
+
+3. **Build and start:** set the root directory to the repository root, with `bash build.sh` as the build command and `cd Backend && uv run --project .. gunicorn config.wsgi:application --bind 0.0.0.0:$PORT` as the start command. `build.sh` installs dependencies, collects static files, runs migrations and seeds demo content.
+4. **Check:** open `/api/health/` and `/admin/` over HTTPS.
+
+Allowed hosts and CORS origins are open to everyone for the demo (`config/settings.py`). Restrict them to your domains before a public launch.
+
+> **Before real users:** back up the database and `FIELD_ENCRYPTION_KEY` (losing the key makes journals and notes unreadable), set up private persistent storage for credential uploads, and finish the security checklist in [Security and privacy](#security-and-privacy).
+
+## Architecture
+
+the diagram below shows what runs today.
+
+```mermaid
+flowchart LR
+  subgraph Clients
+    M["Mobile app<br/>Expo / React Native"]
+    W["Web app<br/>Next.js"]
+    A["Django admin"]
+  end
+  subgraph Backend["Backend: Django + DRF"]
+    API["REST API<br/>JWT, role gates"]
+    SVC["Services<br/>consent gate, free slots,<br/>analytics, AI summary"]
+  end
+  DB[("Database<br/>SQLite in dev,<br/>PostgreSQL in production")]
+  subgraph External["External services"]
+    G["Gemini API<br/>summaries"]
+    J["Jitsi<br/>video rooms"]
+    F["FCM<br/>push, later"]
+  end
+  M --> API
+  W --> API
+  A --> Backend
+  API --> SVC
+  SVC --> DB
+  SVC -.-> G
+  SVC -.-> J
+  API -.-> F
+```
+
+### How a request is handled
+
+The GitHub Actions workflow [`deploy-frontend.yml`](.github/workflows/deploy-frontend.yml) builds and deploys `frontend/` to Vercel on every push to `main` that changes `frontend/`. It can also be started by hand from the Actions tab.
+
+1. Add the repository secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID`.
+2. In the Vercel project, set `NEXT_PUBLIC_API_URL` to the backend URL, for example `https://<service>.onrender.com`.
+
+### Mobile app
+
+Not deployed yet; the app is still planned.
 
 ## Data model
 
@@ -740,141 +854,6 @@ The full baseline: CI for backend unit and security tests (the Playwright E2E wo
 - Integer ids are sequential; object-level checks are the protection.
 - Administrators have no two-factor login yet.
 - Wilaya, address and other professional details are only as trustworthy as the manual verification of her credential. A human must check a diploma against the official body.
-
-## Deploy the backend on Render
-
-The repository root contains `build.sh`, `pyproject.toml`, and `uv.lock`; the Django
-project is in `Backend/`. In Render, set **Root Directory** to the repository root
-(the folder containing those three files), not `Backend` or `Backend/rahati`.
-
-Create a PostgreSQL database in Render first, then create a Python web service for
-this repository with:
-
-| Setting | Value |
-| --- | --- |
-| Root Directory | repository root |
-| Build Command | `bash build.sh` |
-| Start Command | `cd Backend && uv run --project .. gunicorn config.wsgi:application --bind 0.0.0.0:$PORT` |
-
-Add these environment variables to the web service. Copy the PostgreSQL database's
-**Internal Database URL** into `DATABASE_URL`:
-
-```text
-DJANGO_DEBUG=false
-DJANGO_SECRET_KEY=<unique-long-random-secret>
-FIELD_ENCRYPTION_KEY=<unique-Fernet-key>
-DATABASE_URL=<Render-PostgreSQL-Internal-Database-URL>
-```
-
-Generate keys locally with:
-
-```powershell
-python -c "import secrets; print(secrets.token_urlsafe(64))"
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
-
-Keep the actual values in Render's environment settings, never in Git or this
-README. `GEMINI_API_KEY` is optional. `build.sh` syncs dependencies from the root
-uv lockfile, collects static files, applies migrations, and seeds the demo topics
-and starter cards. The public health check is `https://<service>.onrender.com/api/health/`.
-
-The current configuration permits all host names and CORS origins for the demo.
-Before a public production launch, restrict these to the deployed domains. Uploaded
-credential files currently use local storage, which is not durable across Render
-deployments; configure private persistent/object storage before accepting real uploads.
-
-## Getting started
-
-Requirements: Python 3.12 or newer (Django 6.1 requirement). Node.js 22 and npm are needed for the frontend E2E suite.
-
-```bash
-# from the repository root
-python -m venv .venv
-# Windows PowerShell:
-.\.venv\Scripts\Activate.ps1
-# macOS/Linux: source .venv/bin/activate
-python -m pip install -r Backend/requirements.txt
-
-cd Backend
-```
-
-Create `Backend/.env`:
-
-```
-FIELD_ENCRYPTION_KEY=<generate it, see below>
-# Optional: enables Gemini-generated analytics summaries
-GEMINI_API_KEY=<your Gemini API key>
-```
-
-Generate the encryption key:
-
-```bash
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
-
-> **Back up this key.** If it is lost, every journal entry and session note becomes unreadable.
-
-Required settings in `Backend/config/settings.py` (the project reads them at the bottom of the file):
-
-```python
-AUTH_USER_MODEL = "rahati.User"          # must be set before the first migration
-FIELD_ENCRYPTION_KEY = os.environ["FIELD_ENCRYPTION_KEY"]
-TIME_ZONE = "Africa/Algiers"
-INSTALLED_APPS += ["rest_framework", "corsheaders", "rahati"]
-```
-
-Create the tables and an administrator:
-
-```bash
-python manage.py makemigrations rahati
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py shell -c "from rahati.models import User; User.objects.filter(is_superuser=True).update(role='admin')"
-python manage.py runserver
-```
-
-- Admin: `http://127.0.0.1:8000/admin/`
-- API: `http://127.0.0.1:8000/api/`
-
-**Do not commit** `.env`, `db.sqlite3`, `private_media/` or `media/`. If `db.sqlite3` was committed by mistake, run `git rm --cached Backend/db.sqlite3`.
-
-## Testing
-
-### Demo-video data
-
-Run `seed_demo` only against an isolated demo database. In PowerShell:
-
-```powershell
-cd Backend
-$env:DEMO_SEED_ALLOWED = "true"
-$env:DEMO_SHARED_PASSWORD = "<choose a password with at least 16 characters>"
-python manage.py seed_demo
-python manage.py seed_demo --refresh
-```
-
-`--refresh` moves demo check-ins, slots, and session times forward to the current
-date. Without a shared password, the command generates random passwords and does
-not print them.
-
-```bash
-cd Backend
-python manage.py test rahati
-```
-
-Coverage (once `coverage` is installed as a dev dependency):
-
-```bash
-coverage run manage.py test rahati
-coverage report --include="rahati/*"
-```
-
-The backend tests protect consent, encryption at rest, deletion, booking correctness and role and ownership rules. Unit tests also cover the Gemini summary service (language normalization, completeness validation, LanguageTool checks, and fallback behavior) and summary persistence, history retrieval, period filtering, and user isolation (all 354 backend tests pass). They use local test data and do not call external services.
-
-### End-to-end smoke tests
-
-The Playwright suite starts the Next.js frontend and Django API, then tests the booking API with real HTTP requests. Its Django server migrates and seeds a fresh temporary SQLite database for every run; it does not use `Backend/db.sqlite3` or any staging data.
-
-After creating the root `.venv` and installing `Backend/requirements.txt` above, run `npm ci` from `frontend/` and install the browser once with `npx playwright install chromium`. Then run `npm run e2e` from `frontend/`. The suite starts both servers and uses a fresh temporary SQLite database. GitHub Actions runs it with Chromium. Browser coverage of login and booking can be added when those screens exist.
 
 ## Key decisions
 
