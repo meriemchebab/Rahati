@@ -14,6 +14,7 @@ A private mental-wellbeing platform for Algerian women. A woman can understand h
   - [Research Background & Data Collection](#research-background--data-collection)
 - **Build and run**
   - [Getting started](#getting-started)
+  - [Mobile app](#mobile-app)
   - [Testing](#testing)
   - [Deployment](#deployment)
 - **How it works**
@@ -61,7 +62,7 @@ Three personas use the platform:
 
 | Persona | Uses | Does |
 |---|---|---|
-| **Woman (user)** | API; web client in progress | Tracks, learns, books, controls her sharing |
+| **Woman (user)** | Mobile app (`mobile-app/`: Android, iOS and web) | Tracks, learns, books, controls her sharing |
 | **Professional** | API; web dashboard (requests, patients, calendar, settings) | Manages availability, accepts sessions, sees consented data, assigns cards and to-dos |
 | **Admin** | Django admin | Verifies professionals, reviews credentials, manages content |
 
@@ -205,6 +206,22 @@ content; review and replace it before serving real users.
 
 **Do not commit** `.env`, `db.sqlite3`, `private_media/` or `media/`. If `db.sqlite3` was committed by mistake, run `git rm --cached Backend/db.sqlite3`.
 
+## Mobile app
+
+The woman's app lives in [`mobile-app/`](mobile-app/): Home (check-in, cycle, to-dos, weekly summary), Statistics, Therapy (find a professional, book, choose what to share, my sessions), Library, Journal and Profile, in English, French and Arabic (right-to-left).
+
+**Stack:** Expo SDK 58 (React Native 0.88, React 19), TypeScript, expo-router, react-native-reanimated, react-native-svg, react-native-web for the web build. The full stack, screens and the endpoints each one uses are in [`mobile-app/README.md`](mobile-app/README.md).
+
+```bash
+cd mobile-app
+npm install
+npx expo start      # press w for the web, or scan the QR code with Expo Go
+```
+
+It uses the deployed backend on Render by default. To use a local backend, copy `mobile-app/.env.example` to `mobile-app/.env` and set `EXPO_PUBLIC_API_URL=http://localhost:8000`.
+
+**Live web demo:** [fulldready.tech/Rahati](https://fulldready.tech/Rahati/) (the app inside a phone frame).
+
 ## Testing
 
 ### Backend tests
@@ -283,7 +300,7 @@ _The picture shows the target design. Background jobs (Celery/Redis) are not bui
 ```mermaid
 flowchart LR
   subgraph Clients
-    M["Mobile app<br/>React Native"]
+    M["Mobile app<br/>Expo / React Native"]
     W["Web app<br/>Next.js"]
     A["Django admin"]
   end
