@@ -93,17 +93,16 @@ export default function Sidebar({
           type="button"
           aria-label="Close navigation"
           onClick={onClose}
-          className="fixed inset-0 z-40 bg-black/30 lg:hidden"
+          className="fixed inset-0 z-40 bg-rahati-ink/30 lg:hidden"
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col border-r border-rahati-mauve/10 bg-sidebar transition-transform duration-300 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-transform duration-300 lg:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* Logo */}
-        <div className="flex h-[84px] shrink-0 items-center justify-between border-b border-rahati-mauve/10 px-6">
+        <div className="flex h-[84px] shrink-0 items-center justify-between border-b border-sidebar-border px-6">
           <button
             type="button"
             onClick={() => onNavigate("Overview")}
@@ -119,11 +118,11 @@ export default function Sidebar({
             />
 
             <span className="flex flex-col">
-              <span className="text-[20px] font-semibold tracking-tight text-rahati-plum">
+              <span className="text-[20px] font-semibold tracking-tight text-sidebar-foreground">
                 rahati
               </span>
 
-              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-rahati-mauve-dark">
+              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
                 Professional
               </span>
             </span>
@@ -133,13 +132,12 @@ export default function Sidebar({
             type="button"
             onClick={onClose}
             aria-label="Close sidebar"
-            className="rounded-lg p-2 text-muted-foreground transition hover:bg-rahati-blush lg:hidden"
+            className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground lg:hidden"
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* Navigation */}
         <div className="flex-1 overflow-y-auto px-4 py-7">
           <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             Workspace
@@ -160,8 +158,8 @@ export default function Sidebar({
                   aria-current={isActive ? "page" : undefined}
                   className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[13px] font-medium transition-colors ${
                     isActive
-                      ? "bg-rahati-blush text-rahati-plum"
-                      : "text-muted-foreground hover:bg-rahati-blush/60 hover:text-rahati-plum"
+                      ? "bg-[#7673FF] text-[#111018] shadow-sm hover:bg-[#7673FF]/90"
+                      : "text-sidebar-foreground/75 hover:bg-[#CCB9FE]/60 hover:text-[#111018]"
                   }`}
                 >
                   <Icon
@@ -169,37 +167,33 @@ export default function Sidebar({
                     strokeWidth={isActive ? 2 : 1.7}
                     className={
                       isActive
-                        ? "text-rahati-mauve-dark"
-                        : "text-muted-foreground group-hover:text-rahati-mauve-dark"
+                        ? "text-[#111018]"
+                        : "text-muted-foreground group-hover:text-[#111018]"
                     }
                   />
 
                   <span className="flex-1">{label}</span>
 
                   {label === "Requests" && pendingRequests > 0 && (
-                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rahati-pink px-1.5 text-[10px] font-semibold text-rahati-plum">
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#FDA3FF] px-1.5 text-[10px] font-semibold text-[#111018]">
                       {pendingRequests}
                     </span>
                   )}
 
                   {isActive && (
-                    <ChevronRight
-                      size={15}
-                      className="text-rahati-mauve-dark"
-                    />
+                    <ChevronRight size={15} className="text-[#111018]" />
                   )}
                 </button>
               );
             })}
           </nav>
 
-          {/* Workspace reminder */}
-          <div className="mt-9 rounded-2xl border border-rahati-mauve/10 bg-rahati-blush/70 p-4">
-            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-white text-rahati-mauve-dark">
+          <div className="mt-9 rounded-2xl border border-sidebar-border bg-card/80 p-4">
+            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-[#CCB9FE] text-[#111018]">
               <Bell size={17} />
             </div>
 
-            <p className="text-[12px] font-semibold text-rahati-plum">
+            <p className="text-[12px] font-semibold text-card-foreground">
               Your workspace
             </p>
 
@@ -210,22 +204,21 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Professional profile and logout */}
-        <div className="shrink-0 border-t border-rahati-mauve/10 p-4">
+        <div className="shrink-0 border-t border-sidebar-border p-4">
           <button
             type="button"
             onClick={() => {
               onNavigate("Settings");
               onClose();
             }}
-            className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-rahati-blush/60"
+            className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-sidebar-accent/70"
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rahati-lavender text-[12px] font-semibold text-rahati-plum">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#CCB9FE] text-[12px] font-semibold text-[#111018]">
               {getInitials(displayName)}
             </div>
 
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[12px] font-semibold text-rahati-plum">
+              <p className="truncate text-[12px] font-semibold text-sidebar-foreground">
                 {displayName}
               </p>
 
@@ -240,7 +233,7 @@ export default function Sidebar({
           <button
             type="button"
             onClick={signOut}
-            className="mt-3 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-[13px] font-medium text-[#9b647e] transition hover:bg-[#f9eaf1] hover:text-[#82445f]"
+            className="mt-3 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-[#FDA3FF]/30 hover:text-foreground"
           >
             <LogOut size={18} strokeWidth={1.8} />
             <span>Log out</span>
