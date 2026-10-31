@@ -52,6 +52,9 @@ interface TokenResponse {
   refresh: string;
 }
 
+// Prevent multiple simultaneous refresh requests.
+let refreshPromise: Promise<string> | null = null;
+
 function getApiUrl() {
   if (!API_URL) {
     throw new Error("NEXT_PUBLIC_API_URL is not configured.");
@@ -61,21 +64,39 @@ function getApiUrl() {
 }
 
 export function saveTokens(tokens: TokenResponse) {
+  if (typeof window === "undefined") return;
+
   sessionStorage.setItem(ACCESS_KEY, tokens.access);
   sessionStorage.setItem(REFRESH_KEY, tokens.refresh);
 }
 
 export function getAccessToken() {
+  if (typeof window === "undefined") return null;
+
   return sessionStorage.getItem(ACCESS_KEY);
 }
 
 function getRefreshToken() {
+  if (typeof window === "undefined") return null;
+
   return sessionStorage.getItem(REFRESH_KEY);
 }
 
 export function clearTokens() {
+  if (typeof window === "undefined") return;
+
   sessionStorage.removeItem(ACCESS_KEY);
   sessionStorage.removeItem(REFRESH_KEY);
+}
+
+function expireSession(message: string): never {
+  clearTokens();
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("rahati-session-expired"));
+  }
+
+  throw new Error(message);
 }
 
 function getErrorMessage(data: any): string {
@@ -104,7 +125,31 @@ function getErrorMessage(data: any): string {
 }
 
 async function readResponse(response: Response) {
-  const data = await response.json().catch(() => null);
+  if (response.status === 204) {
+    return undefined;
+  }
+
+  const text = await response.text();
+
+  if (!text) {
+    if (!response.ok) {
+      throw new Error(`Request failed (${response.status}).`);
+    }
+
+    return undefined;
+  }
+
+  let data: any;
+
+  try {
+    data = JSON.parse(text);
+  } catch {
+    if (!response.ok) {
+      throw new Error(text || `Request failed (${response.status}).`);
+    }
+
+    return text;
+  }
 
   if (!response.ok) {
     throw new Error(getErrorMessage(data));
@@ -126,7 +171,7 @@ export async function login(credentials: LoginCredentials) {
 
   const data = (await readResponse(response)) as TokenResponse;
 
-  if (!data.access || !data.refresh) {
+  if (!data?.access || !data?.refresh) {
     throw new Error("The backend did not return valid authentication tokens.");
   }
 
@@ -145,6 +190,7 @@ export async function registerProfessional(
   formData.append("nickname", registration.nickname.trim());
   formData.append("password", registration.password);
   formData.append("language", registration.language);
+
   if (registration.email.trim()) {
     formData.append("email", registration.email.trim());
   }
@@ -152,6 +198,7 @@ export async function registerProfessional(
   if (registration.phone.trim()) {
     formData.append("phone", registration.phone.trim());
   }
+
   formData.append("display_name", registration.display_name.trim());
   formData.append("bio", registration.bio.trim());
   formData.append("city", registration.city.trim());
@@ -173,36 +220,71 @@ export async function registerProfessional(
 
 /* Refresh access token */
 
-export async function refreshAccessToken(): Promise<string> {
-  const refresh = getRefreshToken();
-
-  if (!refresh) {
-    clearTokens();
-    throw new Error("Your session has expired. Please sign in again.");
+export function refreshAccessToken(): Promise<string> {
+  if (refreshPromise) {
+    return refreshPromise;
   }
 
-  const response = await fetch(`${getApiUrl()}/api/auth/refresh`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  const request = (async () => {
+    const refresh = getRefreshToken();
+
+    if (!refresh) {
+      return expireSession("Your session has expired. Please sign in again.");
+    }
+
+    let response: Response;
+
+    try {
+      response = await fetch(`${getApiUrl()}/api/auth/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ refresh }),
+      });
+    } catch {
+      throw new Error(
+        "Unable to connect to Rahati. Please check your connection and try again.",
+      );
+    }
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      if (response.status === 400 || response.status === 401) {
+        return expireSession("Your session has expired. Please sign in again.");
+      }
+
+      throw new Error(getErrorMessage(data));
+    }
+
+    if (!data?.access) {
+      return expireSession(
+        "Unable to refresh your session. Please sign in again.",
+      );
+    }
+
+    sessionStorage.setItem(ACCESS_KEY, data.access);
+
+    if (data.refresh) {
+      sessionStorage.setItem(REFRESH_KEY, data.refresh);
+    }
+
+    return data.access as string;
+  })();
+
+  refreshPromise = request;
+
+  request.then(
+    () => {
+      if (refreshPromise === request) refreshPromise = null;
     },
-    body: JSON.stringify({ refresh }),
-  });
+    () => {
+      if (refreshPromise === request) refreshPromise = null;
+    },
+  );
 
-  const data = await readResponse(response);
-
-  if (!data.access) {
-    clearTokens();
-    throw new Error("Unable to refresh your session.");
-  }
-
-  sessionStorage.setItem(ACCESS_KEY, data.access);
-
-  if (data.refresh) {
-    sessionStorage.setItem(REFRESH_KEY, data.refresh);
-  }
-
-  return data.access;
+  return request;
 }
 
 /* Authenticated API requests */
@@ -229,6 +311,8 @@ export async function authenticatedFetch(
 
   let response = await makeRequest(access);
 
+  // A 401 means the access token is no longer valid.
+  // A 403 is a permission restriction and must not trigger a refresh.
   if (response.status === 401) {
     access = await refreshAccessToken();
     response = await makeRequest(access);
