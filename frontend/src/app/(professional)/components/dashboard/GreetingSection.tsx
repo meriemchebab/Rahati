@@ -34,10 +34,10 @@ export default function GreetingSection({
   }, []);
 
   useEffect(() => {
-    loadProfile();
+    void loadProfile();
 
     const handleProfileUpdate = () => {
-      loadProfile();
+      void loadProfile();
     };
 
     window.addEventListener("rahati-profile-updated", handleProfileUpdate);
@@ -50,30 +50,34 @@ export default function GreetingSection({
   const handleWeeklyHours = onWeeklyHours ?? onOpenHours;
 
   return (
-    <section className="mb-7 flex flex-col justify-between gap-5 rounded-3xl bg-gradient-to-br from-[#f4e7f0] via-[#f8edf3] to-[#eee8f6] px-6 py-7 sm:px-8 sm:py-8 lg:flex-row lg:items-center">
+    <section className="mb-7 flex flex-col justify-between gap-5 rounded-3xl border border-rahati-lilac/70 bg-gradient-to-br from-rahati-lilac via-background to-rahati-periwinkle/70 px-6 py-7 sm:px-8 sm:py-8 lg:flex-row lg:items-center">
       <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-rahati-mauve-dark">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Your workspace
         </p>
 
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight text-rahati-plum sm:text-[30px]">
+        <h1 className="mt-3 text-2xl font-semibold tracking-tight text-foreground sm:text-[30px]">
           {greeting}
           {displayName ? ` ${displayName}` : ""}
-          <span className="ml-2 inline-block">✦</span>
+          <span className="ml-2 inline-block text-[#7673FF]">✦</span>
         </h1>
 
         <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
           Here&apos;s an overview of your practice and the women in your care.
         </p>
 
-        {date && <p className="mt-3 text-xs text-rahati-mauve-dark">{date}</p>}
+        {date && (
+          <p className="mt-3 text-xs font-medium text-muted-foreground">
+            {date}
+          </p>
+        )}
       </div>
 
       <div className="flex shrink-0 flex-wrap gap-3">
         <button
           type="button"
           onClick={handleWeeklyHours}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/80 bg-white/75 px-4 py-3 text-sm font-medium text-rahati-plum shadow-sm transition hover:bg-white"
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium text-card-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7673FF] focus-visible:ring-offset-2"
         >
           <Clock3 size={17} />
           Weekly hours
@@ -82,7 +86,7 @@ export default function GreetingSection({
         <button
           type="button"
           onClick={onAddAvailability}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-rahati-mauve px-4 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-rahati-mauve-dark"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#7673FF] px-4 py-3 text-sm font-semibold text-[#111018] shadow-sm transition-colors hover:bg-[#7673FF]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7673FF] focus-visible:ring-offset-2"
         >
           <Plus size={18} />
           Add availability
