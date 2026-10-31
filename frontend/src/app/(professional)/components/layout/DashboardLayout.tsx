@@ -93,7 +93,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f0f5] text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
       <Sidebar
         open={isSidebarOpen}
         selectedPage={selectedPage}

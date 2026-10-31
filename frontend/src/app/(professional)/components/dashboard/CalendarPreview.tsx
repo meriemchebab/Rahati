@@ -10,11 +10,11 @@ interface CalendarPreviewProps {
 }
 
 const statusStyles: Record<string, string> = {
-  free: "bg-[#edf4ed] text-[#66876d]",
-  requested: "bg-[#faf3df] text-[#a88743]",
-  accepted: "bg-[#f0eaf6] text-[#806b9a]",
-  completed: "bg-[#eaf2f7] text-[#63879e]",
-  expired: "bg-gray-100 text-gray-500",
+  free: "bg-calendar-available-bg text-calendar-available-text",
+  requested: "bg-calendar-pending-bg text-calendar-pending-text",
+  accepted: "bg-calendar-accepted-bg text-calendar-accepted-text",
+  completed: "bg-calendar-completed-bg text-calendar-completed-text",
+  expired: "bg-muted text-muted-foreground",
 };
 
 const statusLabels: Record<string, string> = {
@@ -39,18 +39,19 @@ export default function CalendarPreview({
     .slice(0, 5);
 
   return (
-    <article className="overflow-hidden rounded-2xl bg-white/90 shadow-[0_4px_24px_rgba(64,53,65,0.04)]">
+    <article className="overflow-hidden rounded-2xl bg-card shadow-[0_4px_24px_rgba(17,16,24,0.035)]">
       <div className="flex items-center justify-between gap-3 px-5 py-5 sm:px-6">
         <div>
-          <h3 className="text-base font-semibold text-rahati-plum">
+          <h3 className="text-base font-semibold text-card-foreground">
             Your calendar
           </h3>
+
           <p className="mt-1 text-xs text-muted-foreground">
             Your upcoming appointments and availability.
           </p>
         </div>
 
-        <CalendarDays className="text-rahati-mauve" size={22} />
+        <CalendarDays className="text-primary" size={22} />
       </div>
 
       <div className="space-y-3 px-5 pb-5 sm:px-6">
@@ -70,10 +71,10 @@ export default function CalendarPreview({
             return (
               <div
                 key={event.id}
-                className="flex items-center justify-between gap-3 rounded-xl bg-rahati-blush/50 p-3"
+                className="flex items-center justify-between gap-3 rounded-xl bg-muted p-3 transition-colors hover:bg-rahati-lilac/60"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-rahati-plum">
+                  <p className="text-sm font-medium text-foreground">
                     {start.toLocaleDateString("en-US", {
                       weekday: "short",
                       day: "numeric",
@@ -100,7 +101,8 @@ export default function CalendarPreview({
 
                 <span
                   className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] font-medium ${
-                    statusStyles[event.state] || "bg-gray-100 text-gray-600"
+                    statusStyles[event.state] ||
+                    "bg-muted text-muted-foreground"
                   }`}
                 >
                   {statusLabels[event.state] || event.state}
@@ -111,11 +113,11 @@ export default function CalendarPreview({
         )}
       </div>
 
-      <div className="border-t border-border px-5 py-3.5 sm:px-6">
+      <div className="px-5 py-3.5 sm:px-6">
         <button
           type="button"
           onClick={onViewCalendar}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-rahati-mauve-dark hover:underline"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           Open full calendar
           <ChevronRight size={15} />

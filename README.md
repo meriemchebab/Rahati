@@ -19,6 +19,8 @@ A private mental-wellbeing platform for Algerian women. A woman can understand h
   - [Mobile app](#mobile-app)
 - **Build and run**
   - [Getting started](#getting-started)
+  - [Frontend](#frontend)
+  - [Mobile app](#mobile-app)
   - [Testing](#testing)
   - [Deployment](#deployment)
 - **How the backend works**
@@ -64,7 +66,7 @@ Three personas use the platform:
 
 | Persona | Uses | Does |
 |---|---|---|
-| **Woman (user)** | API; web client in progress | Tracks, learns, books, controls her sharing |
+| **Woman (user)** | Mobile app (`mobile-app/`: Android, iOS and web) | Tracks, learns, books, controls her sharing |
 | **Professional** | API; web dashboard (requests, patients, calendar, settings) | Manages availability, accepts sessions, sees consented data, assigns cards and to-dos |
 | **Admin** | Django admin | Verifies professionals, reviews credentials, manages content |
 
@@ -313,6 +315,50 @@ has edited. The six pattern cards are still placeholders, and every card should 
 by a mental-health professional and native speakers before real users see it.
 
 **Do not commit** `.env`, `db.sqlite3`, `private_media/` or `media/`. If `db.sqlite3` was committed by mistake, run `git rm --cached Backend/db.sqlite3`.
+## Mobile app
+
+The woman's app lives in [`mobile-app/`](mobile-app/): Home (check-in, cycle, to-dos, weekly summary), Statistics, Therapy (find a professional, book, choose what to share, my sessions), Library, Journal and Profile, in English, French and Arabic (right-to-left).
+
+**Stack:** Expo SDK 58 (React Native 0.88, React 19), TypeScript, expo-router, react-native-reanimated, react-native-svg, react-native-web for the web build. The full stack, screens and the endpoints each one uses are in [`mobile-app/README.md`](mobile-app/README.md).
+
+```bash
+cd mobile-app
+npm install
+npx expo start      # press w for the web, or scan the QR code with Expo Go
+```
+
+It uses the deployed backend on Render by default. To use a local backend, copy `mobile-app/.env.example` to `mobile-app/.env` and set `EXPO_PUBLIC_API_URL=http://localhost:8000`.
+
+**Live web demo:** [fulldready.tech/Rahati](https://fulldready.tech/Rahati/) (the app inside a phone frame).
+
+
+## Frontend
+
+The Rahati frontend provides the user interface for mental-health professionals to manage their practice and access the platform's features.
+
+The frontend was developed using **Next.js, React, and Tailwind CSS**, with reusable components to maintain a consistent design and user experience across the application.
+
+Key contributions and features include:
+
+- **User authentication interfaces:** Login and registration pages designed to support the platform's authentication workflows.
+- **Professional dashboard:** Interfaces for viewing practice statistics, appointment requests, patients, and calendar availability.
+- **Responsive interface:** Layouts designed to adapt to different screen sizes.
+- **API communication:** Frontend functionality designed to communicate with the backend API and display application data.
+- **Deployment:** Configured and deployed the frontend application using Vercel.
+
+#### Frontend and API communication
+
+The frontend is built with Next.js and React. It uses API requests to communicate with the backend services, enabling the interface to retrieve and display application data.
+
+This supports workflows such as authentication and accessing professional dashboard information. Backend development and API implementation are handled separately from the frontend work.
+
+#### Frontend deployment
+
+The Rahati frontend is deployed on **Vercel**.
+
+**Live application:** [View Rahati](https://rahati-frontend.vercel.app)
+
+The frontend deployment uses environment variables to configure the backend API endpoint. Deployment configuration and private credentials are maintained separately from the source code. Secrets and sensitive information must never be committed to the repository.
 
 ### Web app (Next.js)
 
@@ -418,7 +464,38 @@ Allowed hosts and CORS origins are open to everyone for the demo (`config/settin
 
 > **Before real users:** back up the database and `FIELD_ENCRYPTION_KEY` (losing the key makes journals and notes unreadable), set up private persistent storage for credential uploads, and finish the security checklist in [Security and privacy](#security-and-privacy).
 
-### Web app (Vercel)
+## Architecture
+
+the diagram below shows what runs today.
+
+```mermaid
+flowchart LR
+  subgraph Clients
+    M["Mobile app<br/>Expo / React Native"]
+    W["Web app<br/>Next.js"]
+    A["Django admin"]
+  end
+  subgraph Backend["Backend: Django + DRF"]
+    API["REST API<br/>JWT, role gates"]
+    SVC["Services<br/>consent gate, free slots,<br/>analytics, AI summary"]
+  end
+  DB[("Database<br/>SQLite in dev,<br/>PostgreSQL in production")]
+  subgraph External["External services"]
+    G["Gemini API<br/>summaries"]
+    J["Jitsi<br/>video rooms"]
+    F["FCM<br/>push, later"]
+  end
+  M --> API
+  W --> API
+  A --> Backend
+  API --> SVC
+  SVC --> DB
+  SVC -.-> G
+  SVC -.-> J
+  API -.-> F
+```
+
+### How a request is handled
 
 The GitHub Actions workflow [`deploy-frontend.yml`](.github/workflows/deploy-frontend.yml) builds and deploys `frontend/` to Vercel on every push to `main` that changes `frontend/`. It can also be started by hand from the Actions tab.
 
@@ -805,11 +882,12 @@ Suggested build order (each item depends on the earlier ones):
 
 | Name | Role | Responsibilities | GitHub |
 |---|---|---|---|
-| _Name_ | Project lead | _e.g. planning, coordination_ | [@username](https://github.com/username) |
-| _Name_ | Backend developer | _e.g. Django API, database_ | [@username](https://github.com/username) |
-| _Name_ | Frontend developer | _e.g. Next.js web app_ | [@username](https://github.com/username) |
-| _Name_ | UI/UX designer | _e.g. user flows, mockups_ | [@username](https://github.com/username) |
-| _Name_ | Research & data | _e.g. survey, literature review_ | [@username](https://github.com/username) |
+| _Millina Maissa Benlakhdar_ | Research & data scientist | <ul><li>Researched the literature on women’s mental health and identified the research gaps and data limitations.</li><li>Found and explored relevant datasets, including mcPHASES.</li><li>Analysed the questionnaire answers from 40 women to identify their main challenges and what they expect from the app.</li><li>Turned the research and data insights into recommendations for Rahati’s features.</li></ul> | [@Millinaben](https://github.com/Millinaben) |
+| _Amirat Katia_ | AI & Analytics Engineer | <ul><li>Built the backend AI analytics summary service using the Gemini API.</li><li>Added input and output validation so the AI summaries stay accurate and safe, and saved a history of past summaries.</li><li>Created the questionnaires for women and psychologists that guided the product’s needs and features.</li></ul> | [@Katia-Am](https://github.com/Katia-Am) |
+| _Chiraz Benbelkhir_ | Mobile app developer | <ul><li>Built the Rahati mobile app (Expo, React Native, TypeScript) from the team's Figma designs, and published a live demo of it in the browser.</li> <li>Connected it to the Django API (booking with consent, check-ins, statistics, etc.) and added English, French and Arabic.</li> <li>Designed the pitch slides and made the pitch video.</li></ul> | [@yomidotk](https://github.com/yomidotk) |
+| _Katia Ghezali_ | Frontend developer | <ul><li> Developed responsive interfaces and interactive dashboards using Next.js, React, and Tailwind CSS.</li> <li> Connected frontend components to backend APIs to retrieve and display data, and deployed the web application frontend.</li></ul> | [@KatiaGhezali](https://github.com/KatiaGhezali) |
+| _Sarah Attar_ | Product designer, UX researcher & graphic designer  | <ul><li> Turned the questionnaire findings from women and mental-health professionals into user personas, design principles and the user workflow.</li><li>Designed the whole Rahati mobile app in Figma (onboarding, home and daily check-in, stats, journal, cycle tracker, therapy booking with consent, and the learning library) and built the clickable prototype that the mobile app was developed from.</li><li>Created the visual identity: the Raha mascot, the pastel colour palette and the Poppins typography, plus a colour guide with design tokens (Figma) for the app and the website.</li></ul>| [@sarrahhhhh.06 ](https://github.com/sarrahhhhh.06 ) |
+| _Meriem Chebab_ | Team lead & backend engineer |<ul><li>Led the team and managed the project: planned the work, split the tasks between team members and kept the deliverables on schedule.</li><li>Designed the system architecture and the database models, and built  the backend APIs that power the app’s features (check-ins, stats, journal, cycle tracker, therapy booking and the learning library).</li><li>Built the backend security measures to protect women’s private data, including authentication, access control and consent-based sharing with professionals.</li><li>Deployed the backend and created the seed data used for testing and the demo.</li></ul>| [@meriemchebab](https://github.com/meriemchebab) |
 
 ## Contributing
 

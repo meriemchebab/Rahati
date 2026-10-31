@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rahati · Try the app</title>
+<meta name="description" content="Rahati: your peace, at your pace. A calm space for women in Algeria to check in, understand their cycle, and reach a verified woman professional.">
+<meta name="theme-color" content="#EFEBFF">
+<link rel="icon" href="rahati-logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Noto+Kufi+Arabic:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+  /* Showcase page only: the Rahati app itself runs unchanged inside the phone (an iframe). */
+  :root {
+    --purple: #6F6DFC; --deep: #4E4BE0; --lavender: #C5B8FE; --lilac: #E9E9FC; --pink: #FEABFE; --rose: #F48FE6;
+    --ink: #120E2B; --muted: #625C80; --bg: #F4F1FF; --white: #FFFFFF;
+    --screen-w: 390px; --screen-h: 844px; --rim: 4px; --bezel: 10px;
+    --phone-w: calc(var(--screen-w) + 2 * (var(--rim) + var(--bezel)));
+    --phone-h: calc(var(--screen-h) + 2 * (var(--rim) + var(--bezel)));
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { font-family: 'Poppins', system-ui, sans-serif; color: var(--ink); background: var(--bg); -webkit-font-smoothing: antialiased; }
+
+  /* ---------- background: drifting mood orbs + paper grain ---------- */
+  .bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
+    background: radial-gradient(120% 90% at 0% 0%, #FFFFFF 0%, transparent 55%), linear-gradient(160deg, #F7F4FF 0%, #EEE8FF 55%, #FBEFFF 100%); }
+  .orb { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .7; animation: drift 22s ease-in-out infinite alternate; }
+  .orb.a { width: 560px; height: 560px; background: #D9CFFF; top: -180px; left: -160px; }
+  .orb.b { width: 480px; height: 480px; background: #FFD3FB; bottom: -200px; right: -120px; animation-duration: 26s; animation-delay: -6s; }
+  .orb.c { width: 340px; height: 340px; background: #CFE0FF; top: 34%; left: 38%; opacity: .5; animation-duration: 30s; animation-delay: -12s; }
+  .orb.d { width: 220px; height: 220px; background: #FFE3C7; top: 8%; right: 18%; opacity: .45; animation-duration: 24s; animation-delay: -3s; }
+  @keyframes drift { to { transform: translate(60px, -40px) scale(1.12); } }
+  .grain { position: absolute; inset: -50%; opacity: .07; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+  main {
+    position: relative; z-index: 1; height: 100%; display: flex; align-items: center; justify-content: center;
+    gap: clamp(32px, 7vw, 120px); padding: 24px;
+  }
+
+  /* ---------- side panel ---------- */
+  .panel { max-width: 400px; display: flex; flex-direction: column; gap: clamp(12px, 2.6vh, 24px); }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand .tile { width: 54px; height: 54px; border-radius: 50%; background: var(--white) url(rahati-logo.svg) center/72% no-repeat;
+    box-shadow: 0 10px 24px -6px rgba(111,109,252,.45), inset 0 0 0 1px rgba(111,109,252,.12); }
+  .brand .name { display: flex; flex-direction: column; line-height: 1.05; }
+  .brand .name b { font-weight: 700; font-size: 26px; letter-spacing: -.6px; }
+  .brand .name span { font-family: 'Noto Kufi Arabic', sans-serif; font-size: 14px; color: var(--purple); }
+  .eyebrow { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 8px; border-radius: 999px;
+    background: rgba(255,255,255,.7); backdrop-filter: blur(10px); box-shadow: inset 0 0 0 1px rgba(111,109,252,.15); font-size: 12.5px; font-weight: 500; color: var(--muted); }
+  .eyebrow i { width: 8px; height: 8px; border-radius: 50%; background: #3DCB8E; box-shadow: 0 0 0 4px rgba(61,203,142,.18); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 7px rgba(61,203,142,0); } }
+  h1 { font-weight: 700; font-size: clamp(32px, min(3.8vw, 6vh), 54px); line-height: 1.04; letter-spacing: -1.8px; margin: 0; }
+  h1 em { font-style: normal; background: linear-gradient(100deg, var(--purple) 10%, #B06BF5 55%, var(--rose) 95%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { font-size: clamp(14px, 1.9vh, 16px); line-height: 1.65; color: var(--muted); margin: 0; }
+  .steps { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+  .steps li { display: flex; gap: 8px; align-items: center; font-weight: 500; font-size: 13.5px; padding: 8px 14px 8px 8px; border-radius: 999px;
+    background: rgba(255,255,255,.75); box-shadow: 0 6px 16px -10px rgba(40,20,120,.35), inset 0 0 0 1px rgba(255,255,255,.9); }
+  .steps svg { width: 26px; height: 26px; flex: none; }
+  .codes { display: flex; gap: 16px; align-items: center; padding: 14px; border-radius: 24px; background: rgba(255,255,255,.62); backdrop-filter: blur(14px);
+    box-shadow: 0 18px 40px -22px rgba(40,20,120,.35), inset 0 0 0 1px rgba(255,255,255,.9); }
+  :root { --qr: clamp(84px, 13vh, 112px); }
+  .codes .qr { width: var(--qr); height: var(--qr); padding: 8px; border-radius: 16px; background: var(--white); flex: none; display: grid; place-items: center; }
+  .codes .qr svg { width: 100%; height: 100%; }
+  .codes strong { display: block; font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .codes small { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 54px; padding: 0 26px; border-radius: 27px; font-weight: 600; font-size: 15px; text-decoration: none; border: 0; cursor: pointer; font-family: inherit; }
+  .btn.primary { background: linear-gradient(135deg, var(--purple), var(--deep)); color: var(--white); box-shadow: 0 14px 30px -10px rgba(78,75,224,.65); }
+  .note { font-size: 12px; color: var(--muted); line-height: 1.6; margin: 0; }
+  .note b { font-weight: 600; color: var(--ink); }
+
+  /* ---------- stage: the phone ---------- */
+  .stage { position: relative; flex: none; width: calc(var(--phone-w) * var(--scale, 1)); height: calc(var(--phone-h) * var(--scale, 1)); }
+  .stage::after { /* soft ground shadow */
+    content: ''; position: absolute; left: 12%; right: 12%; bottom: -26px; height: 40px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(40,25,110,.35), transparent); filter: blur(8px); z-index: -1;
+  }
+
+  /* the phone: brushed metal rim → black glass bezel → screen */
+  .phone {
+    width: var(--phone-w); height: var(--phone-h); transform: scale(var(--scale, 1)); transform-origin: top left; position: relative;
+    border-radius: 62px; padding: var(--rim);
+    background: linear-gradient(140deg, #F4F1FF 0%, #A8A2C6 14%, #4A4566 32%, #2A2640 50%, #4A4566 68%, #B3AED0 86%, #F7F5FF 100%);
+    box-shadow: 0 1px 0 1px rgba(255,255,255,.6) inset, 0 50px 90px -30px rgba(40,25,110,.55), 0 30px 40px -30px rgba(40,25,110,.4);
+  }
+  .bezel { width: 100%; height: 100%; border-radius: 58px; padding: var(--bezel); background: #050409; box-shadow: inset 0 0 0 1.5px #1B1828, inset 0 0 12px rgba(0,0,0,.9); }
+  .btn-side { position: absolute; right: -3px; width: 4px; border-radius: 0 3px 3px 0; background: linear-gradient(90deg, #3A3552, #BDB7DA 60%, #6E6890); }
+  .btn-side.power { top: 210px; height: 64px; }
+  .btn-side.vol { top: 300px; height: 112px; }
+  .screen { position: relative; width: 100%; height: 100%; border-radius: 48px; overflow: hidden; background: #000; isolation: isolate; }
+  .screen::after { /* glass glare */
+    content: ''; position: absolute; inset: 0; z-index: 40; pointer-events: none; border-radius: inherit;
+    background: linear-gradient(118deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,.04) 26%, transparent 38%);
+  }
+  .punch { position: absolute; top: 13px; left: 50%; width: 15px; height: 15px; margin-left: -7.5px; border-radius: 50%; z-index: 45;
+    background: radial-gradient(circle at 35% 35%, #3B3F5E 0 12%, #0B0C16 34%, #020205 70%); box-shadow: 0 0 0 2px #0A0A12, inset 0 0 2px rgba(120,130,255,.35); }
+
+  /* status bar */
+  .status { position: absolute; top: 0; left: 0; right: 0; height: 40px; padding: 4px 26px 0; display: flex; align-items: center; justify-content: space-between; font-size: 13.5px; font-weight: 500; color: var(--white); z-index: 25; pointer-events: none; transition: color .3s; letter-spacing: .2px; }
+  .status.dark { color: var(--ink); }
+  .status .icons { display: flex; gap: 6px; align-items: center; }
+  .status svg { display: block; }
+
+  /* home screen */
+  .home {
+    position: absolute; inset: 0; padding: 58px 20px 26px; display: flex; flex-direction: column;
+    background:
+      radial-gradient(70% 45% at 85% 12%, rgba(254,171,254,.85) 0%, transparent 70%),
+      radial-gradient(80% 50% at 10% 40%, rgba(160,150,255,.9) 0%, transparent 70%),
+      radial-gradient(90% 55% at 70% 95%, rgba(255,200,240,.75) 0%, transparent 70%),
+      linear-gradient(170deg, #8C86FF 0%, #6F6DFC 40%, #5047D6 100%);
+    transition: transform .35s ease, filter .35s ease;
+  }
+  .home.behind { transform: scale(.94); filter: brightness(.7) blur(2px); }
+  .glance { color: var(--white); text-shadow: 0 2px 14px rgba(30,10,90,.25); padding: 6px 4px 0; }
+  .glance .t { font-weight: 300; font-size: 76px; letter-spacing: -3px; line-height: 1; }
+  .glance .d { display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 15px; margin-top: 8px; }
+  .glance .d span { opacity: .55; }
+  .widget { margin-top: 22px; padding: 14px 16px; border-radius: 26px; display: flex; align-items: center; gap: 14px;
+    background: rgba(255,255,255,.2); backdrop-filter: blur(18px) saturate(140%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.28); color: var(--white); }
+  .widget .ring { width: 46px; height: 46px; flex: none; }
+  .widget b { display: block; font-weight: 600; font-size: 14.5px; }
+  .widget small { font-size: 12px; opacity: .85; }
+  .grid { margin-top: auto; display: grid; grid-template-columns: repeat(4, 1fr); row-gap: 18px; column-gap: 6px; }
+  .app { display: flex; flex-direction: column; align-items: center; gap: 7px; background: none; border: 0; padding: 0; cursor: default; font-family: inherit; }
+  .app .ic { position: relative; width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center; overflow: hidden;
+    box-shadow: 0 8px 16px -6px rgba(20,10,70,.45), inset 0 -2px 4px rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.35); }
+  .app .ic::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,.22), transparent 55%); pointer-events: none; }
+  .app .ic svg { width: 30px; height: 30px; position: relative; }
+  .app span { color: var(--white); font-size: 11.5px; font-weight: 500; text-shadow: 0 1px 4px rgba(0,0,0,.35); white-space: nowrap; }
+  .app.rahati { cursor: pointer; }
+  .app.rahati .ic { background: radial-gradient(circle at 30% 25%, #FFFFFF, #F1ECFF 70%); }
+  .app.rahati .ic img { width: 72%; height: 72%; position: relative; object-fit: contain; }
+  .app.rahati .halo { position: absolute; width: 60px; height: 60px; border-radius: 50%; border: 3px solid var(--white); animation: ping 1.9s ease-out infinite; pointer-events: none; }
+  .app.rahati:focus-visible .ic { outline: 3px solid var(--white); outline-offset: 4px; }
+  .app.rahati .wrap { position: relative; display: grid; place-items: center; }
+  @keyframes ping { 0% { opacity: .9; transform: scale(.9); } 100% { opacity: 0; transform: scale(1.35); } }
+  .hint { position: absolute; z-index: 5; background: var(--white); color: var(--ink); font-size: 12px; font-weight: 600; padding: 7px 12px; border-radius: 14px; box-shadow: 0 10px 22px rgba(20,10,70,.28); white-space: nowrap; animation: bob 1.5s ease-in-out infinite; pointer-events: none; }
+  .hint::after { content: ''; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; margin-left: -5px; background: var(--white); transform: rotate(45deg); }
+  @keyframes bob { 50% { transform: translateY(-4px); } }
+  .dock { margin-top: 22px; padding: 12px 8px; border-radius: 34px; background: rgba(255,255,255,.2); backdrop-filter: blur(18px) saturate(140%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); display: grid; grid-template-columns: repeat(4, 1fr); }
+  .dock .app span { display: none; }
+
+  /* heads-up notification */
+  .notif { position: absolute; top: 46px; left: 12px; right: 12px; z-index: 20; display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 24px; cursor: pointer;
+    background: rgba(255,255,255,.88); backdrop-filter: blur(20px) saturate(160%); box-shadow: 0 16px 34px -12px rgba(20,10,70,.45);
+    transform: translateY(-140%); opacity: 0; transition: transform .55s cubic-bezier(.2,.9,.25,1.15), opacity .3s ease; border: 0; font-family: inherit; text-align: left; color: var(--ink); }
+  .notif.show { transform: translateY(0); opacity: 1; }
+  .notif .nic { width: 40px; height: 40px; border-radius: 50%; background: #F1ECFF url(rahati-logo.svg) center/70% no-repeat; flex: none; }
+  .notif b { display: block; font-size: 13.5px; font-weight: 600; }
+  .notif small { display: block; font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+  .notif em { font-style: normal; font-size: 11px; color: var(--muted); margin-left: 6px; font-weight: 400; }
+
+  /* the app window that opens from the icon */
+  .window { position: absolute; inset: 0; z-index: 10; background: var(--lilac); transform: scale(.12); opacity: 0; pointer-events: none; transition: transform .42s cubic-bezier(.2,.8,.2,1), opacity .25s ease; border-radius: 48px; overflow: hidden; }
+  .window.open { transform: scale(1); opacity: 1; pointer-events: auto; border-radius: 0; }
+  .window iframe { position: absolute; top: 40px; left: 0; width: 100%; height: calc(100% - 40px - 26px); border: 0; background: var(--lilac); opacity: 0; transition: opacity .3s ease; }
+  .window.ready iframe { opacity: 1; }
+  .splash { position: absolute; inset: 0; display: grid; place-items: center; background: linear-gradient(180deg, #C5B8FE 6%, #E9E9FC 50%, #C5B8FE 95%); transition: opacity .3s ease; }
+  .window.ready .splash { opacity: 0; pointer-events: none; }
+  .splash img { width: 150px; height: auto; animation: breathe 2.4s ease-in-out infinite; }
+  @keyframes breathe { 50% { transform: scale(1.05); } }
+
+  /* home bar (gesture pill) */
+  .homebar { position: absolute; left: 0; right: 0; bottom: 0; height: 26px; z-index: 26; display: grid; place-items: center; background: transparent; border: 0; cursor: pointer; padding: 0; }
+  .homebar i { display: block; width: 124px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.9); transition: background .3s; }
+  .homebar.dark i { background: rgba(18,14,43,.5); }
+  .homebar:focus-visible i { outline: 2px solid var(--pink); outline-offset: 3px; }
+
+  /* short laptop screens: keep the essentials only */
+  @media (max-height: 760px) and (min-width: 761px) { .lead { display: none; } }
+  @media (max-height: 620px) and (min-width: 761px) { .steps, .note.desktop-only { display: none; } }
+
+  /* small screens: only the phone, filling the screen, nothing around it */
+  @media (max-width: 760px) {
+    main { padding: 12px; gap: 0; }
+    .panel { display: none; }
+    .stage::after { bottom: -14px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><div class="orb a"></div><div class="orb b"></div><div class="orb c"></div><div class="orb d"></div><div class="grain"></div></div>
+
+<main>
+  <section class="panel">
+    <div class="brand"><div class="tile" aria-hidden="true"></div><div class="name"><b>Rahati</b><span lang="ar">راحتي</span></div></div>
+    <span class="eyebrow"><i></i>Live demo · try it in your browser</span>
+    <h1>Your peace, <em>at your pace.</em></h1>
+    <p class="lead">A calm space for women in Algeria. Check in with yourself in 20 seconds, understand your cycle, and reach a verified woman professional when you need one. You choose what she sees.</p>
+    <ul class="steps">
+      <li><svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="13" fill="#EDE8FF"/><path d="M8.5 13.5l3 3 6-7" stroke="#6F6DFC" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Check in</li>
+      <li><svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="13" fill="#FFE6FF"/><circle cx="13" cy="13" r="6" stroke="#D45ED0" stroke-width="2.2" fill="none" stroke-dasharray="26 12"/></svg>Know your cycle</li>
+      <li><svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="13" fill="#E3F7EE"/><path d="M13 18.5s-5-3-5-6.6A2.8 2.8 0 0 1 13 10a2.8 2.8 0 0 1 5 1.9c0 3.6-5 6.6-5 6.6z" fill="#2FAE79"/></svg>Reach a professional</li>
+    </ul>
+
+    <div class="codes desktop-only">
+      <div class="qr" id="qrWeb"></div>
+      <div>
+        <strong>On your phone?</strong>
+        <small>Scan to try Rahati in your phone’s browser. No install needed.</small>
+      </div>
+    </div>
+
+    <p class="note desktop-only">Tap the <b>Rahati</b> icon, or the notification, to start. This is a demo: make a test account and don’t enter real personal information.</p>
+    <p class="note">The demo server sleeps when nobody uses it, so the first load can take up to a minute.</p>
+  </section>
+
+  <div class="stage" id="stage">
+
+
+    <div class="phone" role="region" aria-label="Phone preview of the Rahati app">
+      <div class="btn-side power"></div><div class="btn-side vol"></div>
+      <div class="bezel"><div class="screen">
+        <div class="punch"></div>
+        <div class="status" id="status">
+          <span id="sbTime">9:41</span>
+          <span class="icons" aria-hidden="true">
+            <svg width="17" height="12" viewBox="0 0 17 12"><path d="M1 11h2.4V8H1zM5.4 11h2.4V6H5.4zM9.8 11h2.4V3.5H9.8zM14.2 11h2.4V.5h-2.4z" fill="currentColor"/></svg>
+            <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 11.6 0 3.3a11.3 11.3 0 0 1 16 0z" fill="currentColor"/></svg>
+            <svg width="25" height="12" viewBox="0 0 25 12"><rect x=".6" y=".6" width="20.8" height="10.8" rx="3.2" fill="none" stroke="currentColor" opacity=".55"/><rect x="2.2" y="2.2" width="14.5" height="7.6" rx="1.8" fill="currentColor"/><rect x="22.3" y="4" width="2" height="4" rx="1" fill="currentColor" opacity=".55"/></svg>
+          </span>
+        </div>
+
+        <div class="home" id="home">
+          <div class="glance"><div class="t" id="hsTime">9:41</div><div class="d"><span id="hsDate">Wed, 28 Oct</span><span>·</span><span>☁︎ 21°</span></div></div>
+          <div class="widget" aria-hidden="true">
+            <svg class="ring" viewBox="0 0 46 46"><circle cx="23" cy="23" r="18" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="6"/><path d="M23 5a18 18 0 0 1 16.2 25.8" fill="none" stroke="#fff" stroke-width="6"/></svg>
+            <div><b>How are you today?</b><small>A 20-second check-in · Rahati</small></div>
+          </div>
+
+          <div class="grid" id="grid"></div>
+          <div class="dock" id="dock"></div>
+        </div>
+
+        <button class="notif" id="notif" aria-label="Rahati notification: How are you today? Open Rahati">
+          <span class="nic" aria-hidden="true"></span>
+          <span><b>Rahati<em>now</em></b><small>How are you today? Take 20 seconds for yourself 💜</small></span>
+        </button>
+
+        <div class="window" id="window" aria-hidden="true">
+          <div class="splash"><img src="rahati-logo.svg" alt=""></div>
+        </div>
+
+        <button class="homebar" id="homebar" aria-label="Go to the home screen"><i></i></button>
+      </div></div>
+    </div>
+  </div>
+</main>
+
+<script>
+  // ---- settings (can also be given in the page address, e.g. ?app=http://localhost:8081) ----
+  const APP_URL = new URL('app/', location.href).href;
+  // ------------------------------------------------------------------------------------------
+
+  const params = new URLSearchParams(location.search);
+  const appUrl = params.get('app') || APP_URL;
+
+  // Generic home-screen apps: round Android-style icons, simple drawings, no real brands.
+  const glyph = {
+    phone: '<path d="M7 4h3l2 5-2.5 1.5a11 11 0 0 0 5 5L16 13l5 2v3a2 2 0 0 1-2 2A15 15 0 0 1 5 6a2 2 0 0 1 2-2z" fill="#fff"/>',
+    messages: '<path d="M5 6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-5 4z" fill="#fff"/><circle cx="9" cy="10" r="1.2" fill="#4E7BF2"/><circle cx="12" cy="10" r="1.2" fill="#4E7BF2"/><circle cx="15" cy="10" r="1.2" fill="#4E7BF2"/>',
+    camera: '<rect x="4" y="7" width="16" height="12" rx="3" fill="#fff"/><path d="M9 7l1.5-2h3L15 7z" fill="#fff"/><circle cx="12" cy="13" r="3.6" fill="#2B2742"/><circle cx="12" cy="13" r="1.6" fill="#7F86FF"/>',
+    browser: '<circle cx="12" cy="12" r="7.6" fill="none" stroke="#fff" stroke-width="1.9"/><path d="M4.6 12h14.8M12 4.4c2.6 2.4 2.6 12.8 0 15.2M12 4.4c-2.6 2.4-2.6 12.8 0 15.2" fill="none" stroke="#fff" stroke-width="1.7"/>',
+    gallery: '<rect x="4.5" y="5.5" width="15" height="13" rx="3" fill="#fff"/><path d="M6.5 16.5l3.6-4.6 2.8 3 1.9-2 3 3.6z" fill="#F48FE6"/><circle cx="15.5" cy="9.3" r="1.6" fill="#FFC56B"/>',
+    calendar: '<rect x="4.5" y="5" width="15" height="15" rx="3" fill="#fff"/><rect x="4.5" y="5" width="15" height="4.6" rx="2" fill="#F2645A"/><text x="12" y="17.6" text-anchor="middle" font-size="7.4" font-weight="700" font-family="Poppins, sans-serif" fill="#120E2B" id="calDay">28</text>',
+    clock: '<circle cx="12" cy="12" r="8" fill="#fff"/><path d="M12 7.5V12l3 2" stroke="#120E2B" stroke-width="2" stroke-linecap="round" fill="none"/>',
+    weather: '<circle cx="9.5" cy="9.5" r="3.8" fill="#FFD166"/><path d="M8.5 18h8a3.3 3.3 0 0 0 0-6.6 4.6 4.6 0 0 0-8.8 1.4A2.6 2.6 0 0 0 8.5 18z" fill="#fff"/>',
+    music: '<path d="M10 16.5V6.5l8.5-2v10" fill="none" stroke="#fff" stroke-width="2.2"/><circle cx="7.6" cy="16.6" r="2.5" fill="#fff"/><circle cx="16.1" cy="14.6" r="2.5" fill="#fff"/>',
+    notes: '<rect x="5.5" y="4.5" width="13" height="15" rx="3" fill="#fff"/><path d="M8.5 9h7M8.5 12.5h7M8.5 16h4.5" stroke="#E0A21B" stroke-width="1.9" stroke-linecap="round"/>',
+    maps: '<path d="M12 20s-6-5.6-6-10a6 6 0 0 1 12 0c0 4.4-6 10-6 10z" fill="#fff"/><circle cx="12" cy="10" r="2.4" fill="#3DBE8B"/>',
+    settings: '<circle cx="12" cy="12" r="3" fill="none" stroke="#fff" stroke-width="2.2"/><path d="M12 4v2.6M12 17.4V20M4 12h2.6M17.4 12H20M6.3 6.3l1.9 1.9M15.8 15.8l1.9 1.9M6.3 17.7l1.9-1.9M15.8 8.2l1.9-1.9" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>',
+  };
+  const g = (a, b) => `linear-gradient(160deg, ${a}, ${b})`;
+  const apps = [
+    ['Calendar', 'calendar', g('#FFE9EF', '#FFD0DC')], ['Clock', 'clock', g('#3A3558', '#211D36')], ['Weather', 'weather', g('#8FB7FF', '#5D86F0')], ['RAHATI'],
+    ['Gallery', 'gallery', g('#FFFFFF', '#EDEAF7')], ['Music', 'music', g('#F58AD9', '#C356E0')], ['Maps', 'maps', g('#4FD39C', '#24A66F')], ['Notes', 'notes', g('#FFF6DA', '#FFE7A6')],
+  ];
+  const dock = [['Phone', 'phone', g('#4FD39C', '#24A66F')], ['Messages', 'messages', g('#73A0FF', '#4E7BF2')], ['Browser', 'browser', g('#7FA6FF', '#4E73E8')], ['Camera', 'camera', g('#6D6889', '#3E3A57')]];
+
+  const icon = ([label, gl, bg]) => {
+    if (label === 'RAHATI') {
+      return `<button class="app rahati" id="rahatiIcon" aria-label="Open Rahati"><span class="wrap"><span class="halo"></span><span class="ic"><img src="rahati-logo.svg" alt=""></span></span><span>Rahati</span></button>`;
+    }
+    return `<div class="app" aria-hidden="true"><div class="ic" style="background:${bg}"><svg viewBox="0 0 24 24">${glyph[gl]}</svg></div><span>${label}</span></div>`;
+  };
+  document.getElementById('grid').innerHTML = apps.map(icon).join('');
+  document.getElementById('dock').innerHTML = dock.map(icon).join('');
+
+  // ---- clock ----
+  const fmtTime = (d) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]M/i, '');
+  const tick = () => {
+    const now = new Date();
+    document.getElementById('sbTime').textContent = fmtTime(now);
+    document.getElementById('hsTime').textContent = fmtTime(now);
+    document.getElementById('hsDate').textContent = now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    const cal = document.getElementById('calDay');
+    if (cal) cal.textContent = now.getDate();
+  };
+  tick();
+  setInterval(tick, 15000);
+
+  // ---- fit the phone to the window (the app inside always sees a 390×844 screen) ----
+  const PHONE_W = 418, PHONE_H = 872;
+  const fit = () => {
+    // On a phone the mockup alone fills the screen; on a computer it fits beside the text.
+    const s = innerWidth <= 760
+      ? Math.min(1, (innerWidth - 24) / PHONE_W, (innerHeight - 40) / PHONE_H)
+      : Math.min(1, (innerHeight - 64) / PHONE_H, (innerWidth * 0.48) / PHONE_W);
+    document.documentElement.style.setProperty('--scale', Math.max(0.3, s).toFixed(3));
+  };
+  fit();
+  addEventListener('resize', fit);
+
+  // ---- "Tap to open" hint over the Rahati icon ----
+  const iconEl = document.getElementById('rahatiIcon');
+  const hint = document.createElement('div');
+  hint.className = 'hint';
+  hint.textContent = 'Tap to open';
+  document.getElementById('home').appendChild(hint);
+  const placeHint = () => {
+    const h = document.getElementById('home').getBoundingClientRect();
+    const r = iconEl.querySelector('.ic').getBoundingClientRect();
+    const sc = h.width / 390 || 1;
+    hint.style.left = ((r.left - h.left + r.width / 2) / sc - hint.offsetWidth / 2) + 'px';
+    hint.style.top = ((r.top - h.top) / sc - 42) + 'px';
+  };
+  requestAnimationFrame(placeHint);
+  addEventListener('resize', placeHint);
+
+  // ---- open / close the app ----
+  const win = document.getElementById('window');
+  const home = document.getElementById('home');
+  const status = document.getElementById('status');
+  const homebar = document.getElementById('homebar');
+  const notif = document.getElementById('notif');
+  let frame = null;
+  let appOpen = false;
+
+  const openApp = (fromEl) => {
+    const h = home.getBoundingClientRect();
+    const r = (fromEl || iconEl.querySelector('.ic')).getBoundingClientRect();
+    win.style.transformOrigin = `${(r.left + r.width / 2 - h.left) / h.width * 100}% ${(r.top + r.height / 2 - h.top) / h.height * 100}%`;
+    win.classList.add('open');
+    win.setAttribute('aria-hidden', 'false');
+    home.classList.add('behind');
+    status.classList.add('dark');
+    homebar.classList.add('dark');
+    notif.classList.remove('show');
+    hint.style.display = 'none';
+    appOpen = true;
+    loadApp();
+  };
+  // The real app loads in the background as soon as the page is up, so tapping the icon opens it
+  // at once. It keeps running when you go home and come back.
+  function loadApp() {
+    if (frame) return;
+    frame = document.createElement('iframe');
+    frame.title = 'Rahati app';
+    frame.allow = 'clipboard-write';
+    frame.src = appUrl;
+    frame.addEventListener('load', () => setTimeout(() => win.classList.add('ready'), 200));
+    win.appendChild(frame);
+  }
+  window.addEventListener('load', () => setTimeout(loadApp, 300));
+  const goHome = () => {
+    win.classList.remove('open');
+    win.setAttribute('aria-hidden', 'true');
+    home.classList.remove('behind');
+    status.classList.remove('dark');
+    homebar.classList.remove('dark');
+    appOpen = false;
+  };
+  iconEl.addEventListener('click', () => openApp());
+  notif.addEventListener('click', () => openApp(notif));
+  homebar.addEventListener('click', goHome);
+
+  // ---- a gentle nudge: the Rahati notification slides in, then tucks away ----
+  setTimeout(() => { if (!appOpen) notif.classList.add('show'); }, 2600);
+  setTimeout(() => notif.classList.remove('show'), 11000);
+
+  // ---- phone link and QR code ----
+  // The QR opens this same page (phones get the mockup too); "Open full screen" is the bare app.
+  const q = qrcode(0, 'M');
+  q.addData(location.origin + location.pathname);
+  q.make();
+  document.getElementById('qrWeb').innerHTML = q.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+</script>
+</body>
+</html>

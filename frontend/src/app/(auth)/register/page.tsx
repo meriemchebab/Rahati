@@ -7,10 +7,9 @@ import AuthLayout from "@/components/auth/AuthLayout";
 import { registerProfessional } from "@/lib/auth";
 
 const inputClass =
-  "mt-1.5 w-full rounded-xl border border-[#eadde7] bg-[#fdfafd] px-4 py-3 text-sm text-[#49364f] outline-none transition placeholder:text-[#b6a5b4] focus:border-[#a77b96] focus:ring-2 focus:ring-[#a77b96]/15";
+  "mt-1.5 w-full rounded-xl border border-[#dcd3e9] bg-white px-4 py-3 text-sm text-[#111018] outline-none transition placeholder:text-[#8b899d] focus:border-[#7673FF] focus:ring-2 focus:ring-[#7673FF]/20";
 
-const labelClass = "text-sm font-medium text-[#59465f]";
-
+const labelClass = "text-sm font-medium text-[#111018]";
 const credentialOptions = [
   { value: "diploma", label: "Diploma / Degree" },
   { value: "licence", label: "Professional licence" },
@@ -189,10 +188,10 @@ export default function RegisterPage() {
         {/* Account information */}
         <section>
           <div className="mb-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-[#a77b96]">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-[#7673FF]">
               01 — Account information
             </h3>
-            <p className="mt-1 text-xs text-[#a18e9f]">
+            <p className="mt-1 text-xs text-[#656376]">
               Create your login credentials.
             </p>
           </div>
@@ -311,10 +310,10 @@ export default function RegisterPage() {
         {/* Professional information */}
         <section>
           <div className="mb-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-[#a77b96]">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-[#7673FF]">
               02 — Professional information
             </h3>
-            <p className="mt-1 text-xs text-[#a18e9f]">
+            <p className="mt-1 text-xs text-[#656376]">
               Tell us about your professional practice.
             </p>
           </div>
@@ -349,7 +348,7 @@ export default function RegisterPage() {
                 placeholder="Introduce your experience and areas of expertise..."
                 className={`${inputClass} resize-y`}
               />
-              <p className="mt-1 text-right text-xs text-[#b6a5b4]">
+              <p className="mt-1 text-right text-xs text-[#8b899d]">
                 {form.bio.length}/5000
               </p>
             </div>
@@ -390,10 +389,10 @@ export default function RegisterPage() {
         {/* Credentials */}
         <section>
           <div className="mb-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-[#a77b96]">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-[#7673FF]">
               03 — Professional credentials
             </h3>
-            <p className="mt-1 text-xs text-[#a18e9f]">
+            <p className="mt-1 text-xs text-[#656376]">
               Upload a document to support your professional profile.
             </p>
           </div>
@@ -427,7 +426,7 @@ export default function RegisterPage() {
                 Upload your document *
               </label>
 
-              <div className="mt-1.5 rounded-xl border-2 border-dashed border-[#dfcbdc] bg-[#fdfafd] p-5 text-center transition hover:border-[#a77b96]">
+              <div className="mt-1.5 rounded-xl border-2 border-dashed border-[#ccb9fe] bg-[#f1ecf8] p-5 text-center transition hover:border-[#7673FF]">
                 <input
                   ref={fileInputRef}
                   id="credential_file"
@@ -437,7 +436,7 @@ export default function RegisterPage() {
                   onChange={(e) =>
                     handleFileChange(e.target.files?.[0] ?? null)
                   }
-                  className="block w-full cursor-pointer text-sm text-[#8d788c] file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-[#eee5ed] file:px-4 file:py-2 file:text-sm file:font-medium file:text-[#68475e] hover:file:bg-[#e5d7e4]"
+                  className="block w-full cursor-pointer text-sm text-[#656376] file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-[#e9ccfd] file:px-4 file:py-2 file:text-sm file:font-medium file:text-[#111018] hover:file:bg-[#ccb9fe]"
                 />
 
                 {credentialFile && (
@@ -446,7 +445,7 @@ export default function RegisterPage() {
                   </p>
                 )}
 
-                <p className="mt-2 text-xs text-[#a18e9f]">
+                <p className="mt-2 text-xs text-[#656376]">
                   PDF, JPG, JPEG or PNG · Maximum size: 5 MB
                 </p>
               </div>
@@ -455,16 +454,16 @@ export default function RegisterPage() {
         </section>
 
         {/* Terms */}
-        <section className="rounded-xl bg-[#f8f2f7] p-4">
+        <section className="rounded-xl bg-[#f1ecf8] p-4">
           <label className="flex cursor-pointer items-start gap-3">
             <input
               type="checkbox"
               checked={form.terms_accepted}
               onChange={(e) => updateField("terms_accepted", e.target.checked)}
-              className="mt-1 h-4 w-4 shrink-0 accent-[#a77b96]"
+              className="mt-1 h-4 w-4 shrink-0 accent-[#7673FF]"
             />
 
-            <span className="text-sm leading-6 text-[#746477]">
+            <span className="text-sm leading-6 text-[#656376]">
               I confirm that the information provided is accurate and I agree to
               the Rahati terms and conditions. *
             </span>
@@ -485,16 +484,16 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={loading}
-          className="flex w-full items-center justify-center rounded-xl bg-[#a77b96] px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#916681] disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex w-full items-center justify-center rounded-xl bg-[#7673FF] px-5 py-3.5 text-sm font-semibold text-[#111018] shadow-sm shadow-[#7673FF]/15 transition hover:bg-[#CCB9FE] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? "Creating your account..." : "Create professional account"}
         </button>
 
-        <p className="text-center text-sm text-[#8d788c]">
+        <p className="text-center text-sm text-[#656376]">
           Already have an account?{" "}
           <Link
             href="/login"
-            className="font-semibold text-[#916681] hover:underline"
+            className="font-semibold text-[#7673FF] transition hover:text-[#111018] hover:underline"
           >
             Sign in
           </Link>
