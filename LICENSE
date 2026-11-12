@@ -1,21 +1,26 @@
-MIT License
+Copyright (c) 2026 Meriem Chebab. All rights reserved.
 
-Copyright (c) 2026 Meriem Chebab
+Rahati is proprietary software and a private business project of Meriem
+Chebab, its founder.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This repository, including its source code, designs, documentation, research,
+data, brand, name, logo and mascot (together, the "Software"), is confidential
+and the exclusive property of Meriem Chebab.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+No license or right is granted to any person to use, copy, modify, merge,
+publish, distribute, sublicense, sell, host or create derivative works of the
+Software, in whole or in part, without the prior written permission of
+Meriem Chebab.
+
+Access to this repository does not grant any license. Team members and
+collaborators who have been given access may use the Software only to work on
+Rahati, as authorized by the founder, and must not share it with third parties.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM, OUT OF
+OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
+
+For permission requests, contact Meriem Chebab via
+https://github.com/meriemchebab.
