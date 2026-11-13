@@ -911,4 +911,4 @@ Contributions are by invitation only, from team members authorized by the founde
 
 ## License
 
-Rahati is proprietary. Copyright (c) 2026 Meriem Chebab, founder. All rights reserved. This is not open-source software: no one may use, copy, modify or distribute any part of it without written permission. See [LICENSE](LICENSE).
+Copyright (c) 2026 Meriem Chebab and the Rahati Team. All rights reserved. Rahati is proprietary and not open source: no part of it may be used, copied, modified or distributed without written permission. See [LICENSE](LICENSE).
