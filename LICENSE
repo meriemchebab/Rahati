@@ -1,55 +1,16 @@
-Rahati — Proprietary License
+Copyright (c) 2026 Meriem Chebab and the Rahati Team. All rights reserved.
 
-Copyright (c) 2026 Meriem Chebab and the Rahati team. All rights reserved.
+Rahati is proprietary software. It is not open source.
 
-1. Ownership
+This repository, including its source code, designs, documentation, research
+and assets, is the property of Meriem Chebab and the Rahati Team.
 
-   Rahati was founded by Meriem Chebab, who originated the project idea and
-   leads the product.
-
-   Each team member keeps the copyright in the work they personally created
-   for Rahati (code, designs, research, documents, visual assets), unless
-   they agree otherwise in writing. The team members and their contributions
-   are listed in the "Team" section of README.md.
-
-2. No public license
-
-   Rahati is not open-source software. Nothing in this repository is licensed
-   to the public. No one may use, copy, modify, publish, distribute,
-   sublicense, sell, host or create derivative works of this repository, in
-   whole or in part, without written permission from Meriem Chebab and from
-   the team member(s) who created the part concerned.
-
-3. Team use
-
-   Team members may use the whole repository to develop, test, demonstrate
-   and present Rahati. Each team member may also show the work they created
-   in their personal portfolio, CV or job applications, as long as they do
-   not publish the repository's source code or private data and they credit
-   Rahati as a team project.
-
-4. Confidentiality
-
-   Team members must not share the repository, or parts of it created by
-   others, with third parties without the agreement of the people concerned.
-
-5. Future agreements
-
-   Ownership, rights to commercial use, and any share in the business may be
-   set out in a separate written agreement signed by the team members. If
-   such an agreement exists, it takes priority over this file.
-
-6. Earlier versions
-
-   Versions of this repository published before this license was adopted
-   were released under the MIT License. This license applies to the
-   repository from the date it was adopted.
+No one may use, copy, modify, publish, distribute, sublicense, sell, host or
+create derivative works of any part of this repository without prior written
+permission from Meriem Chebab and the Rahati Team.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM, OUT
 OF OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
-
-For permission requests, contact Meriem Chebab via
-https://github.com/meriemchebab.
