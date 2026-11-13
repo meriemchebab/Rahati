@@ -914,7 +914,7 @@ Contributions are by invitation only, from team members authorized by the founde
 Rahati is proprietary and not open source. All rights reserved.
 
 - Meriem Chebab, the founder, owns the Rahati project and her own work.
-- Each contributor in the [Team](#team) owns the work they created. The logo, mascot, visual identity and designs belong to the people who designed them.
+- Each contributor in the [Team](#team) owns the work they created.
 - Each contributor may use their own work freely, for example in a portfolio, CV or other projects, but not other people's work or the repository as a whole.
 - No one else may use, copy, modify or distribute any part of Rahati without written permission.
 
