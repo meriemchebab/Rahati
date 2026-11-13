@@ -1,33 +1,40 @@
-Copyright (c) 2026 Meriem Chebab. All rights reserved.
+Copyright (c) 2026 Meriem Chebab, except for the work of other contributors
+as described below. All rights reserved.
 
 Rahati is proprietary software founded by Meriem Chebab. It is not open
 source.
 
-1. No public license
+1. Ownership
+
+   Meriem Chebab owns the Rahati project and the work she personally created
+   for it.
+
+   Each contributor listed in the "Team" section of README.md owns the work
+   they personally created for Rahati (their own code, designs, documents,
+   research or visual assets). In particular, the logo, the mascot, the
+   visual identity and the UI/UX designs belong to the contributors who
+   created them. Meriem Chebab does not claim ownership of them.
+
+2. No public license
 
    No one may use, copy, modify, publish, distribute, sublicense, sell, host
    or create derivative works of this repository, in whole or in part,
-   without prior written permission from Meriem Chebab.
+   without prior written permission. Permission for the repository as a
+   whole comes from Meriem Chebab; permission for a contributor's own work
+   comes from that contributor.
 
-2. Contributors' own work
+3. Contributors' own work
 
-   Each contributor listed in the "Team" section of README.md may use the
-   work they personally created for Rahati (their own code, designs or
-   documents) for any purpose, including their portfolio, CV or other
-   projects.
+   Each contributor may use the work they personally created for any
+   purpose, including their portfolio, CV or other projects.
 
-   This right covers only that contributor's own work. It does not cover:
-   - work created by other contributors;
-   - the repository as a whole;
-   - the Rahati name, brand, logo, mascot, assets, data or research, except
-     the parts that contributor personally created;
-   - any private data, secrets or user information.
+   This right covers only that contributor's own work. It does not cover
+   work created by other contributors, the repository as a whole, or any
+   private data, secrets or user information. A contributor must not use the
+   name "Rahati" for another product without written permission from
+   Meriem Chebab.
 
-   A contributor who uses their own work must not present it as Rahati or
-   use the Rahati name or brand without written permission from Meriem
-   Chebab.
-
-3. Team access
+4. Team access
 
    Contributors who have been given access to this repository may use it
    only to work on Rahati and must not share it, or other contributors'
@@ -40,4 +47,4 @@ AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM, OUT
 OF OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
 
 For permission requests, contact Meriem Chebab via
-https://github.com/meriemchebab.
+https://github.com/meriemchebab, or the contributor concerned.
